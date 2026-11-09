@@ -114,10 +114,12 @@ h3 { font-size: 15px; margin: 18px 0 6px; }
 .document summary { cursor: pointer; padding: 8px 12px; font-weight: 700; }
 .document .text { padding: 0 12px 12px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14.5px; max-height: 420px; overflow: auto; }
 .refs { margin-top: 6px; border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; background: var(--panel-2); }
-.refs ol { margin: 8px 0 0; padding-left: 22px; }
-.refs li { margin: 0 0 12px; }
+.refs ul { margin: 8px 0 0; padding-left: 0; list-style: none; }
+.refs li { margin: 0 0 12px; padding-left: 10px; border-left: 3px solid var(--line); }
 .refs .reftext { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; color: var(--muted); }
 .refs .links { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 4px; font-size: 14px; }
+/* The truth stays in view beside long answers. */
+@media (min-width: 901px) { section.truth { position: sticky; top: 64px; align-self: start; max-height: calc(100vh - 240px); overflow: auto; } }
 .truth p { margin: 0 0 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .truth .key { font-weight: 700; }
 .truth .label { font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin: 14px 0 2px; }
@@ -303,8 +305,10 @@ aside.guide li { margin: 6px 0; }
     return el("a", { href: url.href, target: "_blank", rel: "noopener noreferrer" }, label);
   }
 
-  // Text with its web links and DOIs made clickable.
-  const LINKY = /(https?:\/\/[^\s<>"'`]+|\b10\.\d{4,9}\/[^\s<>"'`]+)/gi;
+  // Text with its web links and DOIs made clickable. A Markdown link,
+  // [text](https://...), stays as written, with both its text and its address
+  // clickable on their own (never glued together into one broken link).
+  const LINKY = /\[([^\]\n]{1,500})\]\((https?:\/\/[^\s()]+(?:\([^\s()]*\)[^\s()]*)*)\)|(https?:\/\/[^\s<>"'`\]]+)|(\b10\.\d{4,9}\/[^\s<>"'`\]]+)/gi;
   function trimLink(raw) {
     let text = raw.replace(/[.,;:!?*_]+$/, "");
     while (/[)\]]$/.test(text)) {
@@ -318,10 +322,16 @@ aside.guide li { margin: 6px 0; }
     const frag = document.createDocumentFragment();
     let last = 0;
     for (const match of text.matchAll(LINKY)) {
-      const raw = match[0], link = trimLink(raw), start = match.index;
+      const start = match.index;
+      if (match[1] !== undefined) {
+        frag.append(document.createTextNode(text.slice(last, start)), "[", richText(match[1]), "](", safeLink(match[2], match[2]), ")");
+        last = start + match[0].length;
+        continue;
+      }
+      const raw = match[3] || match[4], link = trimLink(raw);
       if (!link) continue;
       frag.append(document.createTextNode(text.slice(last, start)));
-      const href = /^10\./.test(link) ? "https://doi.org/" + encodeURI(link) : link;
+      const href = match[4] ? "https://doi.org/" + encodeURI(link) : link;
       frag.append(safeLink(href, link));
       last = start + link.length;
     }
@@ -581,11 +591,13 @@ aside.guide li { margin: 6px 0; }
       return box;
     }
     box.append(el("p", { class: "lead", text: "A reference only counts if you can find it with the same title, authors and year. These are only the bot's words: nothing here was looked up." }));
-    const list = el("ol");
+    const list = el("ul");
     for (const ref of references) {
       const links = el("div", { class: "links" });
       for (const link of ref.links) links.append(safeLink(link.href, link.label + " ↗"));
-      list.append(el("li", {}, el("div", { class: "reftext", text: ref.text }), links));
+      let line = ref.text.split("\n").find(part => part.trim()) || ref.text;
+      if (line.length > 300) line = line.slice(0, 299) + "…";
+      list.append(el("li", {}, el("div", { class: "reftext", text: line.trim() }), links));
     }
     box.append(list);
     return box;

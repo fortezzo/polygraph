@@ -65,7 +65,10 @@ from polygraph.traps.schema import TrapType
 # 1: Session 4's first version.
 # 2: the reference check tells a real paper cited with the wrong details apart
 #    from a made-up one, searching Crossref by title and then by the whole reference.
-HARD_CHECKS_VERSION = "2"
+# 3: DOIs written as Markdown links, [https://doi.org/X](https://doi.org/X), are
+#    read as X. Before, the whole link was read as one DOI that doesn't exist.
+#    Found in Gemma 3 12B's answers in Session 5, before any labeling.
+HARD_CHECKS_VERSION = "3"
 TYPICAL_VERDICT_TOKENS = 150  # a typical verdict reply, for the estimate
 JUDGED_MARK = "_judged-by_"
 

@@ -286,7 +286,11 @@ class Reference:
 
 
 def _clean_doi(raw: str) -> str:
-    doi = raw.strip().rstrip(".,;:*")
+    doi = raw.strip()
+    # A DOI written as a Markdown link, [10.1000/xyz](https://doi.org/10.1000/xyz),
+    # ends where the link's text does. No real DOI contains "](".
+    doi = doi.split("](")[0]
+    doi = doi.rstrip(".,;:*")
     # Drop closing brackets that belong to the sentence, not the DOI:
     # "(doi: 10.1000/xyz)" ends in a ")" with no "(" inside the DOI.
     while doi and doi[-1] in ")]" and doi.count(doi[-1]) > doi.count("(" if doi[-1] == ")" else "["):

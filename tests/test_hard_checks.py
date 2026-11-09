@@ -250,6 +250,23 @@ def test_dois_lose_the_punctuation_around_them():
     assert refs[0].doi == "10.1207/s1536-7077(2000)00801-001"
 
 
+def test_dois_written_as_markdown_links_are_read_as_the_doi():
+    # Gemma 3 12B writes DOIs like this. The whole link used to be read as one
+    # DOI that doesn't exist, which would have called a real paper made up.
+    answer = (
+        "1. **Smith, J. (2022). Plastic in blood. *Env Int*, 1, 1-9.**\n"
+        "   * **DOI:** [https://doi.org/10.1007/s10347-022-00876-1](https://doi.org/10.1007/s10347-022-00876-1)\n"
+        "2. **Jones, K. (2021). Another study. *Nature*, 2, 3-4.**\n"
+        "   * **DOI:** [10.1000/xyz123](https://doi.org/10.1000/xyz123)\n"
+        "3. **Brown, A. (2020). [A linked title](https://doi.org/10.1016/S0140-6736(20)30183-5).**"
+    )
+    assert [ref.doi for ref in find_references(answer)] == [
+        "10.1007/s10347-022-00876-1",
+        "10.1000/xyz123",
+        "10.1016/S0140-6736(20)30183-5",
+    ]
+
+
 def test_extract_title_ways():
     assert extract_title('"A quoted title about sleep" by Someone (2001)') == ("A quoted title about sleep", "quoted")
     assert extract_title("Title: A labelled title on memory\nYear: 2001") == ("A labelled title on memory", "labelled")
