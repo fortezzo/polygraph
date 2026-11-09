@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "polygraph"
+dynamic = ["version"]
+description = "A lie detector for AI chatbots: trap questions, an AI judge and a report card."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Christian Fortezzo" }]
+dependencies = [
+    "httpx>=0.27",
+    "python-dotenv>=1.0",
+    "rich>=13.7",
+    "typer>=0.12",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+polygraph = "polygraph.cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "polygraph.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["polygraph*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
