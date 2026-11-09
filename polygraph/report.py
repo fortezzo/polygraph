@@ -389,12 +389,23 @@ def verdict_entry(result: TrapResult) -> Group:
     question = str(result.trap.get("question", ""))
     lines.append(_indented(Text(f"Q: {_one_line(question, 160)}", style="dim")))
     if result.made_up_phrase:
-        lines.append(_indented(Text(f"Made up: “{_one_line(result.made_up_phrase, 240)}”", style="italic")))
+        lines.append(_indented(Text(f"{phrase_label(result)}: “{_one_line(result.made_up_phrase, 240)}”", style="italic")))
     if result.reason:
         lines.append(_indented(Text(f"Why: {result.reason}")))
     elif result.judgement and result.judgement.error:
         lines.append(_indented(Text(result.judgement.error, style="yellow")))
     return Group(*lines)
+
+
+def phrase_label(result: TrapResult) -> str:
+    """What to call the quoted phrase: "Made up", or "Cited wrong" when it's a
+    reference to a real paper with the wrong details."""
+    judgement = result.judgement
+    if judgement is not None and judgement.hard_check is not None and judgement.hard_check.kind == "references":
+        for reference in judgement.hard_check.details.get("references", []):
+            if reference.get("quote") == result.made_up_phrase and reference.get("label") == "real paper, wrong details":
+                return "Cited wrong"
+    return "Made up"
 
 
 def _indented(renderable: RenderableType) -> Padding:
@@ -462,6 +473,8 @@ def trap_detail(result: TrapResult, run_file: RunFile) -> Panel:
     judgement = result.judgement
     if judgement is not None and judgement.hard_check is not None:
         parts += [Text(""), Text("Hard check (no AI)", style=f"bold {MANILA}"), Text(judgement.hard_check.summary)]
+        for reference in judgement.hard_check.details.get("references", []):
+            parts.append(_reference_line(reference))
     if judgement is not None and judgement.replies:
         parts += [Text(""), Text("The AI judge's reply", style=f"bold {MANILA}")]
         for reply in judgement.replies:
@@ -469,6 +482,38 @@ def trap_detail(result: TrapResult, run_file: RunFile) -> Panel:
         if judgement.fix_requested:
             parts.append(Text(f"(It was asked to fix its first reply: {judgement.fix_requested})", style="dim"))
     return Panel(Group(*parts), title=Text(f" {result.id} ", style="bold"), title_align="left", border_style=MANILA, box=box.ROUNDED)
+
+
+REFERENCE_STYLE = {
+    "checks out": "green",
+    "real paper, wrong details": "#ffaf00",
+    "made up": "red",
+    "can't tell": "dim",
+    "couldn't be checked": "yellow",
+}
+
+
+def _reference_line(reference: dict) -> Padding:
+    """One reference from the reference check: its label, and for a real paper
+    cited wrong, which paper it is and what was wrong."""
+    label = reference.get("label") or ""
+    line = Text()
+    line.append(f"Reference {reference.get('number')}: ", style="bold")
+    line.append(label, style=REFERENCE_STYLE.get(label, ""))
+    wrong = reference.get("wrong") or []
+    if label == "real paper, wrong details" and wrong:
+        named = [f"the {item}" for item in wrong]
+        line.append(f" ({', '.join(named[:-1]) + ' and ' + named[-1] if len(named) > 1 else named[0]} wrong)")
+    real = reference.get("real_paper")
+    if real:
+        people = real.get("authors") or real.get("groups") or []
+        who = people[0] + (" et al." if len(people) > 1 else "") if people else "unknown authors"
+        years = "/".join(str(y) for y in real.get("years", [])) or "no year"
+        line.append(f". The real paper: \"{real.get('title')}\" by {who} ({years}), DOI {real.get('doi')}", style="dim")
+    quote = reference.get("quote") or ""
+    if quote:
+        line.append(f"\n“{_one_line(quote, 200)}”", style="italic dim")
+    return _indented(line)
 
 
 def _highlight(text: str, phrase: str | None) -> Text:

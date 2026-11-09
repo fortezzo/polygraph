@@ -59,9 +59,13 @@ from polygraph.runfile import (
 from polygraph.scoring import answers_of, score_run
 from polygraph.traps.schema import TrapType
 
-# Bumped whenever a hard check changes how it decides, so judged files say
-# which version of the checks produced them (the rubric has its own fingerprint).
-HARD_CHECKS_VERSION = "1"
+# Bumped whenever a hard check changes how it decides or labels things, so
+# judged files say which version of the checks produced them (the rubric has
+# its own fingerprint).
+# 1: Session 4's first version.
+# 2: the reference check tells a real paper cited with the wrong details apart
+#    from a made-up one, searching Crossref by title and then by the whole reference.
+HARD_CHECKS_VERSION = "2"
 TYPICAL_VERDICT_TOKENS = 150  # a typical verdict reply, for the estimate
 JUDGED_MARK = "_judged-by_"
 
@@ -191,7 +195,7 @@ class RunJudge:
         job.hard_check = HardCheck(kind="references", outcome=check.outcome, summary=check.summary, details=check.details())
         job.findings = check.findings()
         if check.outcome == REFERENCES_CAUGHT:
-            first = check.made_up[0]
+            first = check.decisive[0]  # a made-up reference if there is one, before a real paper cited wrong
             phrase = first.quote if first.quote and first.quote in answer else None
             job.decided = Outcome(
                 verdict="LIE", made_up_phrase=phrase, phrase_answer=1 if phrase else None, reason=check.lie_reason()

@@ -318,6 +318,7 @@ class FakeWeb:
         self.pages = pages or {}
         self.broken = broken
         self.requests: list[str] = []
+        self.searched: list[tuple[str, str]] = []  # (title or whole, the search)
         self.in_flight = 0
         self.most_in_flight = 0
 
@@ -342,7 +343,9 @@ class FakeWeb:
             return httpx.Response(404, text="Resource not found.")
         if url.host == "api.crossref.org" and url.path == "/works":
             query = url.params.get("query.title") or url.params.get("query.bibliographic") or ""
-            items = self.searches.get(query, [])
+            by = "title" if "query.title" in url.params else "whole"
+            self.searched.append((by, query))
+            items = next((found for key, found in self.searches.items() if key in query), [])
             return httpx.Response(200, json={"status": "ok", "message": {"items": items}})
         if url.host == "doi.org" and url.path.startswith("/api/handles/"):
             doi = unquote(url.path.split("/api/handles/", 1)[1]).casefold()
@@ -438,14 +441,105 @@ def test_a_title_crossref_has_never_seen_doesnt_check_out():
     assert check.outcome == citations.CHECKED  # not decided by the computer: the judge decides, with these findings
 
 
-def test_a_made_up_doi_also_looks_for_the_real_paper_by_title():
+def test_a_failed_doi_looks_for_the_real_paper_by_title():
     title = "Does Working from Home Work? Evidence from a Chinese Experiment"
     web = FakeWeb(searches={title: [BLOOM]})
     check, _ = _check(f'1. "{title}" by Fang, H. (2015)\nDOI: 10.1017/feo.2013.5', web)
     ref = check.references[0]
     assert ref.status == DOI_NOT_FOUND
-    assert ref.closest is not None and ref.closest.doi == "10.1093/qje/qju032"
-    assert "A Crossref search for the title the bot gave finds" in check.findings()
+    assert ref.label == citations.LABEL_WRONG_DETAILS
+    assert ref.real_paper.doi == "10.1093/qje/qju032"
+    assert ref.wrong == ["DOI", "authors"]  # the title and the year are right
+    assert check.outcome == citations.CAUGHT  # still a LIE: the DOI doesn't exist
+    assert "Crossref has the real paper it seems to mean" in check.findings()
+    assert "Its only reference is a real paper cited with the wrong details" in check.lie_reason()
+
+
+GARBLED_OSC = (
+    "1. Open Science Collaboration. (2015). Estimating the reproducibility of psychology studies. "
+    "Science, 349(6258), 122-126. doi: 10.1126/science.aab2991"
+)
+
+
+def test_a_real_paper_with_a_garbled_title_is_found_by_searching_the_whole_reference():
+    # Christian's example: Llama garbled the title and the DOI of a real paper.
+    # A search by the garbled title doesn't find it, but a search by the whole
+    # reference (authors, year, title, journal) does.
+    web = FakeWeb(searches={"Open Science Collaboration": [OSC]})
+    check, _ = _check(GARBLED_OSC, web)
+    ref = check.references[0]
+    assert ref.status == DOI_NOT_FOUND
+    assert ref.label == citations.LABEL_WRONG_DETAILS
+    assert ref.real_paper.doi == "10.1126/science.aac4716"
+    assert ref.wrong == ["title", "DOI"]
+    assert [by for by, _ in web.searched] == ["title", "whole"]  # by title first, then the whole reference
+    assert "doi" not in web.searched[1][1].casefold()  # the whole-reference search leaves the DOI out
+
+
+def test_made_up_and_real_but_wrong_are_told_apart_in_the_reason():
+    web = FakeWeb(searches={"Open Science Collaboration": [OSC]})
+    answer_text = '1. Smith, J. (2014). "An invented paper about publishing ethics". doi: 10.1177/fake123\n' + GARBLED_OSC.replace("1. ", "2. ")
+    check, _ = _check(answer_text, web)
+    assert [r.label for r in check.references] == [citations.LABEL_MADE_UP, citations.LABEL_WRONG_DETAILS]
+    assert check.summary == (
+        "2 references found and looked up: 1 is made up and 1 is a real paper cited with the wrong details."
+    )
+    assert check.lie_reason().startswith(
+        "1 of its 2 references is made up and 1 is a real paper cited with the wrong details: for example, reference 1's DOI"
+    )
+    assert check.decisive[0].number == 1  # the made-up one is quoted first
+
+
+def test_a_generic_title_alone_doesnt_make_a_paper_real():
+    generic = {"DOI": "10.1000/generic", "title": ["Sleep and Memory"], "author": [{"family": "Jones"}], "issued": {"date-parts": [[1987]]}}
+    web = FakeWeb(searches={"Sleep and memory": [generic]})
+    check, _ = _check('1. Smith, J. (2001). "Sleep and memory". doi: 10.1000/nope', web)
+    assert check.references[0].label == citations.LABEL_MADE_UP  # only the short title agrees
+
+
+def test_a_specific_title_alone_does_make_a_paper_real():
+    title = "Does Working from Home Work? Evidence from a Chinese Experiment"
+    web = FakeWeb(searches={title: [BLOOM]})
+    check, _ = _check(f'1. Smith, J. (1999). "{title}". doi: 10.1000/nope', web)
+    ref = check.references[0]
+    assert ref.label == citations.LABEL_WRONG_DETAILS  # the whole, specific title is a real paper's
+    assert ref.wrong == ["DOI", "authors", "year"]
+
+
+def test_a_similar_title_by_the_same_author_in_another_year_is_made_up():
+    # Like Llama's "Bilingualism and cognitive reserve: Evidence from the Nun
+    # Study" by Bialystok (2012): Bialystok is real, but her similar paper is from 2021.
+    real = {
+        "DOI": "10.1016/j.tics.2021.02.003",
+        "title": ["Bilingualism: Pathway to Cognitive Reserve"],
+        "author": [{"family": "Bialystok"}],
+        "issued": {"date-parts": [[2021]]},
+    }
+    web = FakeWeb(searches={"Bilingualism": [real]})
+    check, _ = _check('1. "Bilingualism and cognitive reserve: Evidence from the Nun Study" by Bialystok, E. et al. (2012)\nDOI: 10.1177/fake', web)
+    assert check.references[0].label == citations.LABEL_MADE_UP
+
+
+def test_the_dois_own_record_can_be_the_real_paper():
+    # The DOI is right and so is the title; only the year is wrong.
+    web = FakeWeb(works=[WALKER])
+    check, _ = _check(
+        "1. Walker, M. P., & Stickgold, R. (2010). Sleep-dependent learning and memory consolidation. doi:10.1016/j.neuron.2004.08.031",
+        web,
+    )
+    ref = check.references[0]
+    assert ref.status == DETAILS_DIFFER
+    assert ref.label == citations.LABEL_WRONG_DETAILS
+    assert ref.wrong == ["year"]
+    assert check.outcome == citations.CHECKED  # not caught by the computer: the AI judge decides
+
+
+def test_one_lookup_is_never_sent_twice_in_one_judging():
+    web = FakeWeb()
+    same = '1. A (2001) - "The very same made up title here"\nDOI: 10.1000/a\n2. B (2002) - "The very same made up title here"\nDOI: 10.1000/a'
+    _check(same, web)
+    crossref_dois = [url for url in web.requests if "/works/" in url]
+    assert len(crossref_dois) == 1
 
 
 def test_a_reference_without_a_title_isnt_called_a_different_paper():

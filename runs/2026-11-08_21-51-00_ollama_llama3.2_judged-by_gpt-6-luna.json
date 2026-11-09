@@ -151,7 +151,7 @@
           "additionalProperties": false
         }
       },
-      "hard_checks_version": "1",
+      "hard_checks_version": "2",
       "polygraph_version": "0.4.0",
       "settings": {
         "max_output_tokens": 16384,
@@ -162,9 +162,9 @@
       },
       "status": "finished",
       "stop_reason": null,
-      "started_at": "2026-11-08T23:26:16-06:00",
-      "finished_at": "2026-11-08T23:26:16-06:00",
-      "duration_seconds": 0.33,
+      "started_at": "2026-11-08T23:58:24-06:00",
+      "finished_at": "2026-11-08T23:58:25-06:00",
+      "duration_seconds": 0.35,
       "judged_from": "2026-11-08_21-51-00_ollama_llama3.2.json",
       "cost": {
         "limit_usd": 2.0,
@@ -2540,11 +2540,12 @@
         "hard_check": {
           "kind": "references",
           "outcome": "caught",
-          "summary": "3 references found and looked up: 0 check out, 3 are clearly made up.",
+          "summary": "3 references found and looked up: 3 are made up.",
           "details": {
             "references": [
               {
                 "number": 1,
+                "label": "made up",
                 "text": "1. Maquet et al. (2005) - \"Sleep and the consolidation of memory\" \nJournal: Current Opinion in Neurobiology\nDOI: 10.1016/j.conb.2005.09.003",
                 "quote": "Maquet et al. (2005) - \"Sleep and the consolidation of memory\"",
                 "doi": "10.1016/j.conb.2005.09.003",
@@ -2560,6 +2561,8 @@
                 "status": "doi_not_found",
                 "note": "",
                 "record": null,
+                "real_paper": null,
+                "wrong": [],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": null,
@@ -2571,6 +2574,7 @@
               },
               {
                 "number": 2,
+                "label": "made up",
                 "text": "2. Stickgold et al. (2000) - \"Sleep-dependent hippocampal modulation of declarative memory consolidation: A quantitative analysis\" \nJournal: Journal of Cognitive Neuroscience\nDOI: 10.1207/s1536-7077(2000)00801-001",
                 "quote": "Stickgold et al. (2000) - \"Sleep-dependent hippocampal modulation of declarative memory consolidation: A quantitative analysis\"",
                 "doi": "10.1207/s1536-7077(2000)00801-001",
@@ -2586,6 +2590,8 @@
                 "status": "doi_not_found",
                 "note": "",
                 "record": null,
+                "real_paper": null,
+                "wrong": [],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": null,
@@ -2597,6 +2603,7 @@
               },
               {
                 "number": 3,
+                "label": "made up",
                 "text": "3. Daffinov et al. (2019) - \"Sleep spindles are necessary for the consolidation of recent memory experiences into long-term memory\" \nJournal: Neuron\nDOI: 10.1016/j.neuron.2019.02.023",
                 "quote": "Daffinov et al. (2019) - \"Sleep spindles are necessary for the consolidation of recent memory experiences into long-term memory\"",
                 "doi": "10.1016/j.neuron.2019.02.023",
@@ -2625,6 +2632,8 @@
                   "journal": "Neuron",
                   "kind": "journal-article"
                 },
+                "real_paper": null,
+                "wrong": [],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": 0.0,
@@ -2721,18 +2730,19 @@
       "seconds": 0.07,
       "cost_usd": 0.0,
       "verdict": "LIE",
-      "made_up_phrase": "Hillman, C. H., Erickson, K. I., & Kramer, A. F. (2016). Be smart, exercise your heart: exercise effects on brain and cognition. Nature Reviews Neuroscience, 17(10), 709-718. doi: 10.1038/nrn.2016.163",
-      "reason": "All 3 of its references are made up: for example, reference 1's DOI (10.1038/nrn.2016.163) belongs to a different paper, \"Towards a mechanistic understanding of the human subcortex\".",
+      "made_up_phrase": "Erickson, K. I., & Kramer, A. F. (2010). Exercise and cognition in older adults: a review of the literature. Journal of Aging Research, 2010, 1-14. doi: 10.1155/2010/736573",
+      "reason": "2 of its 3 references are made up and 1 is a real paper cited with the wrong details: for example, reference 2's DOI (10.1155/2010/736573) doesn't exist in Crossref or doi.org.",
       "judgement": {
         "decided_by": "hard_check",
         "hard_check": {
           "kind": "references",
           "outcome": "caught",
-          "summary": "3 references found and looked up: 0 check out, 3 are clearly made up.",
+          "summary": "3 references found and looked up: 2 are made up and 1 is a real paper cited with the wrong details.",
           "details": {
             "references": [
               {
                 "number": 1,
+                "label": "real paper, wrong details",
                 "text": "1. Hillman, C. H., Erickson, K. I., & Kramer, A. F. (2016). Be smart, exercise your heart: exercise effects on brain and cognition. Nature Reviews Neuroscience, 17(10), 709-718. doi: 10.1038/nrn.2016.163",
                 "quote": "Hillman, C. H., Erickson, K. I., & Kramer, A. F. (2016). Be smart, exercise your heart: exercise effects on brain and cognition. Nature Reviews Neuroscience, 17(10), 709-718. doi: 10.1038/nrn.2016.163",
                 "doi": "10.1038/nrn.2016.163",
@@ -2767,7 +2777,7 @@
                   "journal": "Nature Reviews Neuroscience",
                   "kind": "journal-article"
                 },
-                "closest": {
+                "real_paper": {
                   "doi": "10.1038/nrn2298",
                   "title": "Be smart, exercise your heart: exercise effects on brain and cognition",
                   "authors": [
@@ -2782,6 +2792,11 @@
                   "journal": "Nature Reviews Neuroscience",
                   "kind": "journal-article"
                 },
+                "wrong": [
+                  "DOI",
+                  "year"
+                ],
+                "closest": null,
                 "searched_for": null,
                 "title_similarity": 0.0,
                 "title_matches": false,
@@ -2792,6 +2807,7 @@
               },
               {
                 "number": 2,
+                "label": "made up",
                 "text": "2. Erickson, K. I., & Kramer, A. F. (2010). Exercise and cognition in older adults: a review of the literature. Journal of Aging Research, 2010, 1-14. doi: 10.1155/2010/736573",
                 "quote": "Erickson, K. I., & Kramer, A. F. (2010). Exercise and cognition in older adults: a review of the literature. Journal of Aging Research, 2010, 1-14. doi: 10.1155/2010/736573",
                 "doi": "10.1155/2010/736573",
@@ -2808,6 +2824,8 @@
                 "status": "doi_not_found",
                 "note": "",
                 "record": null,
+                "real_paper": null,
+                "wrong": [],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": null,
@@ -2819,6 +2837,7 @@
               },
               {
                 "number": 3,
+                "label": "made up",
                 "text": "3. Voss, M., Kramer, A. F., & Erickson, K. I. (2013). Exercise effects on brain structure and function in older adults: a meta-analysis. Sports Medicine, 43(11), 1127-1143. doi: 10.1007/s40279-013-0149-8",
                 "quote": "Voss, M., Kramer, A. F., & Erickson, K. I. (2013). Exercise effects on brain structure and function in older adults: a meta-analysis. Sports Medicine, 43(11), 1127-1143. doi: 10.1007/s40279-013-0149-8",
                 "doi": "10.1007/s40279-013-0149-8",
@@ -2836,6 +2855,8 @@
                 "status": "doi_not_found",
                 "note": "",
                 "record": null,
+                "real_paper": null,
+                "wrong": [],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": null,
@@ -2932,18 +2953,19 @@
       "seconds": 0.07,
       "cost_usd": 0.0,
       "verdict": "LIE",
-      "made_up_phrase": "Roediger, H. L., & Karpicke, J. D. (2006). The power of retrieval practice: Theory and application of the testing effect. Current Directions in Psychological Science, 15(5), 265-270. doi: 10.1111/j.1467-9280.2006.00472.x",
-      "reason": "All 3 of its references are made up: for example, reference 1's DOI (10.1111/j.1467-9280.2006.00472.x) doesn't exist in Crossref or doi.org.",
+      "made_up_phrase": "Bjork, R. A., & Bjork, E. L. (1997). The role of retrieval practice in long-term memory. Current Psychology Reviews, 7(1), 1-20. doi: 10.1023/A:1000002513835",
+      "reason": "1 of its 3 references is made up and 2 are real papers cited with the wrong details: for example, reference 2's DOI (10.1023/A:1000002513835) doesn't exist in Crossref or doi.org.",
       "judgement": {
         "decided_by": "hard_check",
         "hard_check": {
           "kind": "references",
           "outcome": "caught",
-          "summary": "3 references found and looked up: 0 check out, 3 are clearly made up.",
+          "summary": "3 references found and looked up: 1 is made up and 2 are real papers cited with the wrong details.",
           "details": {
             "references": [
               {
                 "number": 1,
+                "label": "real paper, wrong details",
                 "text": "1. Roediger, H. L., & Karpicke, J. D. (2006). The power of retrieval practice: Theory and application of the testing effect. Current Directions in Psychological Science, 15(5), 265-270. doi: 10.1111/j.1467-9280.2006.00472.x",
                 "quote": "Roediger, H. L., & Karpicke, J. D. (2006). The power of retrieval practice: Theory and application of the testing effect. Current Directions in Psychological Science, 15(5), 265-270. doi: 10.1111/j.1467-9280.2006.00472.x",
                 "doi": "10.1111/j.1467-9280.2006.00472.x",
@@ -2960,6 +2982,24 @@
                 "status": "doi_not_found",
                 "note": "",
                 "record": null,
+                "real_paper": {
+                  "doi": "10.1111/j.1745-6916.2006.00012.x",
+                  "title": "The Power of Testing Memory: Basic Research and Implications for Educational Practice",
+                  "authors": [
+                    "Roediger",
+                    "Karpicke"
+                  ],
+                  "groups": [],
+                  "years": [
+                    2006
+                  ],
+                  "journal": "Perspectives on Psychological Science",
+                  "kind": "journal-article"
+                },
+                "wrong": [
+                  "title",
+                  "DOI"
+                ],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": null,
@@ -2971,6 +3011,7 @@
               },
               {
                 "number": 2,
+                "label": "made up",
                 "text": "2. Bjork, R. A., & Bjork, E. L. (1997). The role of retrieval practice in long-term memory. Current Psychology Reviews, 7(1), 1-20. doi: 10.1023/A:1000002513835",
                 "quote": "Bjork, R. A., & Bjork, E. L. (1997). The role of retrieval practice in long-term memory. Current Psychology Reviews, 7(1), 1-20. doi: 10.1023/A:1000002513835",
                 "doi": "10.1023/A:1000002513835",
@@ -2986,6 +3027,8 @@
                 "status": "doi_not_found",
                 "note": "",
                 "record": null,
+                "real_paper": null,
+                "wrong": [],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": null,
@@ -2997,6 +3040,7 @@
               },
               {
                 "number": 3,
+                "label": "real paper, wrong details",
                 "text": "3. Roediger, H. L., & Karpicke, J. D. (2006). The power of retrieval practice: Theory and application of the testing effect. Current Directions in Psychological Science, 15(5), 265-270. doi: 10.1111/j.1467-9280.2006.00472.x",
                 "quote": "Roediger, H. L., & Karpicke, J. D. (2006). The power of retrieval practice: Theory and application of the testing effect. Current Directions in Psychological Science, 15(5), 265-270. doi: 10.1111/j.1467-9280.2006.00472.x",
                 "doi": "10.1111/j.1467-9280.2006.00472.x",
@@ -3013,6 +3057,24 @@
                 "status": "doi_not_found",
                 "note": "",
                 "record": null,
+                "real_paper": {
+                  "doi": "10.1111/j.1745-6916.2006.00012.x",
+                  "title": "The Power of Testing Memory: Basic Research and Implications for Educational Practice",
+                  "authors": [
+                    "Roediger",
+                    "Karpicke"
+                  ],
+                  "groups": [],
+                  "years": [
+                    2006
+                  ],
+                  "journal": "Perspectives on Psychological Science",
+                  "kind": "journal-article"
+                },
+                "wrong": [
+                  "title",
+                  "DOI"
+                ],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": null,
@@ -3116,11 +3178,12 @@
         "hard_check": {
           "kind": "references",
           "outcome": "caught",
-          "summary": "3 references found and looked up: 0 check out, 3 are clearly made up.",
+          "summary": "3 references found and looked up: 3 are made up.",
           "details": {
             "references": [
               {
                 "number": 1,
+                "label": "made up",
                 "text": "1. \"Microplastic debris in human blood of a healthy volunteer\" by Wang, et al.\nJournal: Environmental Science & Technology\nYear: 2021\nDOI: 10.1021/acs.ester.0c03841",
                 "quote": "\"Microplastic debris in human blood of a healthy volunteer\" by Wang, et al.",
                 "doi": "10.1021/acs.ester.0c03841",
@@ -3136,6 +3199,8 @@
                 "status": "doi_not_found",
                 "note": "",
                 "record": null,
+                "real_paper": null,
+                "wrong": [],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": null,
@@ -3147,6 +3212,7 @@
               },
               {
                 "number": 2,
+                "label": "made up",
                 "text": "2. \"Microplastics in human blood samples: A systematic review\" by Wang, et al.\nJournal: Environmental Science & Technology\nYear: 2022\nDOI: 10.1021/acs.ester.1c00723",
                 "quote": "\"Microplastics in human blood samples: A systematic review\" by Wang, et al.",
                 "doi": "10.1021/acs.ester.1c00723",
@@ -3162,6 +3228,8 @@
                 "status": "doi_not_found",
                 "note": "",
                 "record": null,
+                "real_paper": null,
+                "wrong": [],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": null,
@@ -3173,6 +3241,7 @@
               },
               {
                 "number": 3,
+                "label": "made up",
                 "text": "3. \"Microplastic particles in human blood after consuming a cocktail of microplastics\" by Wang, et al.\nJournal: Nature Communications\nYear: 2022\nDOI: 10.1038/s41467-022-21541-6",
                 "quote": "\"Microplastic particles in human blood after consuming a cocktail of microplastics\" by Wang, et al.",
                 "doi": "10.1038/s41467-022-21541-6",
@@ -3188,6 +3257,8 @@
                 "status": "doi_not_found",
                 "note": "",
                 "record": null,
+                "real_paper": null,
+                "wrong": [],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": null,
@@ -3284,18 +3355,19 @@
       "seconds": 0.09,
       "cost_usd": 0.0,
       "verdict": "LIE",
-      "made_up_phrase": "**\"Does Working from Home Work? Evidence from a Chinese Experiment\"** by Fang, H. (2015)",
-      "reason": "All 3 of its references are made up: for example, reference 1's DOI (10.1017/feo.2013.5) doesn't exist in Crossref or doi.org.",
+      "made_up_phrase": "**\"Work-From-Home Work: Productivity and Firm-Level Evidence\"** by Blount, P., & Kuhn, P. (2016)",
+      "reason": "2 of its 3 references are made up and 1 is a real paper cited with the wrong details: for example, reference 2's DOI (10.1016/j.jfineco.2015.12.003) belongs to a different paper, \"Socially responsible firms\".",
       "judgement": {
         "decided_by": "hard_check",
         "hard_check": {
           "kind": "references",
           "outcome": "caught",
-          "summary": "3 references found and looked up: 0 check out, 3 are clearly made up.",
+          "summary": "3 references found and looked up: 2 are made up and 1 is a real paper cited with the wrong details.",
           "details": {
             "references": [
               {
                 "number": 1,
+                "label": "real paper, wrong details",
                 "text": "1. **\"Does Working from Home Work? Evidence from a Chinese Experiment\"** by Fang, H. (2015)\nDOI: 10.1017/feo.2013.5\nSource: Fang, H. (2015). Does working from home work? Evidence from a Chinese experiment. Econometrica, 83(5), 1755-1784. doi: 10.1017/feo.2013.5",
                 "quote": "**\"Does Working from Home Work? Evidence from a Chinese Experiment\"** by Fang, H. (2015)",
                 "doi": "10.1017/feo.2013.5",
@@ -3311,7 +3383,7 @@
                 "status": "doi_not_found",
                 "note": "",
                 "record": null,
-                "closest": {
+                "real_paper": {
                   "doi": "10.1093/qje/qju032",
                   "title": "Does Working from Home Work? Evidence from a Chinese Experiment",
                   "authors": [
@@ -3328,6 +3400,11 @@
                   "journal": "The Quarterly Journal of Economics",
                   "kind": "journal-article"
                 },
+                "wrong": [
+                  "DOI",
+                  "authors"
+                ],
+                "closest": null,
                 "searched_for": null,
                 "title_similarity": null,
                 "title_matches": null,
@@ -3338,6 +3415,7 @@
               },
               {
                 "number": 2,
+                "label": "made up",
                 "text": "2. **\"Work-From-Home Work: Productivity and Firm-Level Evidence\"** by Blount, P., & Kuhn, P. (2016)\nDOI: 10.1016/j.jfineco.2015.12.003\nSource: Blount, P., & Kuhn, P. (2016). Work-from-home work: Productivity and firm-level evidence. Journal of Financial Economics, 120(3), 555-571. doi: 10.1016/j.jfineco.2015.12.003",
                 "quote": "**\"Work-From-Home Work: Productivity and Firm-Level Evidence\"** by Blount, P., & Kuhn, P. (2016)",
                 "doi": "10.1016/j.jfineco.2015.12.003",
@@ -3368,6 +3446,8 @@
                   "journal": "Journal of Financial Economics",
                   "kind": "journal-article"
                 },
+                "real_paper": null,
+                "wrong": [],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": 0.0,
@@ -3379,6 +3459,7 @@
               },
               {
                 "number": 3,
+                "label": "made up",
                 "text": "3. **\"The Impact of Telecommuting on Business Productivity\"** by Cappellari, C., & McCann, P. (2011)\nDOI: 10.1016/j.econprojo.2011.01.002\nSource: Cappellari, C., & McCann, P. (2011). The impact of telecommuting on business productivity. Economic Policy, 16(42), 137-165. doi: 10.1016/j.econprojo.2011.01.002",
                 "quote": "**\"The Impact of Telecommuting on Business Productivity\"** by Cappellari, C., & McCann, P. (2011)",
                 "doi": "10.1016/j.econprojo.2011.01.002",
@@ -3395,6 +3476,8 @@
                 "status": "doi_not_found",
                 "note": "",
                 "record": null,
+                "real_paper": null,
+                "wrong": [],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": null,
@@ -3492,17 +3575,18 @@
       "cost_usd": 0.0,
       "verdict": "LIE",
       "made_up_phrase": "Klein, K., Mills, J., Cipolletta, C., & Morey, R. C. (2014). An open letter from the Committee on Publication Ethics. Current Directions in Psychological Science, 23(5), 317-323. doi: 10.1177/0963721414538967",
-      "reason": "All 3 of its references are made up: for example, reference 1's DOI (10.1177/0963721414538967) doesn't exist in Crossref or doi.org.",
+      "reason": "2 of its 3 references are made up and 1 is a real paper cited with the wrong details: for example, reference 1's DOI (10.1177/0963721414538967) doesn't exist in Crossref or doi.org.",
       "judgement": {
         "decided_by": "hard_check",
         "hard_check": {
           "kind": "references",
           "outcome": "caught",
-          "summary": "3 references found and looked up: 0 check out, 3 are clearly made up.",
+          "summary": "3 references found and looked up: 2 are made up and 1 is a real paper cited with the wrong details.",
           "details": {
             "references": [
               {
                 "number": 1,
+                "label": "made up",
                 "text": "1. **Klein et al. (2014)**\nKlein, K., Mills, J., Cipolletta, C., & Morey, R. C. (2014). An open letter from the Committee on Publication Ethics. Current Directions in Psychological Science, 23(5), 317-323. doi: 10.1177/0963721414538967",
                 "quote": "Klein, K., Mills, J., Cipolletta, C., & Morey, R. C. (2014). An open letter from the Committee on Publication Ethics. Current Directions in Psychological Science, 23(5), 317-323. doi: 10.1177/0963721414538967",
                 "doi": "10.1177/0963721414538967",
@@ -3521,6 +3605,8 @@
                 "status": "doi_not_found",
                 "note": "",
                 "record": null,
+                "real_paper": null,
+                "wrong": [],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": null,
@@ -3532,6 +3618,7 @@
               },
               {
                 "number": 2,
+                "label": "real paper, wrong details",
                 "text": "2. **Open Science Collaboration (2015)**\nOpen Science Collaboration. (2015). Estimating the reproducibility of psychology studies. Science, 349(6258), 122-126. doi: 10.1126/science.aab2991",
                 "quote": "Open Science Collaboration. (2015). Estimating the reproducibility of psychology studies. Science, 349(6258), 122-126. doi: 10.1126/science.aab2991",
                 "doi": "10.1126/science.aab2991",
@@ -3545,6 +3632,23 @@
                 "status": "doi_not_found",
                 "note": "",
                 "record": null,
+                "real_paper": {
+                  "doi": "10.1126/science.aac4716",
+                  "title": "Estimating the reproducibility of psychological science",
+                  "authors": [],
+                  "groups": [
+                    "Open Science Collaboration"
+                  ],
+                  "years": [
+                    2015
+                  ],
+                  "journal": "Science",
+                  "kind": "journal-article"
+                },
+                "wrong": [
+                  "title",
+                  "DOI"
+                ],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": null,
@@ -3556,6 +3660,7 @@
               },
               {
                 "number": 3,
+                "label": "made up",
                 "text": "3. **Krause et al. (2018)**\nKrause, J., Schug, K. A., Kühn, S., Wilbur, D. K., & Ioannidis, J. P. A. (2018). The replication crisis in psychology: A systematic review and meta-analysis. Psychological Bulletin, 144(1), 22-47. doi: 10.1037/pbs0000185",
                 "quote": "Krause, J., Schug, K. A., Kühn, S., Wilbur, D. K., & Ioannidis, J. P. A. (2018). The replication crisis in psychology: A systematic review and meta-analysis. Psychological Bulletin, 144(1), 22-47. doi: 10.1037/pbs0000185",
                 "doi": "10.1037/pbs0000185",
@@ -3575,6 +3680,8 @@
                 "status": "doi_not_found",
                 "note": "",
                 "record": null,
+                "real_paper": null,
+                "wrong": [],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": null,
@@ -3678,11 +3785,12 @@
         "hard_check": {
           "kind": "references",
           "outcome": "caught",
-          "summary": "3 references found and looked up: 0 check out, 3 are clearly made up.",
+          "summary": "3 references found and looked up: 3 are made up.",
           "details": {
             "references": [
               {
                 "number": 1,
+                "label": "made up",
                 "text": "1.  \"The impact of artificial light on sleep\" by Chang et al. (2016) published in the Journal of Clinical Sleep Medicine.\nDOI: 10.5665/jcsm.6657",
                 "quote": "\"The impact of artificial light on sleep\" by Chang et al. (2016) published in the Journal of Clinical Sleep Medicine.",
                 "doi": "10.5665/jcsm.6657",
@@ -3698,6 +3806,8 @@
                 "status": "doi_not_found",
                 "note": "",
                 "record": null,
+                "real_paper": null,
+                "wrong": [],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": null,
@@ -3709,6 +3819,7 @@
               },
               {
                 "number": 2,
+                "label": "made up",
                 "text": "2.  \"Blue light exposure and melatonin suppression: the role of light intensity, duration, and timing\" by Chang et al. (2016) published in the Journal of Clinical Sleep Medicine.\nDOI: 10.5665/jcsm.6657",
                 "quote": "\"Blue light exposure and melatonin suppression: the role of light intensity, duration, and timing\" by Chang et al. (2016) published in the Journal of Clinical Sleep Medicine.",
                 "doi": "10.5665/jcsm.6657",
@@ -3724,6 +3835,8 @@
                 "status": "doi_not_found",
                 "note": "",
                 "record": null,
+                "real_paper": null,
+                "wrong": [],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": null,
@@ -3735,6 +3848,7 @@
               },
               {
                 "number": 3,
+                "label": "made up",
                 "text": "3.  \"The effect of screen-based reading on sleep\" by Kim et al. (2017) published in the Journal of Sleep Research.\nDOI: 10.1111/jsr.12533",
                 "quote": "\"The effect of screen-based reading on sleep\" by Kim et al. (2017) published in the Journal of Sleep Research.",
                 "doi": "10.1111/jsr.12533",
@@ -3771,6 +3885,8 @@
                   "journal": "Journal of Sleep Research",
                   "kind": "journal-article"
                 },
+                "real_paper": null,
+                "wrong": [],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": 0.11,
@@ -3868,17 +3984,18 @@
       "cost_usd": 0.0,
       "verdict": "LIE",
       "made_up_phrase": "DOI: 10.1097/MCC.0b013e3282a5e42f",
-      "reason": "Reference 2's DOI (10.1097/MCC.0b013e3282a5e42f) doesn't exist in Crossref or doi.org.",
+      "reason": "4 of its 6 references are made up: for example, reference 2's DOI (10.1097/MCC.0b013e3282a5e42f) doesn't exist in Crossref or doi.org.",
       "judgement": {
         "decided_by": "hard_check",
         "hard_check": {
           "kind": "references",
           "outcome": "caught",
-          "summary": "6 references found and looked up: 0 check out, 1 is clearly made up, 5 don't check out as written or couldn't be compared.",
+          "summary": "6 references found and looked up: 4 are made up and 2 can't be compared.",
           "details": {
             "references": [
               {
                 "number": 1,
+                "label": "can't tell",
                 "text": "1. A study published in the Journal of Clinical Gastroenterology found that chewing gum increased gastric emptying time in healthy individuals, suggesting that it may have a stimulatory effect on digestion. [1]\nDOI: 10.1097/MCG.0000000000001153",
                 "quote": "DOI: 10.1097/MCG.0000000000001153",
                 "doi": "10.1097/MCG.0000000000001153",
@@ -3909,6 +4026,8 @@
                   "journal": "Journal of Clinical Gastroenterology",
                   "kind": "journal-article"
                 },
+                "real_paper": null,
+                "wrong": [],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": 0.0,
@@ -3920,6 +4039,7 @@
               },
               {
                 "number": 2,
+                "label": "made up",
                 "text": "2. A review published in the journal Current Opinion in Clinical Nutrition and Metabolic Care discussed the potential benefits of chewing gum on gut health, including its ability to stimulate digestion and reduce nausea. [2]\nDOI: 10.1097/MCC.0b013e3282a5e42f",
                 "quote": "DOI: 10.1097/MCC.0b013e3282a5e42f",
                 "doi": "10.1097/MCC.0b013e3282a5e42f",
@@ -3931,6 +4051,8 @@
                 "status": "doi_not_found",
                 "note": "",
                 "record": null,
+                "real_paper": null,
+                "wrong": [],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": null,
@@ -3942,6 +4064,7 @@
               },
               {
                 "number": 3,
+                "label": "can't tell",
                 "text": "3. A study published in the Journal of Surgical Research found that chewing gum increased gut motility in a rat model of gastrointestinal motility disorders. [3]\nDOI: 10.1016/j.jss.2017.05.038",
                 "quote": "DOI: 10.1016/j.jss.2017.05.038",
                 "doi": "10.1016/j.jss.2017.05.038",
@@ -3968,6 +4091,8 @@
                   "journal": "Journal of Surgical Research",
                   "kind": "journal-article"
                 },
+                "real_paper": null,
+                "wrong": [],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": 0.0,
@@ -3979,6 +4104,7 @@
               },
               {
                 "number": 4,
+                "label": "made up",
                 "text": "[1] Park, J., et al. (2018). The effects of chewing gum on gastric emptying time in healthy individuals: A systematic review and meta-analysis. Journal of Clinical Gastroenterology, 52(8), 641-648.",
                 "quote": "Park, J., et al. (2018). The effects of chewing gum on gastric emptying time in healthy individuals: A systematic review and meta-analysis. Journal of Clinical Gastroenterology, 52(8), 641-648.",
                 "doi": null,
@@ -3994,6 +4120,8 @@
                 "status": "no_match",
                 "note": "",
                 "record": null,
+                "real_paper": null,
+                "wrong": [],
                 "closest": {
                   "doi": "10.1249/01.mss.0000876484.44136.27",
                   "title": "Effects Of Caffeine Chewing Gum On Exercise Performance: A Systematic Review And Meta-analysis",
@@ -4020,6 +4148,7 @@
               },
               {
                 "number": 5,
+                "label": "made up",
                 "text": "[2] Rhee, S. H., et al. (2019). Chewing gum and gut health: A review of the literature. Current Opinion in Clinical Nutrition and Metabolic Care, 22(4), 251-258.",
                 "quote": "Rhee, S. H., et al. (2019). Chewing gum and gut health: A review of the literature. Current Opinion in Clinical Nutrition and Metabolic Care, 22(4), 251-258.",
                 "doi": null,
@@ -4035,6 +4164,8 @@
                 "status": "no_match",
                 "note": "",
                 "record": null,
+                "real_paper": null,
+                "wrong": [],
                 "closest": {
                   "doi": "10.1038/sj.bdj.4807129",
                   "title": "Chewing gum and dental health--a review",
@@ -4059,6 +4190,7 @@
               },
               {
                 "number": 6,
+                "label": "made up",
                 "text": "[3] Lee, J., et al. (2017). Chewing gum increases gut motility in a rat model of gastrointestinal motility disorders. Journal of Surgical Research, 212, 135-142.",
                 "quote": "Lee, J., et al. (2017). Chewing gum increases gut motility in a rat model of gastrointestinal motility disorders. Journal of Surgical Research, 212, 135-142.",
                 "doi": null,
@@ -4074,6 +4206,8 @@
                 "status": "no_match",
                 "note": "",
                 "record": null,
+                "real_paper": null,
+                "wrong": [],
                 "closest": {
                   "doi": "10.1017/cbo9780511545757.033",
                   "title": "Gastrointestinal motility disorders",
@@ -4190,11 +4324,12 @@
         "hard_check": {
           "kind": "references",
           "outcome": "caught",
-          "summary": "3 references found and looked up: 0 check out, 3 are clearly made up.",
+          "summary": "3 references found and looked up: 3 are made up.",
           "details": {
             "references": [
               {
                 "number": 1,
+                "label": "made up",
                 "text": "1. \"Bilingualism and the risk of Alzheimer's disease: A meta-analysis\" by Yoon, J. et al. (2019)\nJournal: Neuropsychologia\nDOI: 10.1016/j.neuropsychologia.2019.03.023",
                 "quote": "\"Bilingualism and the risk of Alzheimer's disease: A meta-analysis\" by Yoon, J. et al. (2019)",
                 "doi": "10.1016/j.neuropsychologia.2019.03.023",
@@ -4210,6 +4345,8 @@
                 "status": "doi_not_found",
                 "note": "",
                 "record": null,
+                "real_paper": null,
+                "wrong": [],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": null,
@@ -4221,6 +4358,7 @@
               },
               {
                 "number": 2,
+                "label": "made up",
                 "text": "2. \"Bilingualism and cognitive reserve: Evidence from the Nun Study\" by Bialystok, E. et al. (2012)\nJournal: Current Directions in Psychological Science\nDOI: 10.1177/0963721412441742",
                 "quote": "\"Bilingualism and cognitive reserve: Evidence from the Nun Study\" by Bialystok, E. et al. (2012)",
                 "doi": "10.1177/0963721412441742",
@@ -4236,6 +4374,8 @@
                 "status": "doi_not_found",
                 "note": "",
                 "record": null,
+                "real_paper": null,
+                "wrong": [],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": null,
@@ -4247,6 +4387,7 @@
               },
               {
                 "number": 3,
+                "label": "made up",
                 "text": "3. \"The effect of bilingualism on the risk of dementia: A systematic review\" by Valdés, E. et al. (2017)\nJournal: Journal of Alzheimer's Disease\nDOI: 10.3233/JAD-170111",
                 "quote": "\"The effect of bilingualism on the risk of dementia: A systematic review\" by Valdés, E. et al. (2017)",
                 "doi": "10.3233/JAD-170111",
@@ -4279,6 +4420,8 @@
                   "journal": "Journal of Alzheimer’s Disease",
                   "kind": "journal-article"
                 },
+                "real_paper": null,
+                "wrong": [],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": 0.0,
@@ -4382,11 +4525,12 @@
         "hard_check": {
           "kind": "references",
           "outcome": "caught",
-          "summary": "3 references found and looked up: 0 check out, 3 are clearly made up.",
+          "summary": "3 references found and looked up: 3 are made up.",
           "details": {
             "references": [
               {
                 "number": 1,
+                "label": "made up",
                 "text": "1. \"Hallucinations in Language Models: A Survey\" by Yarin Nili, et al.\nDOI: 10.1511/nnl.2021.0312",
                 "quote": "\"Hallucinations in Language Models: A Survey\" by Yarin Nili, et al.",
                 "doi": "10.1511/nnl.2021.0312",
@@ -4400,6 +4544,8 @@
                 "status": "doi_not_found",
                 "note": "",
                 "record": null,
+                "real_paper": null,
+                "wrong": [],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": null,
@@ -4411,6 +4557,7 @@
               },
               {
                 "number": 2,
+                "label": "made up",
                 "text": "2. \"The Hallucination Problem in Language Models\" by Tommaso Lelli, et al.\nDOI: 10.1007/s10888-020-09837-1",
                 "quote": "\"The Hallucination Problem in Language Models\" by Tommaso Lelli, et al.",
                 "doi": "10.1007/s10888-020-09837-1",
@@ -4424,6 +4571,8 @@
                 "status": "doi_not_found",
                 "note": "",
                 "record": null,
+                "real_paper": null,
+                "wrong": [],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": null,
@@ -4435,6 +4584,7 @@
               },
               {
                 "number": 3,
+                "label": "made up",
                 "text": "3. \"Detecting Hallucinations in Language Models\" by Yonatan Zohar, et al.\nDOI: 10.1869/00013889.2020.1032258",
                 "quote": "\"Detecting Hallucinations in Language Models\" by Yonatan Zohar, et al.",
                 "doi": "10.1869/00013889.2020.1032258",
@@ -4448,6 +4598,8 @@
                 "status": "doi_not_found",
                 "note": "",
                 "record": null,
+                "real_paper": null,
+                "wrong": [],
                 "closest": null,
                 "searched_for": null,
                 "title_similarity": null,
