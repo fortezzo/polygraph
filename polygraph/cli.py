@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import datetime
 import random
 import sys
 from pathlib import Path
@@ -23,9 +24,29 @@ from polygraph.interrogator import (
     CostGuard,
     Interrogator,
     ResponseCache,
+    RunAborted,
+)
+from polygraph.judges import (
+    DEFAULT_JUDGES,
+    INSTRUCTIONS,
+    JUDGE_PREFERENCE,
+    PROVIDER_COMPANIES,
+    AIJudge,
+    JudgeSetup,
+    Lookup,
+    ReferenceCache,
+    RunJudge,
+    company_of,
+    fingerprint,
+    judged_copies,
+    judged_path,
+    known_company,
+    same_company,
 )
 from polygraph.pricing import FREE, Prices, format_usd
-from polygraph.progress import RunDisplay, plan_table, summary_table
+from polygraph.progress import JudgeDisplay, RunDisplay, plan_table, summary_table
+from polygraph.report import pick_sample, report_card, trap_detail, verdict_list
+from polygraph.scoring import score_run
 from polygraph.providers import (
     CHEAPEST,
     LABELS,
@@ -38,11 +59,12 @@ from polygraph.providers import (
     SetupError,
     choose,
     find_known,
+    guess_provider,
     make_provider,
     provider_name,
 )
 from polygraph.providers.catalog import SOURCES, models_for
-from polygraph.runfile import Target
+from polygraph.runfile import RunFile, Target, load_run, save_run
 from polygraph.traps import (
     DEFAULT_FOLDER,
     TYPE_INFO,
@@ -363,7 +385,8 @@ def run(
     else:
         out.print(Text(f"Interrogation failed. {run_file.run.stop_reason}", style="bold red"))
     out.print(summary_table(run_file, _shown_path(interrogator.saved_path)))
-    out.print(Text("Not judged yet: the verdicts and scores in the run file are empty for now.", style="dim"))
+    if interrogator.saved_path is not None and status != "failed":
+        out.print(Text(f"Next, judge it: polygraph judge {_shown_path(interrogator.saved_path)}", style="bold"))
     if status == "failed":
         if interrogator.aborted is not None and interrogator.aborted.problem.hint:
             err.print(Text(interrogator.aborted.problem.hint))
@@ -429,14 +452,15 @@ def _prices(
     raise typer.Exit(code=1)
 
 
-def _cost_check(estimate, guard: CostGuard, interrogator: Interrogator, *, yes: bool, estimate_only: bool) -> None:
-    """The cost guard's say before anything is spent."""
+def _cost_check(estimate, guard: CostGuard, job, *, yes: bool, estimate_only: bool, what: str = "This run") -> None:
+    """The cost guard's say before anything is spent. `job` is the
+    Interrogator or the RunJudge: anything with a limit_usd."""
     typical = estimate.typical_usd or 0.0
     if typical > guard.limit:
         suggestion = estimate.suggested_limit()
         out.print(
             Text(
-                f"This run will probably cost about {format_usd(typical)}, which is more than the "
+                f"{what} will probably cost about {format_usd(typical)}, which is more than the "
                 f"${guard.limit:.2f} limit.",
                 style="bold yellow",
             )
@@ -447,7 +471,7 @@ def _cost_check(estimate, guard: CostGuard, interrogator: Interrogator, *, yes: 
         if _interactive() and not yes:
             if typer.confirm(f"Allow up to ${suggestion:.2f} for this run?", default=False):
                 guard.limit = suggestion
-                interrogator.limit_usd = suggestion
+                job.limit_usd = suggestion
                 out.print(Text(f"The limit for this run is now ${suggestion:.2f}.", style="yellow"))
                 return
         out.print(Text(f"Nothing was spent. To allow it, run it again with --max-cost {suggestion:g}"))
@@ -470,6 +494,376 @@ def _shown_path(path: Path | None) -> str | None:
         return str(path.resolve().relative_to(Path.cwd().resolve()))
     except ValueError:
         return str(path)
+
+
+# --- polygraph judge -----------------------------------------------------------
+
+# The judge's reply is short, but a judge that thinks first spends part of its
+# limit thinking, so it gets room for that.
+JUDGE_THINKING_LIMIT = 16_384
+JUDGE_PLAIN_LIMIT = 2_048
+JUDGE_CONCURRENCY = 4
+CARD_WIDTH = 104
+
+RunPathArgument = Annotated[
+    Path,
+    typer.Argument(help="A run file, like runs/2026-11-08_21-51-00_ollama_llama3.2.json", show_default=False),
+]
+
+
+def _load_run_file(path: Path) -> RunFile:
+    if not path.is_file():
+        err.print(Text(f"There's no run file at {path}.", style="bold red"))
+        folder = path.parent if str(path.parent) not in ("", ".") else Path("runs")
+        err.print(Text(f"To see the run files, run: dir {folder}"))
+        raise typer.Exit(code=1)
+    try:
+        return load_run(path)
+    except (ValueError, OSError) as problem:
+        first = str(problem).splitlines()[0] if str(problem) else type(problem).__name__
+        err.print(Text(f"{path} isn't a Polygraph run file Polygraph can read ({first}).", style="bold red"))
+        raise typer.Exit(code=1)
+
+
+def _bot_company(run_file: RunFile, bot_maker: str | None) -> tuple[str, str]:
+    """Who made the bot, and how Polygraph knows."""
+    target = run_file.run.target
+    if bot_maker and bot_maker.strip():
+        return known_company(bot_maker) or bot_maker.strip(), "--bot-maker"
+    company = company_of(target.provider, target.model, target.model_details)
+    if company is None:
+        err.print(
+            Text(
+                f"Polygraph can't tell which company made {target.model}, so it can't make sure the judge "
+                "comes from a different company.",
+                style="bold red",
+            )
+        )
+        err.print(Text('Say who made it with --bot-maker, like: --bot-maker "Mistral AI"'))
+        raise typer.Exit(code=1)
+    return company, "the provider" if target.provider in PROVIDER_COMPANIES else "the model's name"
+
+
+def _other_judges(bot_company: str) -> str:
+    names = [f"{DEFAULT_JUDGES[p]} ({PROVIDER_COMPANIES[p]})" for p in JUDGE_PREFERENCE if not same_company(PROVIDER_COMPANIES[p], bot_company)]
+    return ", ".join(names[:-1]) + " or " + names[-1] if len(names) > 1 else (names[0] if names else "")
+
+
+def _choose_judge(judge_model: str | None, settings: Settings, bot_company: str) -> tuple[str, str]:
+    """(provider, model) for the judge: the one asked for, or the cheapest
+    thinking model from the first company you have a key for that didn't make
+    the bot."""
+    if judge_model and judge_model.strip():
+        return guess_provider(judge_model.strip()), judge_model.strip()
+    keys = {"openai": settings.openai_api_key, "anthropic": settings.anthropic_api_key, "google": settings.gemini_api_key}
+    available = [provider for provider in JUDGE_PREFERENCE if keys[provider] is not None]
+    for provider in available:
+        if not same_company(PROVIDER_COMPANIES[provider], bot_company):
+            return provider, DEFAULT_JUDGES[provider]
+    if not available:
+        err.print(Text("To judge a run, Polygraph needs an API key from OpenAI, Anthropic or Google.", style="bold red"))
+        err.print(
+            Text(
+                "Make a key on one of their websites and set a spending limit there. Then, in the run tab, run "
+                "notepad .env, paste the key after OPENAI_API_KEY=, ANTHROPIC_API_KEY= or GEMINI_API_KEY=, and save."
+            )
+        )
+    else:
+        err.print(
+            Text(
+                f"The bot was made by {bot_company}, and the only judge you have a key for is made by "
+                f"{bot_company} too. The judge has to come from a different company.",
+                style="bold red",
+            )
+        )
+        err.print(Text(f"Add a key for one of these to .env: {_other_judges(bot_company)}."))
+    raise typer.Exit(code=1)
+
+
+async def _hard_checks(job: RunJudge, references: ReferenceCache, fresh: bool) -> None:
+    async with Lookup(references, read_cache=not fresh) as lookup:
+        job.lookup = lookup
+        try:
+            await job.hard_checks()
+        finally:
+            job.lookup = None
+
+
+def _judge_plan(job: RunJudge, run_path: Path, estimate, *, fresh: bool, limit: float, thinks: bool) -> Table:
+    run_file, setup = job.run_file, job.setup
+    table = Table.grid(padding=(0, 2))
+    table.add_column(style="bold")
+    table.add_column()
+    table.add_row("Run", f"{_shown_path(run_path)} · {len(run_file.traps)} traps")
+    bot_from = "you said so with --bot-maker" if setup.bot_company_from == "--bot-maker" else f"from {setup.bot_company_from}"
+    table.add_row("Bot", f"{run_file.run.target.model} via {run_file.run.target.provider_label} · made by {setup.bot_company} ({bot_from})")
+    table.add_row("Judge", f"{setup.model} via {setup.provider_label} · made by {setup.company}: a different company")
+    lines = []
+    for kind, label in (("answer_key", "number traps checked against the answer key"), ("references", "fake-citation traps: every reference looked up"), ("side_by_side", "consistency traps lined up side by side")):
+        jobs = [j for j in job.jobs if j.hard_check is not None and j.hard_check.kind == kind]
+        if not jobs:
+            continue
+        caught = sum(j.decided is not None for j in jobs)
+        text = f"{len(jobs)} {label}"
+        if kind == "references":
+            refs = sum(len(j.hard_check.details.get("references", [])) for j in jobs)
+            text += f" ({refs} references)"
+        if kind != "side_by_side":
+            text += f": {caught} caught with no AI"
+        lines.append(text)
+    errors = [j for j in job.jobs if j.error]
+    if errors:
+        lines.append(f"{len(errors)} trap{'s' if len(errors) != 1 else ''} can't be judged (see the report)")
+    table.add_row("Hard checks", "\n".join(lines) if lines else "none in this run")
+    ai = len(job.ai_jobs)
+    saved = "ignored (--fresh)" if fresh else f"{estimate.cached_calls} of {estimate.calls} already saved from earlier judging"
+    table.add_row("AI judge", f"{ai} trap{'s' if ai != 1 else ''} · {saved}")
+    prices = estimate.prices
+    if prices is not None and not prices.free:
+        checked = f", checked {prices.checked_on}" if prices.checked_on else ""
+        table.add_row(
+            "Cost",
+            f"about {format_usd(estimate.typical_usd)} (${prices.input_per_million:g} in / "
+            f"${prices.output_per_million:g} out per million tokens{checked})",
+        )
+    elif prices is not None:
+        table.add_row("Cost", "free: the judge runs on your PC")
+    table.add_row("Limit", f"${limit:.2f}. Judging stops before it could go over.")
+    table.add_row("Rubric", f"fingerprint {fingerprint()}" + (" · the judge thinks before answering" if thinks else ""))
+    return table
+
+
+@app.command()
+def judge(
+    run_path: RunPathArgument,
+    judge_model: Annotated[
+        Optional[str],
+        typer.Option(
+            "--judge",
+            "-j",
+            help="The judge model, like gpt-6-luna, claude-haiku-5-5 or gemini-3.5-flash-lite. Default: the "
+            "cheapest thinking model from the first company you have a key for that didn't make the bot.",
+        ),
+    ] = None,
+    bot_maker: Annotated[
+        Optional[str],
+        typer.Option("--bot-maker", help="Who made the bot, when Polygraph can't tell from its name, like Meta or \"Mistral AI\"."),
+    ] = None,
+    max_cost: Annotated[
+        float, typer.Option("--max-cost", min=0.0, help="The most judging may spend, in US dollars.")
+    ] = DEFAULT_LIMIT_USD,
+    yes: Annotated[bool, typer.Option("--yes", "-y", help="Start paid judging without asking first. Never raises the limit.")] = False,
+    estimate_only: Annotated[
+        bool, typer.Option("--estimate", help="Run the free hard checks, show the plan and the cost, then stop.")
+    ] = False,
+    fresh: Annotated[
+        bool, typer.Option("--fresh", help="Ask the judge again and look references up again, instead of reusing saved results.")
+    ] = False,
+    price_in: Annotated[
+        Optional[float],
+        typer.Option("--price-in", min=0.0, help="For a judge Polygraph doesn't know: dollars per million input tokens."),
+    ] = None,
+    price_out: Annotated[
+        Optional[float], typer.Option("--price-out", min=0.0, help="... and dollars per million output tokens.")
+    ] = None,
+) -> None:
+    """Judge a run: the hard checks first, then the AI judge, then the scores and the report card.
+
+    The run file never changes: the verdicts go into a judged copy next to it.
+    """
+    settings = load_settings()
+    run_file = _load_run_file(run_path)
+
+    # 1. Who made the bot, and a judge from a different company.
+    bot_company, bot_company_from = _bot_company(run_file, bot_maker)
+    name, model_name = _choose_judge(judge_model, settings, bot_company)
+    try:
+        provider = make_provider(name, settings)
+    except SetupError as problem:
+        _explain(problem)
+        raise typer.Exit(code=1)
+    judge_company = company_of(name, model_name)
+    if judge_company is None:
+        err.print(Text(f"Polygraph can't tell which company made the judge {model_name}, so it won't use it.", style="bold red"))
+        err.print(Text(f"Pick a judge like {_other_judges(bot_company)} with --judge."))
+        raise typer.Exit(code=1)
+    if same_company(judge_company, bot_company):
+        err.print(
+            Text(
+                f"The judge can't come from the same company as the bot: {run_file.run.target.model} and "
+                f"{model_name} are both made by {bot_company}. A judge could go easy on its own company's model.",
+                style="bold red",
+            )
+        )
+        err.print(Text(f"Pick a judge from another company with --judge, like {_other_judges(bot_company)}."))
+        raise typer.Exit(code=1)
+    known = find_known(name, model_name)
+    prices = _prices(provider, name, model_name, known, price_in, price_out)
+    thinks = bool(known and known.reasoning)
+    options = ChatOptions(max_output_tokens=JUDGE_THINKING_LIMIT if thinks else JUDGE_PLAIN_LIMIT)
+
+    # Check the judge model exists, and note its details. This costs nothing.
+    try:
+        with err.status(f"Checking {escape(model_name)}..."):
+            info = asyncio.run(provider.describe_model(model_name))
+    except ProviderError as problem:
+        _explain(problem)
+        raise typer.Exit(code=1)
+    model_details = dict(info.details)
+    if isinstance(model_details.get("created"), int):
+        created = datetime.datetime.fromtimestamp(model_details["created"], tz=datetime.timezone.utc)
+        model_details["created_on"] = created.date().isoformat()
+
+    cache = ResponseCache(settings.cache_dir)
+    references = ReferenceCache(settings.cache_dir)
+    try:
+        guard = CostGuard(max_cost)
+        display = JudgeDisplay(out, total_traps=0, free=prices.free)
+        caller = Caller(
+            provider,
+            model_name,
+            prices=prices,
+            guard=guard,
+            options=options,
+            cache=cache,
+            read_cache=not fresh,
+            concurrency=JUDGE_CONCURRENCY,
+            system_prompt=INSTRUCTIONS,
+            on_retry=display.retrying,
+        )
+        job = RunJudge(
+            run_file,
+            setup=JudgeSetup(
+                provider=name,
+                provider_label=provider.label,
+                model=model_name,
+                company=judge_company,
+                bot_company=bot_company,
+                bot_company_from=bot_company_from,
+                model_details=model_details,
+            ),
+            judge=AIJudge(caller, structured=name == "openai"),
+            lookup=None,
+            limit_usd=max_cost,
+            prices=prices,
+            thinks=thinks,
+            judged_from=run_path.name,
+            listener=display,
+        )
+
+        # 2. The hard checks: free, but the reference check uses the internet.
+        with err.status("Hard checks: comparing answers with the answer keys and looking references up in Crossref..."):
+            asyncio.run(_hard_checks(job, references, fresh))
+
+        # 3. The plan, and the cost guard's say.
+        estimate = job.estimate()
+        job.estimated_usd = estimate.typical_usd
+        out.print(
+            Panel(
+                _judge_plan(job, run_path, estimate, fresh=fresh, limit=max_cost, thinks=thinks),
+                title="Judging plan",
+                title_align="left",
+            )
+        )
+        _cost_check(estimate, guard, job, yes=yes, estimate_only=estimate_only, what="Judging")
+        if estimate_only:
+            return
+
+        # 4. The AI judge.
+        display.progress.update(display.task, total=len(job.ai_jobs))
+        status, reason = "finished", None
+        try:
+            with display:
+                asyncio.run(job.judge_all())
+        except KeyboardInterrupt:
+            status, reason = "cancelled", "Judging was stopped with Ctrl+C."
+        except RunAborted as aborted:
+            _explain(aborted.problem)
+            err.print(Text("Nothing was saved. Fix the problem above, then judge the run again.", style="yellow"))
+            raise typer.Exit(code=1)
+        judged = job.finish(status, reason)
+    finally:
+        cache.close()
+        references.close()
+
+    # 5. Save the judged copy, then the report card.
+    path = judged_path(run_path, model_name)
+    save_run(judged, path.parent, path)
+    out.print()
+    out.print(report_card(judged, width=min(out.width, CARD_WIDTH)))
+    if judged.run.judge is not None and judged.run.judge.status != "finished":
+        out.print(Text(f"Judging {judged.run.judge.status}: {judged.run.judge.stop_reason}", style="bold yellow"))
+        out.print(Text("Judging again finishes the rest. Everything already judged is saved and free.", style="yellow"))
+    out.print(Text(f"Saved the judged copy: {_shown_path(path)}", style="bold"))
+    out.print(Text(f"To see it again: polygraph report {_shown_path(path)}", style="dim"))
+    out.print(Text(f"Every verdict with its reason: polygraph report {_shown_path(path)} --verdicts", style="dim"))
+    if status == "cancelled":
+        raise typer.Exit(code=130)
+
+
+# --- polygraph report ----------------------------------------------------------
+
+
+@app.command()
+def report(
+    run_path: RunPathArgument,
+    verdicts: Annotated[
+        bool, typer.Option("--verdicts", help="Also list every verdict with its made-up phrase and reason.")
+    ] = False,
+    trap_ids: Annotated[
+        Optional[list[str]],
+        typer.Option("--trap", help="Show one trap in full instead, like ghost-003. Repeat it for more."),
+    ] = None,
+    sample: Annotated[
+        Optional[int],
+        typer.Option("--sample", min=1, help="Also show this many random verdicts, at least one of each type."),
+    ] = None,
+    seed: Annotated[
+        Optional[int], typer.Option("--seed", help="Show an earlier random sample again, using the number it printed.")
+    ] = None,
+) -> None:
+    """Print a judged run's report card. Free and instant.
+
+    Give it the judged copy, or the original run file: then it shows the
+    newest judged copy of that run.
+    """
+    run_file = _load_run_file(run_path)
+    if run_file.run.judge is None and not any(result.verdict for result in run_file.traps):
+        copies = judged_copies(run_path)
+        if not copies:
+            err.print(Text("This run hasn't been judged yet.", style="bold red"))
+            err.print(Text(f"To judge it: polygraph judge {_shown_path(run_path)}"))
+            raise typer.Exit(code=1)
+        run_path = copies[0]
+        err.print(Text(f"Showing the judged copy: {_shown_path(run_path)}", style="dim"))
+        run_file = _load_run_file(run_path)
+    if run_file.scores.overall is None and any(result.verdict for result in run_file.traps):
+        run_file.scores = score_run(run_file)
+
+    if trap_ids:
+        wanted = [part.strip().lower() for value in trap_ids for part in value.split(",") if part.strip()]
+        by_id = {result.id: result for result in run_file.traps}
+        missing = [trap_id for trap_id in wanted if trap_id not in by_id]
+        if missing:
+            err.print(Text(f"There's no trap called {', '.join(missing)} in this run. IDs look like ghost-001.", style="bold red"))
+            raise typer.Exit(code=2)
+        for trap_id in wanted:
+            out.print(trap_detail(by_id[trap_id], run_file))
+        return
+
+    out.print(report_card(run_file, width=min(out.width, CARD_WIDTH)))
+    if verdicts:
+        out.print()
+        out.print(Text("Every verdict", style="bold underline"))
+        out.print(verdict_list(run_file.traps))
+    if sample is not None or seed is not None:
+        if seed is None:
+            seed = random.SystemRandom().randrange(1000, 10000)
+        picked = pick_sample(run_file.traps, sample or 10, seed)
+        out.print()
+        again = f"polygraph report {_shown_path(run_path)} --sample {sample or 10} --seed {seed}"
+        out.print(Text(f"{len(picked)} random verdicts (pick #{seed}). To see the same ones again: {again}", style="bold"))
+        out.print(verdict_list(picked))
 
 
 # --- polygraph models ----------------------------------------------------------

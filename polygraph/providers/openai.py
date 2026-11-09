@@ -9,6 +9,7 @@ length limit, which is why Polygraph gives thinking models a generous limit.
 
 from __future__ import annotations
 
+import json
 import re
 
 import httpx
@@ -78,6 +79,16 @@ class OpenAIProvider(HttpProvider):
             payload["instructions"] = "\n\n".join(system)
         if options.temperature is not None:
             payload["temperature"] = options.temperature
+        if options.json_schema is not None:
+            # Structured outputs: the reply is guaranteed to match the schema.
+            payload["text"] = {
+                "format": {
+                    "type": "json_schema",
+                    "name": "polygraph_reply",
+                    "schema": json.loads(options.json_schema),
+                    "strict": True,
+                }
+            }
         data, seconds = await self._request("POST", "/responses", model=model, json=payload)
         if not isinstance(data, dict):
             raise ProviderError("OpenAI sent back an answer Polygraph couldn't read.", kind="unreadable")

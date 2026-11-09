@@ -124,7 +124,8 @@ class Caller:
         self._sleep = sleep
         self._clock = clock
         self._on_retry = on_retry
-        self._slots = asyncio.Semaphore(max(1, concurrency))
+        self.concurrency = max(1, concurrency)
+        self._slots = asyncio.Semaphore(self.concurrency)
         self._failures_in_a_row = 0
         self._stopped: CostLimitReached | RunAborted | None = None  # once set, no more questions go out
         self.stats = CallStats()
@@ -135,16 +136,16 @@ class Caller:
             return [Message("system", self.system_prompt), *messages]
         return list(messages)
 
-    def key(self, messages: list[Message]) -> str:
+    def key(self, messages: list[Message], options: ChatOptions | None = None) -> str:
         return cache_key(
-            self.provider.identity, self.model, self.conversation(messages), self.options, self.version_pin
+            self.provider.identity, self.model, self.conversation(messages), options or self.options, self.version_pin
         )
 
-    def peek(self, messages: list[Message]) -> Reply | None:
+    def peek(self, messages: list[Message], options: ChatOptions | None = None) -> Reply | None:
         """The saved reply for this conversation, if there is one (for estimates)."""
         if self.cache is None or not self.read_cache:
             return None
-        hit = self.cache.get(self.key(messages))
+        hit = self.cache.get(self.key(messages, options))
         return hit.reply if hit else None
 
     def stop(self, reason: CostLimitReached | RunAborted) -> None:
@@ -159,10 +160,13 @@ class Caller:
         if isinstance(reason, RunAborted):
             raise RunAborted(reason.problem, reason.why)
 
-    async def ask(self, messages: list[Message]) -> CallResult:
+    async def ask(self, messages: list[Message], options: ChatOptions | None = None) -> CallResult:
+        """Ask once. `options` overrides the Caller's settings for this question
+        only (the judge uses a different reply shape for each trap type)."""
         self._raise_if_stopped()
+        options = options or self.options
         conversation = self.conversation(messages)
-        key = self.key(messages)
+        key = self.key(messages, options)
         if self.cache is not None and self.read_cache:
             hit = self.cache.get(key)
             if hit is not None:
@@ -180,14 +184,14 @@ class Caller:
 
         async with self._slots:
             self._raise_if_stopped()
-            most = self.prices.cost(worst_case_input_tokens(conversation), self.options.max_output_tokens)
+            most = self.prices.cost(worst_case_input_tokens(conversation), options.max_output_tokens)
             try:
                 reservation = await self.guard.reserve(most)
             except CostLimitReached as limit:
                 self.stop(limit)
                 raise
             try:
-                reply, attempts = await self._send(conversation)
+                reply, attempts = await self._send(conversation, options)
             except BaseException:
                 await self.guard.release(reservation)
                 raise
@@ -215,12 +219,12 @@ class Caller:
             tokens_estimated=estimated,
         )
 
-    async def _send(self, conversation: list[Message]) -> tuple[Reply, int]:
+    async def _send(self, conversation: list[Message], options: ChatOptions) -> tuple[Reply, int]:
         attempt = 0
         while True:
             attempt += 1
             try:
-                reply = await self.provider.chat(conversation, self.model, self.options)
+                reply = await self.provider.chat(conversation, self.model, options)
             except ProviderError as problem:
                 if problem.fatal:
                     aborted = RunAborted(problem)

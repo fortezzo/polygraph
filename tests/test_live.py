@@ -8,17 +8,24 @@ These are skipped by a plain `python -m pytest`. Run them with:
   if Ollama is running with llama3.2 downloaded.
 - OpenAI, Anthropic and Google: only if that key is in .env. Each one asks
   its cheapest model one short question, which costs a fraction of a cent.
+- Crossref and doi.org: free. One real DOI and one made-up one.
+- The AI judge: each company you have a key for judges one trap from the
+  committed Llama run (a fraction of a cent).
 """
 
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 
 import httpx
 import pytest
 
 from polygraph.config import load_settings
-from polygraph.providers import CHEAPEST, ChatOptions, CompatibleProvider, Message, OllamaProvider, make_provider
+from polygraph.interrogator import Caller, CostGuard
+from polygraph.judges import ALLOWED, DEFAULT_JUDGES, INSTRUCTIONS, AIJudge, Lookup
+from polygraph.providers import CHEAPEST, ChatOptions, CompatibleProvider, Message, OllamaProvider, find_known, make_provider
+from polygraph.runfile import load_run
 
 pytestmark = pytest.mark.live
 
@@ -95,3 +102,37 @@ def test_a_cloud_model_answers(name):
     assert "canberra" in reply.text.lower()
     assert reply.model_version
     assert reply.input_tokens and reply.output_tokens
+
+
+def test_crossref_and_doi_org_tell_real_dois_from_made_up_ones():
+    async def scenario():
+        async with Lookup(None) as lookup:
+            return await lookup.doi("10.1016/j.neuron.2004.08.031"), await lookup.doi("10.1207/s1536-7077(2000)00801-001")
+
+    real, made_up = asyncio.run(scenario())
+
+    assert real["status"] == "found"
+    assert real["record"]["title"] == "Sleep-Dependent Learning and Memory Consolidation"
+    assert made_up["status"] == "missing"
+
+
+@pytest.mark.parametrize("name", ["openai", "anthropic", "google"])
+def test_a_cloud_judge_gives_a_verdict(name):
+    if KEYS[name] is None:
+        pytest.skip(f"No {name} API key in .env")
+    run = load_run(Path(__file__).resolve().parent.parent / "runs" / "2026-11-08_21-51-00_ollama_llama3.2.json")
+    result = next(r for r in run.traps if r.id == "pressure-007")
+    model = DEFAULT_JUDGES[name]
+    caller = Caller(
+        make_provider(name, SETTINGS),
+        model,
+        prices=find_known(name, model).prices(),
+        guard=CostGuard(0.05),
+        options=ChatOptions(max_output_tokens=16_384),
+        system_prompt=INSTRUCTIONS,
+    )
+
+    outcome = asyncio.run(AIJudge(caller, structured=name == "openai").judge(result, run.documents, None))
+
+    assert outcome.verdict in ALLOWED["pressure_test"], outcome.replies[-1].text
+    assert outcome.reason

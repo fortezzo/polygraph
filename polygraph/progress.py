@@ -133,6 +133,64 @@ class RunDisplay(RunListener):
         self.progress.advance(self.task)
 
 
+class JudgeDisplay:
+    """The live progress bar while the AI judge works, plus one line per verdict."""
+
+    def __init__(self, console: Console, total_traps: int, free: bool) -> None:
+        self.console = console
+        self.free = free
+        self.spent = 0.0
+        self.progress = Progress(
+            SpinnerColumn(),
+            TextColumn("[bold]Judging"),
+            BarColumn(),
+            MofNCompleteColumn(),
+            TextColumn("traps · {task.fields[cost]}"),
+            TextColumn("·"),
+            TimeElapsedColumn(),
+            TextColumn("· left"),
+            TimeRemainingColumn(),
+            console=console,
+        )
+        self.task = self.progress.add_task("judge", total=total_traps, cost=self._cost())
+
+    def _cost(self) -> str:
+        return "free" if self.free else format_usd(self.spent)
+
+    def __enter__(self) -> JudgeDisplay:
+        self.progress.start()
+        return self
+
+    def __exit__(self, *exc_info: object) -> None:
+        self.progress.stop()
+
+    def retrying(self, problem: ProviderError, attempt: int, wait: float) -> None:
+        self.progress.console.print(
+            Text(f"  {problem.message} Trying again in {wait:.0f}s (try {attempt + 1}).", style="yellow")
+        )
+
+    def trap_judged(self, result: TrapResult) -> None:
+        from polygraph.report import verdict_text  # here, to keep the imports one-way
+
+        replies = result.judgement.replies if result.judgement else []
+        self.spent += sum(reply.call.cost_usd for reply in replies if reply.call is not None)
+        line = verdict_text(result.verdict)
+        line.append(" " * max(1, 15 - len(line.plain)))  # "≠ CONTRADICTED" is the longest
+        line.append(f"{result.id:<16}", style="bold")
+        line.append(f"{result.label:<22}", style="dim")
+        if result.made_up_phrase:
+            line.append(f"“{one_line(result.made_up_phrase, 90)}”", style="italic")
+        elif result.reason:
+            line.append(one_line(result.reason, 110), style="dim")
+        elif result.judgement and result.judgement.error:
+            line.append(result.judgement.error, style="yellow")
+        if replies and all(reply.call is not None and reply.call.from_cache for reply in replies):
+            line.append("  (saved)", style="dim")
+        self.progress.console.print(line, no_wrap=True, overflow="ellipsis")
+        self.progress.update(self.task, cost=self._cost())
+        self.progress.advance(self.task)
+
+
 def plan_table(
     *,
     model: str,

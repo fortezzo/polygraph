@@ -45,9 +45,18 @@ class ChatOptions:
 
     max_output_tokens: int = 4096
     temperature: float | None = None
+    # A JSON schema (as JSON text) the reply must follow. Connectors that can
+    # enforce one do (OpenAI's structured outputs); the others ignore it, and
+    # the prompt itself asks for the JSON. The judge uses this; bots never do.
+    json_schema: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
-        return {"max_output_tokens": self.max_output_tokens, "temperature": self.temperature}
+        settings: dict[str, Any] = {"max_output_tokens": self.max_output_tokens, "temperature": self.temperature}
+        # Only included when set, so every answer saved before this existed
+        # keeps the same cache key.
+        if self.json_schema is not None:
+            settings["json_schema"] = self.json_schema
+        return settings
 
 
 @dataclass(frozen=True)

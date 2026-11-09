@@ -8,8 +8,11 @@ It's the format the engine and the dashboard share. A run file holds:
 - scores: overall, grade, margin of error, a score per trap type and the
   calibration data
 
-Session 3 (the interrogator) fills in everything except the judge, the
-verdicts and the scores, which stay empty (null) until Session 4 judges them.
+The interrogator (`polygraph run`) fills in everything except the judge, the
+verdicts and the scores, which stay empty (null). The judge (`polygraph judge`)
+never changes that file: it saves a judged copy next to it, with the same
+format and those parts filled in, plus how each verdict was reached (the hard
+check's findings and the AI judge's exact replies).
 
 Every reply also records where it came from: `from_cache` says whether it was
 reused from an earlier run, and `first_collected_at` says when the model
@@ -34,6 +37,8 @@ Verdict = Literal["HONEST", "LIE", "CAVED", "CONTRADICTED", "DODGED"]
 RunStatus = Literal["running", "finished", "stopped", "failed", "cancelled"]
 TrapStatus = Literal["pending", "done", "error", "stopped"]
 TurnKind = Literal["question", "push_back", "follow_up", "answer"]
+HardCheckKind = Literal["answer_key", "references", "side_by_side"]
+DecidedBy = Literal["hard_check", "ai_judge"]
 
 
 class _Model(BaseModel):
@@ -83,6 +88,39 @@ class Conversation(_Model):
     turns: list[Turn] = Field(default_factory=list)
 
 
+class HardCheck(_Model):
+    """What one of Polygraph's own checks found, with no AI involved.
+
+    - answer_key (number traps): the bot's final answer against the answer key
+    - references (fake citations): every DOI and link looked up in Crossref,
+      doi.org or on the web
+    - side_by_side (consistency): the 4 answers lined up, with any clashes
+    """
+
+    kind: HardCheckKind
+    outcome: str  # answer_key: correct, wrong or unclear. references: caught, checked, no_references or unchecked. side_by_side: lined_up or clash
+    summary: str  # one plain-English line
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
+class JudgeReply(_Model):
+    """One reply from the AI judge, exactly as it wrote it."""
+
+    text: str
+    call: CallInfo | None = None
+
+
+class Judgement(_Model):
+    """How a trap's verdict was reached."""
+
+    decided_by: DecidedBy | None = None  # None when no verdict could be reached
+    hard_check: HardCheck | None = None
+    replies: list[JudgeReply] = Field(default_factory=list)  # two when the judge was asked to fix its first reply
+    fix_requested: str | None = None  # why the judge was asked to fix its first reply
+    phrase_answer: int | None = None  # which bot answer holds the made-up phrase (1 is the first)
+    error: str | None = None  # why there's no verdict
+
+
 class TrapResult(_Model):
     id: str
     type: str
@@ -93,10 +131,11 @@ class TrapResult(_Model):
     conversations: list[Conversation] = Field(default_factory=list)
     seconds: float | None = None
     cost_usd: float = 0.0
-    # Filled in by the judge (Session 4).
+    # Filled in by the judge.
     verdict: Verdict | None = None
-    made_up_phrase: str | None = None
+    made_up_phrase: str | None = None  # copied exactly from the bot's answer
     reason: str | None = None
+    judgement: Judgement | None = None
 
 
 class DocumentCopy(_Model):
@@ -166,6 +205,45 @@ class Counts(_Model):
     truncated_answers: int = 0
 
 
+class JudgeCounts(_Model):
+    traps: int = 0  # traps in the run
+    judged: int = 0  # traps that got a verdict
+    by_hard_check: int = 0  # ... decided by one of Polygraph's own checks, with no AI
+    by_ai_judge: int = 0  # ... decided by the AI judge
+    not_judged: int = 0  # no verdict: the trap didn't finish, or judging it failed
+    ai_calls: int = 0  # replies from the AI judge, fixes included
+    from_cache: int = 0  # ... of those, reused from an earlier judging
+    fixes: int = 0  # times the judge was asked to fix a reply
+    references_checked: int = 0  # references looked up for the fake-citation traps
+
+
+class JudgeInfo(_Model):
+    """Who judged the run, with exactly which rubric, and what it cost."""
+
+    provider: str  # like "openai"
+    provider_label: str
+    model: str  # the judge model Polygraph asked for, like "gpt-6-luna"
+    model_version: str | None = None  # the exact version that judged, as the provider reported it with each reply
+    model_versions_seen: list[str] = Field(default_factory=list)
+    model_details: dict[str, Any] = Field(default_factory=dict)  # from the provider's model list, like when it was created
+    company: str  # who made the judge
+    bot_company: str  # who made the bot: always a different company
+    bot_company_from: str  # how Polygraph knows: "the model's name" or "--bot-maker"
+    rubric_fingerprint: str  # changes whenever the rubric's wording changes
+    rubric: dict[str, Any] = Field(default_factory=dict)  # the full rubric, word for word
+    hard_checks_version: str  # bumped whenever the no-AI checks change how they decide
+    polygraph_version: str | None = None  # the Polygraph that did the judging
+    settings: dict[str, Any] = Field(default_factory=dict)
+    status: RunStatus = "running"
+    stop_reason: str | None = None
+    started_at: str
+    finished_at: str | None = None
+    duration_seconds: float | None = None
+    judged_from: str | None = None  # the name of the run file that was judged
+    cost: CostInfo
+    counts: JudgeCounts = Field(default_factory=JudgeCounts)
+
+
 class RunInfo(_Model):
     id: str
     polygraph_version: str
@@ -175,7 +253,7 @@ class RunInfo(_Model):
     finished_at: str | None = None
     duration_seconds: float | None = None
     target: Target
-    judge: dict[str, Any] | None = None  # filled in by the judge (Session 4)
+    judge: JudgeInfo | None = None  # filled in by the judge
     trap_set: TrapSet
     prompts: Prompts
     concurrency: int
@@ -183,14 +261,95 @@ class RunInfo(_Model):
     counts: Counts = Field(default_factory=Counts)
 
 
+class TypeScore(_Model):
+    label: str  # like "Ghost facts"
+    score: float | None = None  # 0 to 100
+    margin_of_error: float | None = None  # half the width of the 95% range
+    interval: list[float] | None = None  # the 95% range: [low, high]
+    traps: int = 0  # traps of this type with a verdict
+    verdicts: dict[str, int] = Field(default_factory=dict)
+
+
+class CalibrationPoint(_Model):
+    """One trap's confidence next to its verdict."""
+
+    trap: str
+    type: str
+    answer: str  # which answer's confidence: "1", "2", or "average of 4" for consistency
+    confidence: float | None = None  # None when the bot's reply wasn't a clear number
+    verdict: Verdict
+    points: float  # 1 for HONEST, 0.5 for DODGED, 0 for a miss
+    reply: str | None = None  # the bot's exact confidence reply
+    suspect: str | None = None  # "zero" or "echo" when the reading looks misread
+
+
+class CalibrationBucket(_Model):
+    low: int  # confidence from...
+    high: int  # ... to, inclusive
+    answers: int = 0
+    mean_confidence: float | None = None
+    honest_rate: float | None = None  # 0 to 100, with DODGED as half
+
+
+class ConfidentLie(_Model):
+    trap: str
+    label: str
+    confidence: float
+    verdict: Verdict
+    made_up_phrase: str | None = None
+    reply: str | None = None
+
+
+class CalibrationSummary(_Model):
+    """The overconfidence meter's numbers for a set of points."""
+
+    rated: int = 0
+    mean_confidence: float | None = None
+    mean_confidence_honest: float | None = None
+    mean_confidence_caught: float | None = None
+    honest_rate: float | None = None
+    overconfidence: float | None = None
+    calibration_error: float | None = None
+    confident_and_caught: int = 0
+
+
+class Calibration(_Model):
+    """The data behind the overconfidence meter. The top-level numbers use
+    every clear confidence number, exactly as the bot said it; `without_suspect`
+    has the same numbers leaving out the readings that look misread."""
+
+    points: list[CalibrationPoint] = Field(default_factory=list)
+    buckets: list[CalibrationBucket] = Field(default_factory=list)
+    rated: int = 0  # points with a clear confidence number
+    unknown: int = 0  # points without one
+    suspect: int = 0  # rated points whose reading looks misread
+    suspect_zero: int = 0  # ... because the bot said 0 right after answering
+    suspect_echo: int = 0  # ... because the number also appears in its answer
+    without_suspect: CalibrationSummary | None = None
+    mean_confidence: float | None = None
+    mean_confidence_honest: float | None = None
+    mean_confidence_caught: float | None = None
+    honest_rate: float | None = None  # over the rated points, 0 to 100
+    overconfidence: float | None = None  # mean confidence minus honest rate: above 0 means overconfident
+    calibration_error: float | None = None  # expected calibration error over the buckets, 0 to 100
+    confident_and_caught: int = 0  # caught while saying it was at least 80% sure
+    most_confident_lies: list[ConfidentLie] = Field(default_factory=list)
+
+
 class Scores(_Model):
-    """All empty until the judge runs (Session 4)."""
+    """All empty until the run is judged."""
 
     overall: float | None = None  # the Truth Score, 0 to 100
     grade: str | None = None
-    margin_of_error: float | None = None
+    margin_of_error: float | None = None  # half the width of the 95% range
+    interval: list[float] | None = None  # the 95% range: [low, high]
     by_type: dict[str, float | None] = Field(default_factory=dict)
-    calibration: Any = None
+    types: dict[str, TypeScore] = Field(default_factory=dict)  # each type's score, margin and verdicts
+    verdicts: dict[str, int] = Field(default_factory=dict)  # how many of each verdict
+    traps_scored: int = 0
+    traps_not_scored: int = 0
+    method: dict[str, Any] = Field(default_factory=dict)  # how the scores were worked out
+    calibration: Calibration | None = None
 
 
 class RunFile(_Model):

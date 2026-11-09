@@ -144,6 +144,26 @@ def test_openai_only_sends_temperature_when_asked():
     assert network.body["temperature"] == 0.0
 
 
+def test_openai_asks_for_structured_output_only_when_given_a_schema():
+    provider, network = openai((200, OPENAI_ANSWER))
+    schema = {"type": "object", "properties": {"verdict": {"type": "string"}}, "required": ["verdict"], "additionalProperties": False}
+
+    chat(provider, "gpt-6-luna", options=ChatOptions(json_schema=json.dumps(schema)))
+    assert network.body["text"] == {
+        "format": {"type": "json_schema", "name": "polygraph_reply", "schema": schema, "strict": True}
+    }
+
+    chat(provider, "gpt-6-luna", options=ChatOptions())
+    assert "text" not in network.body  # bots are never asked for a fixed shape
+
+
+def test_the_reply_shape_setting_leaves_saved_answers_alone():
+    # Every answer saved before the judge existed keeps its cache key, because
+    # the new setting is only part of the key when it's used.
+    assert ChatOptions(max_output_tokens=4096).as_dict() == {"max_output_tokens": 4096, "temperature": None}
+    assert ChatOptions(json_schema="{}").as_dict()["json_schema"] == "{}"
+
+
 def test_openai_answer_cut_off_by_the_length_limit():
     answer = {**OPENAI_ANSWER, "status": "incomplete", "incomplete_details": {"reason": "max_output_tokens"}}
     answer["output"] = [{"type": "reasoning", "summary": []}]  # it ran out while thinking
