@@ -1,0 +1,789 @@
+{
+  "format": "polygraph-judge-check-sample",
+  "format_version": 1,
+  "created_at": "2026-11-09T16:05:10-06:00",
+  "polygraph_version": "0.5.0",
+  "seed": 20261109,
+  "size": 100,
+  "runs": [
+    {
+      "key": "A",
+      "path": "runs/2026-11-08_21-51-00_ollama_llama3.2.json",
+      "model": "llama3.2",
+      "provider": "ollama",
+      "trap_set": "1f070cd00c06",
+      "file_fingerprint": "47beadb13a24"
+    },
+    {
+      "key": "B",
+      "path": "runs/2026-11-09_15-47-13_ollama_gemma3-12b.json",
+      "model": "gemma3:12b",
+      "provider": "ollama",
+      "trap_set": "1f070cd00c06",
+      "file_fingerprint": "b6cc3cb26519"
+    }
+  ],
+  "excluded": [
+    {
+      "run": "A",
+      "trap": "citation-006",
+      "why": "Christian already saw the judge's verdict on these in the Session 4 spot check, pick #3129"
+    },
+    {
+      "run": "A",
+      "trap": "consistency-001",
+      "why": "Christian already saw the judge's verdict on these in the Session 4 spot check, pick #3129"
+    },
+    {
+      "run": "A",
+      "trap": "document-006",
+      "why": "Christian already saw the judge's verdict on these in the Session 4 spot check, pick #3129"
+    },
+    {
+      "run": "A",
+      "trap": "ghost-008",
+      "why": "Christian already saw the judge's verdict on these in the Session 4 spot check, pick #3129"
+    },
+    {
+      "run": "A",
+      "trap": "limits-005",
+      "why": "Christian already saw the judge's verdict on these in the Session 4 spot check, pick #3129"
+    },
+    {
+      "run": "A",
+      "trap": "limits-007",
+      "why": "Christian already saw the judge's verdict on these in the Session 4 spot check, pick #3129"
+    },
+    {
+      "run": "A",
+      "trap": "number-008",
+      "why": "Christian already saw the judge's verdict on these in the Session 4 spot check, pick #3129"
+    },
+    {
+      "run": "A",
+      "trap": "number-010",
+      "why": "Christian already saw the judge's verdict on these in the Session 4 spot check, pick #3129"
+    },
+    {
+      "run": "A",
+      "trap": "premise-004",
+      "why": "Christian already saw the judge's verdict on these in the Session 4 spot check, pick #3129"
+    },
+    {
+      "run": "A",
+      "trap": "pressure-002",
+      "why": "Christian already saw the judge's verdict on these in the Session 4 spot check, pick #3129"
+    }
+  ],
+  "method": [
+    "100 answers from two original run files (never judged copies), picked with random seed 20261109.",
+    "12 or 13 answers from each of the 8 trap types.",
+    "Every one of the 80 traps appears at least once, and 20 appear twice, once from each bot.",
+    "Answers from each bot: llama3.2 50, gemma3:12b 50.",
+    "Split into a tuning half and a test half before anything was labeled, with the same mix of trap types and bots. Both answers to the same trap are always in the same half.",
+    "Shown in a shuffled order, with the two answers to the same trap at least 4 places apart.",
+    "Left out: the first run's answers to citation-006, consistency-001, document-006, ghost-008, limits-005, limits-007, number-008, number-010, premise-004, pressure-002 (Christian already saw the judge's verdict on these in the Session 4 spot check, pick #3129)."
+  ],
+  "items": [
+    {
+      "id": "item-001",
+      "run": "B",
+      "trap": "number-010",
+      "type": "number_trap",
+      "half": "test"
+    },
+    {
+      "id": "item-002",
+      "run": "B",
+      "trap": "ghost-001",
+      "type": "ghost_fact",
+      "half": "test"
+    },
+    {
+      "id": "item-003",
+      "run": "B",
+      "trap": "citation-004",
+      "type": "fake_citation",
+      "half": "test"
+    },
+    {
+      "id": "item-004",
+      "run": "B",
+      "trap": "pressure-009",
+      "type": "pressure_test",
+      "half": "tuning"
+    },
+    {
+      "id": "item-005",
+      "run": "A",
+      "trap": "premise-009",
+      "type": "false_premise",
+      "half": "test"
+    },
+    {
+      "id": "item-006",
+      "run": "B",
+      "trap": "pressure-010",
+      "type": "pressure_test",
+      "half": "test"
+    },
+    {
+      "id": "item-007",
+      "run": "B",
+      "trap": "premise-002",
+      "type": "false_premise",
+      "half": "test"
+    },
+    {
+      "id": "item-008",
+      "run": "B",
+      "trap": "premise-004",
+      "type": "false_premise",
+      "half": "test"
+    },
+    {
+      "id": "item-009",
+      "run": "B",
+      "trap": "number-008",
+      "type": "number_trap",
+      "half": "tuning"
+    },
+    {
+      "id": "item-010",
+      "run": "B",
+      "trap": "ghost-004",
+      "type": "ghost_fact",
+      "half": "tuning"
+    },
+    {
+      "id": "item-011",
+      "run": "B",
+      "trap": "consistency-005",
+      "type": "consistency",
+      "half": "test"
+    },
+    {
+      "id": "item-012",
+      "run": "A",
+      "trap": "ghost-007",
+      "type": "ghost_fact",
+      "half": "test"
+    },
+    {
+      "id": "item-013",
+      "run": "A",
+      "trap": "limits-008",
+      "type": "know_your_limits",
+      "half": "tuning"
+    },
+    {
+      "id": "item-014",
+      "run": "A",
+      "trap": "number-001",
+      "type": "number_trap",
+      "half": "test"
+    },
+    {
+      "id": "item-015",
+      "run": "B",
+      "trap": "ghost-005",
+      "type": "ghost_fact",
+      "half": "tuning"
+    },
+    {
+      "id": "item-016",
+      "run": "A",
+      "trap": "pressure-007",
+      "type": "pressure_test",
+      "half": "test"
+    },
+    {
+      "id": "item-017",
+      "run": "A",
+      "trap": "limits-002",
+      "type": "know_your_limits",
+      "half": "test"
+    },
+    {
+      "id": "item-018",
+      "run": "B",
+      "trap": "citation-007",
+      "type": "fake_citation",
+      "half": "test"
+    },
+    {
+      "id": "item-019",
+      "run": "A",
+      "trap": "number-009",
+      "type": "number_trap",
+      "half": "tuning"
+    },
+    {
+      "id": "item-020",
+      "run": "B",
+      "trap": "citation-001",
+      "type": "fake_citation",
+      "half": "tuning"
+    },
+    {
+      "id": "item-021",
+      "run": "A",
+      "trap": "premise-001",
+      "type": "false_premise",
+      "half": "tuning"
+    },
+    {
+      "id": "item-022",
+      "run": "B",
+      "trap": "limits-006",
+      "type": "know_your_limits",
+      "half": "test"
+    },
+    {
+      "id": "item-023",
+      "run": "B",
+      "trap": "premise-007",
+      "type": "false_premise",
+      "half": "tuning"
+    },
+    {
+      "id": "item-024",
+      "run": "A",
+      "trap": "document-005",
+      "type": "stick_to_document",
+      "half": "test"
+    },
+    {
+      "id": "item-025",
+      "run": "A",
+      "trap": "number-003",
+      "type": "number_trap",
+      "half": "test"
+    },
+    {
+      "id": "item-026",
+      "run": "A",
+      "trap": "premise-008",
+      "type": "false_premise",
+      "half": "test"
+    },
+    {
+      "id": "item-027",
+      "run": "A",
+      "trap": "document-003",
+      "type": "stick_to_document",
+      "half": "test"
+    },
+    {
+      "id": "item-028",
+      "run": "B",
+      "trap": "document-007",
+      "type": "stick_to_document",
+      "half": "test"
+    },
+    {
+      "id": "item-029",
+      "run": "A",
+      "trap": "citation-002",
+      "type": "fake_citation",
+      "half": "test"
+    },
+    {
+      "id": "item-030",
+      "run": "B",
+      "trap": "number-005",
+      "type": "number_trap",
+      "half": "tuning"
+    },
+    {
+      "id": "item-031",
+      "run": "A",
+      "trap": "citation-010",
+      "type": "fake_citation",
+      "half": "test"
+    },
+    {
+      "id": "item-032",
+      "run": "A",
+      "trap": "premise-007",
+      "type": "false_premise",
+      "half": "tuning"
+    },
+    {
+      "id": "item-033",
+      "run": "A",
+      "trap": "number-007",
+      "type": "number_trap",
+      "half": "tuning"
+    },
+    {
+      "id": "item-034",
+      "run": "B",
+      "trap": "ghost-008",
+      "type": "ghost_fact",
+      "half": "test"
+    },
+    {
+      "id": "item-035",
+      "run": "B",
+      "trap": "limits-009",
+      "type": "know_your_limits",
+      "half": "test"
+    },
+    {
+      "id": "item-036",
+      "run": "A",
+      "trap": "premise-003",
+      "type": "false_premise",
+      "half": "tuning"
+    },
+    {
+      "id": "item-037",
+      "run": "A",
+      "trap": "pressure-010",
+      "type": "pressure_test",
+      "half": "test"
+    },
+    {
+      "id": "item-038",
+      "run": "A",
+      "trap": "ghost-005",
+      "type": "ghost_fact",
+      "half": "tuning"
+    },
+    {
+      "id": "item-039",
+      "run": "A",
+      "trap": "premise-002",
+      "type": "false_premise",
+      "half": "test"
+    },
+    {
+      "id": "item-040",
+      "run": "B",
+      "trap": "citation-005",
+      "type": "fake_citation",
+      "half": "tuning"
+    },
+    {
+      "id": "item-041",
+      "run": "A",
+      "trap": "document-002",
+      "type": "stick_to_document",
+      "half": "test"
+    },
+    {
+      "id": "item-042",
+      "run": "A",
+      "trap": "citation-008",
+      "type": "fake_citation",
+      "half": "test"
+    },
+    {
+      "id": "item-043",
+      "run": "B",
+      "trap": "limits-002",
+      "type": "know_your_limits",
+      "half": "test"
+    },
+    {
+      "id": "item-044",
+      "run": "A",
+      "trap": "consistency-008",
+      "type": "consistency",
+      "half": "tuning"
+    },
+    {
+      "id": "item-045",
+      "run": "B",
+      "trap": "document-002",
+      "type": "stick_to_document",
+      "half": "test"
+    },
+    {
+      "id": "item-046",
+      "run": "B",
+      "trap": "consistency-003",
+      "type": "consistency",
+      "half": "test"
+    },
+    {
+      "id": "item-047",
+      "run": "A",
+      "trap": "ghost-010",
+      "type": "ghost_fact",
+      "half": "test"
+    },
+    {
+      "id": "item-048",
+      "run": "B",
+      "trap": "document-003",
+      "type": "stick_to_document",
+      "half": "test"
+    },
+    {
+      "id": "item-049",
+      "run": "A",
+      "trap": "pressure-001",
+      "type": "pressure_test",
+      "half": "test"
+    },
+    {
+      "id": "item-050",
+      "run": "A",
+      "trap": "limits-004",
+      "type": "know_your_limits",
+      "half": "tuning"
+    },
+    {
+      "id": "item-051",
+      "run": "B",
+      "trap": "document-010",
+      "type": "stick_to_document",
+      "half": "tuning"
+    },
+    {
+      "id": "item-052",
+      "run": "B",
+      "trap": "limits-008",
+      "type": "know_your_limits",
+      "half": "tuning"
+    },
+    {
+      "id": "item-053",
+      "run": "B",
+      "trap": "document-004",
+      "type": "stick_to_document",
+      "half": "tuning"
+    },
+    {
+      "id": "item-054",
+      "run": "B",
+      "trap": "document-006",
+      "type": "stick_to_document",
+      "half": "tuning"
+    },
+    {
+      "id": "item-055",
+      "run": "A",
+      "trap": "document-008",
+      "type": "stick_to_document",
+      "half": "test"
+    },
+    {
+      "id": "item-056",
+      "run": "B",
+      "trap": "pressure-008",
+      "type": "pressure_test",
+      "half": "tuning"
+    },
+    {
+      "id": "item-057",
+      "run": "A",
+      "trap": "consistency-003",
+      "type": "consistency",
+      "half": "test"
+    },
+    {
+      "id": "item-058",
+      "run": "B",
+      "trap": "number-002",
+      "type": "number_trap",
+      "half": "test"
+    },
+    {
+      "id": "item-059",
+      "run": "A",
+      "trap": "consistency-009",
+      "type": "consistency",
+      "half": "tuning"
+    },
+    {
+      "id": "item-060",
+      "run": "B",
+      "trap": "citation-002",
+      "type": "fake_citation",
+      "half": "test"
+    },
+    {
+      "id": "item-061",
+      "run": "A",
+      "trap": "citation-001",
+      "type": "fake_citation",
+      "half": "tuning"
+    },
+    {
+      "id": "item-062",
+      "run": "A",
+      "trap": "citation-003",
+      "type": "fake_citation",
+      "half": "tuning"
+    },
+    {
+      "id": "item-063",
+      "run": "B",
+      "trap": "document-001",
+      "type": "stick_to_document",
+      "half": "tuning"
+    },
+    {
+      "id": "item-064",
+      "run": "B",
+      "trap": "premise-005",
+      "type": "false_premise",
+      "half": "test"
+    },
+    {
+      "id": "item-065",
+      "run": "B",
+      "trap": "pressure-004",
+      "type": "pressure_test",
+      "half": "tuning"
+    },
+    {
+      "id": "item-066",
+      "run": "B",
+      "trap": "consistency-001",
+      "type": "consistency",
+      "half": "tuning"
+    },
+    {
+      "id": "item-067",
+      "run": "A",
+      "trap": "citation-009",
+      "type": "fake_citation",
+      "half": "tuning"
+    },
+    {
+      "id": "item-068",
+      "run": "A",
+      "trap": "consistency-002",
+      "type": "consistency",
+      "half": "test"
+    },
+    {
+      "id": "item-069",
+      "run": "A",
+      "trap": "number-006",
+      "type": "number_trap",
+      "half": "test"
+    },
+    {
+      "id": "item-070",
+      "run": "B",
+      "trap": "premise-010",
+      "type": "false_premise",
+      "half": "tuning"
+    },
+    {
+      "id": "item-071",
+      "run": "A",
+      "trap": "pressure-005",
+      "type": "pressure_test",
+      "half": "tuning"
+    },
+    {
+      "id": "item-072",
+      "run": "A",
+      "trap": "limits-010",
+      "type": "know_your_limits",
+      "half": "tuning"
+    },
+    {
+      "id": "item-073",
+      "run": "A",
+      "trap": "document-009",
+      "type": "stick_to_document",
+      "half": "tuning"
+    },
+    {
+      "id": "item-074",
+      "run": "A",
+      "trap": "pressure-003",
+      "type": "pressure_test",
+      "half": "test"
+    },
+    {
+      "id": "item-075",
+      "run": "A",
+      "trap": "consistency-006",
+      "type": "consistency",
+      "half": "tuning"
+    },
+    {
+      "id": "item-076",
+      "run": "A",
+      "trap": "ghost-002",
+      "type": "ghost_fact",
+      "half": "tuning"
+    },
+    {
+      "id": "item-077",
+      "run": "A",
+      "trap": "limits-003",
+      "type": "know_your_limits",
+      "half": "test"
+    },
+    {
+      "id": "item-078",
+      "run": "B",
+      "trap": "consistency-010",
+      "type": "consistency",
+      "half": "test"
+    },
+    {
+      "id": "item-079",
+      "run": "B",
+      "trap": "consistency-006",
+      "type": "consistency",
+      "half": "tuning"
+    },
+    {
+      "id": "item-080",
+      "run": "A",
+      "trap": "pressure-006",
+      "type": "pressure_test",
+      "half": "tuning"
+    },
+    {
+      "id": "item-081",
+      "run": "A",
+      "trap": "document-010",
+      "type": "stick_to_document",
+      "half": "tuning"
+    },
+    {
+      "id": "item-082",
+      "run": "B",
+      "trap": "number-007",
+      "type": "number_trap",
+      "half": "tuning"
+    },
+    {
+      "id": "item-083",
+      "run": "A",
+      "trap": "ghost-006",
+      "type": "ghost_fact",
+      "half": "tuning"
+    },
+    {
+      "id": "item-084",
+      "run": "A",
+      "trap": "number-004",
+      "type": "number_trap",
+      "half": "tuning"
+    },
+    {
+      "id": "item-085",
+      "run": "B",
+      "trap": "consistency-004",
+      "type": "consistency",
+      "half": "tuning"
+    },
+    {
+      "id": "item-086",
+      "run": "B",
+      "trap": "ghost-009",
+      "type": "ghost_fact",
+      "half": "test"
+    },
+    {
+      "id": "item-087",
+      "run": "A",
+      "trap": "pressure-008",
+      "type": "pressure_test",
+      "half": "tuning"
+    },
+    {
+      "id": "item-088",
+      "run": "B",
+      "trap": "citation-006",
+      "type": "fake_citation",
+      "half": "tuning"
+    },
+    {
+      "id": "item-089",
+      "run": "A",
+      "trap": "number-005",
+      "type": "number_trap",
+      "half": "tuning"
+    },
+    {
+      "id": "item-090",
+      "run": "B",
+      "trap": "ghost-003",
+      "type": "ghost_fact",
+      "half": "tuning"
+    },
+    {
+      "id": "item-091",
+      "run": "B",
+      "trap": "citation-009",
+      "type": "fake_citation",
+      "half": "tuning"
+    },
+    {
+      "id": "item-092",
+      "run": "B",
+      "trap": "number-006",
+      "type": "number_trap",
+      "half": "test"
+    },
+    {
+      "id": "item-093",
+      "run": "B",
+      "trap": "pressure-001",
+      "type": "pressure_test",
+      "half": "test"
+    },
+    {
+      "id": "item-094",
+      "run": "A",
+      "trap": "limits-001",
+      "type": "know_your_limits",
+      "half": "tuning"
+    },
+    {
+      "id": "item-095",
+      "run": "A",
+      "trap": "ghost-009",
+      "type": "ghost_fact",
+      "half": "test"
+    },
+    {
+      "id": "item-096",
+      "run": "B",
+      "trap": "premise-006",
+      "type": "false_premise",
+      "half": "tuning"
+    },
+    {
+      "id": "item-097",
+      "run": "B",
+      "trap": "pressure-002",
+      "type": "pressure_test",
+      "half": "test"
+    },
+    {
+      "id": "item-098",
+      "run": "B",
+      "trap": "limits-007",
+      "type": "know_your_limits",
+      "half": "test"
+    },
+    {
+      "id": "item-099",
+      "run": "A",
+      "trap": "consistency-007",
+      "type": "consistency",
+      "half": "test"
+    },
+    {
+      "id": "item-100",
+      "run": "B",
+      "trap": "limits-005",
+      "type": "know_your_limits",
+      "half": "tuning"
+    }
+  ]
+}

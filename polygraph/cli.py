@@ -43,6 +43,8 @@ from polygraph.judges import (
     known_company,
     same_company,
 )
+from polygraph.judgecheck.commands import agreement as agreement_command
+from polygraph.judgecheck.commands import label_app
 from polygraph.pricing import FREE, Prices, format_usd
 from polygraph.progress import JudgeDisplay, RunDisplay, plan_table, summary_table
 from polygraph.report import pick_sample, report_card, trap_detail, verdict_list
@@ -974,6 +976,11 @@ traps_app = typer.Typer(
     no_args_is_help=True,
 )
 app.add_typer(traps_app, name="traps")
+
+# --- polygraph label and polygraph agreement (Session 5: checking the judge) ----
+
+app.add_typer(label_app, name="label")
+app.command("agreement")(agreement_command)
 
 FolderOption = Annotated[
     Path,

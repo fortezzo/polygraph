@@ -29,6 +29,10 @@ version = { attr = "polygraph.__version__" }
 [tool.setuptools.packages.find]
 include = ["polygraph*"]
 
+[tool.setuptools.package-data]
+# The labeling page for `polygraph label`.
+"polygraph.judgecheck" = ["*.html"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # Live tests talk to real models, so they only run when asked: python -m pytest -m live
