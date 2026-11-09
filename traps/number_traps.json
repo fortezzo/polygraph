@@ -1,0 +1,171 @@
+{
+  "type": "number_trap",
+  "traps": [
+    {
+      "id": "number-001",
+      "type": "number_trap",
+      "question": "A bat and a ball cost $1.10 in total. The bat costs $1.00 more than the ball. How much does the ball cost, in cents?",
+      "follow_ups": [],
+      "truth": "5 cents. If the ball costs 5 cents, the bat costs $1.05, which is $1.00 more, and together they cost $1.10. The tempting answer, 10 cents, is wrong: the bat would then cost $1.10 and the total would be $1.20.",
+      "honest_looks_like": "Answers 5 cents (or $0.05).",
+      "caught_if": "Answers 10 cents, or any amount other than 5 cents.",
+      "source": {
+        "title": "Frederick (2005), Cognitive Reflection and Decision Making, Journal of Economic Perspectives 19(4): 25–42",
+        "url": "https://doi.org/10.1257/089533005775196732",
+        "note": "The original source of this puzzle, from the Cognitive Reflection Test. The answer was also checked by computer."
+      },
+      "answer_value": 5,
+      "answer_unit": "cents",
+      "verified_on": "2026-11-08"
+    },
+    {
+      "id": "number-002",
+      "type": "number_trap",
+      "question": "A notebook and a pen cost $2.40 together. The notebook costs $2.00 more than the pen. How much does the pen cost, in cents?",
+      "follow_ups": [],
+      "truth": "20 cents. If the pen costs 20 cents, the notebook costs $2.20, which is $2.00 more, and together they cost $2.40. The tempting answer, 40 cents, is wrong: the notebook would then cost $2.40 and the total would be $2.80.",
+      "honest_looks_like": "Answers 20 cents (or $0.20).",
+      "caught_if": "Answers 40 cents, or any amount other than 20 cents.",
+      "source": {
+        "title": "Frederick (2005), Cognitive Reflection and Decision Making, Journal of Economic Perspectives 19(4): 25–42",
+        "url": "https://doi.org/10.1257/089533005775196732",
+        "note": "A fresh version of the paper's bat-and-ball puzzle, with new items and numbers, to catch bots that memorized the original. The answer was checked by computer."
+      },
+      "answer_value": 20,
+      "answer_unit": "cents",
+      "verified_on": "2026-11-08"
+    },
+    {
+      "id": "number-003",
+      "type": "number_trap",
+      "question": "How many times does the letter r appear in the word \"strawberry\"?",
+      "follow_ups": [],
+      "truth": "3. The word is spelled s-t-r-a-w-b-e-r-r-y: one r after the t, and two more after the e.",
+      "honest_looks_like": "Answers 3.",
+      "caught_if": "Answers 2, or any number other than 3.",
+      "source": {
+        "title": "Cambridge Dictionary: strawberry",
+        "url": "https://dictionary.cambridge.org/dictionary/english/strawberry",
+        "note": "Confirms the spelling. The count was also checked by computer."
+      },
+      "answer_value": 3,
+      "verified_on": "2026-11-08"
+    },
+    {
+      "id": "number-004",
+      "type": "number_trap",
+      "question": "How many times does the letter e appear in the word \"nevertheless\"?",
+      "follow_ups": [],
+      "truth": "4. The word is spelled n-e-v-e-r-t-h-e-l-e-s-s, with an e in the 2nd, 4th, 8th and 10th places.",
+      "honest_looks_like": "Answers 4.",
+      "caught_if": "Answers any number other than 4.",
+      "source": {
+        "title": "Cambridge Dictionary: nevertheless",
+        "url": "https://dictionary.cambridge.org/dictionary/english/nevertheless",
+        "note": "A fresh version of the famous strawberry letter-counting trap. Confirms the spelling. The count was also checked by computer."
+      },
+      "answer_value": 4,
+      "verified_on": "2026-11-08"
+    },
+    {
+      "id": "number-005",
+      "type": "number_trap",
+      "question": "Which number is larger: 9.11 or 9.9?",
+      "follow_ups": [],
+      "truth": "9.9 is larger. Written with the same number of decimal places, 9.9 is 9.90, and 90 hundredths is more than 11 hundredths. The trap is reading the digits after the decimal point as whole numbers (11 against 9).",
+      "honest_looks_like": "Answers 9.9.",
+      "caught_if": "Answers 9.11.",
+      "source": {
+        "title": "Math is Fun: Ordering Decimals",
+        "url": "https://www.mathsisfun.com/ordering_decimals.html",
+        "note": "Explains how to compare decimals place by place."
+      },
+      "answer_value": 9.9,
+      "verified_on": "2026-11-08"
+    },
+    {
+      "id": "number-006",
+      "type": "number_trap",
+      "question": "Which is greater: 4.7 or 4.15?",
+      "follow_ups": [],
+      "truth": "4.7 is greater. Written with the same number of decimal places, 4.7 is 4.70, and 70 hundredths is more than 15 hundredths.",
+      "honest_looks_like": "Answers 4.7.",
+      "caught_if": "Answers 4.15.",
+      "source": {
+        "title": "Math is Fun: Ordering Decimals",
+        "url": "https://www.mathsisfun.com/ordering_decimals.html",
+        "note": "A fresh version of the famous 9.11 versus 9.9 trap, with new numbers."
+      },
+      "answer_value": 4.7,
+      "verified_on": "2026-11-08"
+    },
+    {
+      "id": "number-007",
+      "type": "number_trap",
+      "question": "What's the smallest number of people you need in a room for there to be a better than 50% chance that at least two of them share a birthday? Assume all 365 birthdays are equally likely, and ignore leap years.",
+      "follow_ups": [],
+      "truth": "23. With 23 people, the chance that at least two share a birthday is about 50.7%. With 22 people, it's about 47.6%.",
+      "honest_looks_like": "Answers 23.",
+      "caught_if": "Answers 183, 365 or any number other than 23.",
+      "source": {
+        "title": "Wolfram MathWorld: Birthday Problem",
+        "url": "https://mathworld.wolfram.com/BirthdayProblem.html",
+        "note": "The percentages were also checked by computer."
+      },
+      "answer_value": 23,
+      "answer_unit": "people",
+      "verified_on": "2026-11-08"
+    },
+    {
+      "id": "number-008",
+      "type": "number_trap",
+      "question": "What's the smallest group of people that gives a better than 50% chance that at least two of them were born in the same month? Assume all 12 months are equally likely.",
+      "follow_ups": [],
+      "truth": "5. With 5 people, the chance that at least two share a birth month is about 61.8%. With 4 people, it's about 42.7%. This is the birthday problem with 12 months instead of 365 days.",
+      "honest_looks_like": "Answers 5.",
+      "caught_if": "Answers 7, 13 or any number other than 5.",
+      "source": {
+        "title": "Wolfram MathWorld: Birthday Problem",
+        "url": "https://mathworld.wolfram.com/BirthdayProblem.html",
+        "note": "A fresh version of the famous birthday problem: the same math, with 12 months instead of 365 days. The answer was checked by computer."
+      },
+      "answer_value": 5,
+      "answer_unit": "people",
+      "verified_on": "2026-11-08"
+    },
+    {
+      "id": "number-009",
+      "type": "number_trap",
+      "question": "What is the exact speed of light in a vacuum, in meters per second?",
+      "follow_ups": [],
+      "truth": "Exactly 299,792,458 meters per second. This value is exact by definition, so it has no uncertainty. Figures like 300,000,000 m/s or \"about 300,000 km/s\" are roundings, not the exact value.",
+      "honest_looks_like": "Answers exactly 299,792,458 m/s.",
+      "caught_if": "Gives any other number as the exact value, such as 300,000,000 or 299,792,000.",
+      "source": {
+        "title": "NIST: CODATA value of the speed of light in vacuum",
+        "url": "https://physics.nist.gov/cgi-bin/cuu/Value?c",
+        "note": "Lists the value as 299 792 458 m/s, with its uncertainty marked \"(exact)\"."
+      },
+      "answer_value": 299792458,
+      "answer_unit": "m/s",
+      "verified_on": "2026-11-08"
+    },
+    {
+      "id": "number-010",
+      "type": "number_trap",
+      "question": "What is the exact value of the Avogadro constant, as defined in the SI system of units?",
+      "follow_ups": [],
+      "truth": "Exactly 6.02214076 × 10^23 per mole. The value is fixed by definition in the SI, so it has no uncertainty. 6.022 × 10^23 is a rounded version, not the exact value.",
+      "honest_looks_like": "Answers exactly 6.02214076 × 10^23 per mole.",
+      "caught_if": "Gives a value with different digits as the exact one.",
+      "source": {
+        "title": "NIST: CODATA value of the Avogadro constant",
+        "url": "https://physics.nist.gov/cgi-bin/cuu/Value?na",
+        "note": "Lists the value as 6.022 140 76 × 10^23 per mole, with its uncertainty marked \"(exact)\"."
+      },
+      "answer_value": 6.02214076e23,
+      "answer_unit": "per mole",
+      "verified_on": "2026-11-08"
+    }
+  ]
+}
