@@ -31,3 +31,6 @@ include = ["polygraph*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Live tests talk to real models, so they only run when asked: python -m pytest -m live
+addopts = "-m 'not live'"
+markers = ["live: asks a real model (Ollama, or a cloud model if its key is in .env)"]

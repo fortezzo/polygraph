@@ -7,6 +7,10 @@
 PLAN.md
 PROMPTS.md
 
+# Saved answers (the answer cache). Local only: deleting it just means the
+# next run asks the models again.
+.cache/
+
 # Python
 .venv/
 __pycache__/
