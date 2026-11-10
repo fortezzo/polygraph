@@ -18,11 +18,16 @@ from polygraph.judgecheck.agreement import (
     Pair,
     Stats,
     final,
+    final_for_judge,
+    judge_file_name,
+    lean,
     load_final,
+    load_judge_final,
     load_rounds,
     tuning,
     type_label,
 )
+from polygraph.runfile import load_run
 from polygraph.judgecheck.display import report, rounds_table
 from polygraph.judgecheck.files import shown
 from polygraph.judgecheck.labels import LABELS_FILE, Label, LabelError, LabelStore, Version, lock_labels
@@ -353,6 +358,82 @@ def _show_final(record: dict[str, Any], folder: Path) -> None:
     out.print(Text(f"Saved in {shown(Path(folder) / agreement_module.FINAL_FILE)}", style="dim"))
 
 
+_VERDICT_WORDS = {"HONEST": "Honest", "LIE": "Lie", "CAVED": "Caved", "CONTRADICTED": "Contradicted", "DODGED": "Dodged"}
+
+
+def lean_words(found: dict[str, Any], judge: str) -> str:
+    """Which way a judge leans compared with Christian, in one or two sentences."""
+
+    def cells(name: str) -> str:
+        parts = [
+            f"{cell['count']} of your {_VERDICT_WORDS.get(cell['yours'], cell['yours'])}s it called "
+            f"{_VERDICT_WORDS.get(cell['judge'], cell['judge'])}"
+            for cell in found.get(name, [])
+        ]
+        return ", ".join(parts)
+
+    direction = found.get("direction")
+    if direction == "generous":
+        text = f"{judge} leans generous: {cells('generous')}."
+    elif direction == "harsh":
+        text = f"{judge} leans harsh: {cells('harsh')}."
+    else:
+        text = f"{judge} doesn't lean either way on these answers."
+        if found.get("generous_total"):
+            text += f" Generous: {cells('generous')}."
+    if direction == "generous" and found.get("harsh_total"):
+        text += f" The other way: {cells('harsh')}."
+    elif direction == "harsh" and found.get("generous_total"):
+        text += f" The other way: {cells('generous')}."
+    elif direction == "generous":
+        text += " It never scored one of your answers lower than you did."
+    elif direction == "harsh":
+        text += " It never scored one of your answers higher than you did."
+    if found.get("sideways_total"):
+        text += f" Same points, different verdict: {cells('sideways')}."
+    if found.get("not_judged_total"):
+        text += f" Not judged: {found['not_judged_total']}."
+    return text
+
+
+def _show_judge_final(record: dict[str, Any], folder: Path) -> None:
+    stats = _stats_from(record)
+    settings = record.get("judge_settings") or {}
+    setup = []
+    if settings.get("thinking"):
+        setup.append(f"thinking {settings['thinking']}")
+    if settings.get("context_window"):
+        setup.append(f"a {settings['context_window']:,}-token window")
+    rows = [
+        ("Half", f"test: {stats.n} answers, never used for tuning"),
+        ("Judge", _judge_row(record) + (f" · {', '.join(setup)}" if setup else "")),
+        ("Judged copies", ", ".join(record["judged_files"].values())),
+        ("Your labels", f"exactly as locked on {record['labels']['locked_at']}"),
+        ("Tuning", "none: the rubric exactly as frozen for the first judge"),
+        ("Measured", f"{record['measured_at']}" + (f" · code at commit {record['git']['commit'][:10]}" if record.get("git", {}).get("commit") else "")),
+    ]
+    first = _first_vote_row(record)
+    if first:
+        rows.append(first)
+    out.print(report(stats, rows, f"Final agreement: {record['judge']} on the test half", "Where you and this judge disagreed"))
+    out.print(Text(lean_words(record["lean"], record["judge"]), style="bold"))
+    versus = record.get("versus_first_judge") or {}
+    if versus:
+        both, ai = versus["all"], versus["ai_judge_both"]
+        kappa = "–" if both.get("kappa") is None else f"{both['kappa']:.2f}"
+        ai_kappa = "–" if ai.get("kappa") is None else f"{ai['kappa']:.2f}"
+        out.print(
+            Text(
+                f"{versus['second_judge']} and {versus['first_judge']} gave the same verdict on {both['agree']} of "
+                f"{both['answers']} ({both['percent']:.0f}%, kappa {kappa}). On the {ai['answers']} that both AI judges "
+                f"decided (the hard checks settle the rest the same way for both): {ai['agree']} of {ai['answers']} "
+                f"({ai['percent']:.0f}%, kappa {ai_kappa}).",
+            )
+        )
+        out.print(Text(lean_words(record["first_judge_lean"], versus["first_judge"]), style="dim"))
+    out.print(Text(f"Saved in {shown(Path(folder) / judge_file_name(record['judge']))}", style="dim"))
+
+
 def agreement(
     final_measurement: Annotated[
         bool,
@@ -399,7 +480,13 @@ def agreement(
         return
 
     earlier = load_final(folder)
-    if earlier is not None and not redo:
+    other_judge = _other_judge(chosen, earlier)
+    if other_judge is not None:
+        measured = load_judge_final(folder, other_judge)
+        if measured is not None:
+            _show_judge_final(measured, folder)
+            return
+    elif earlier is not None and not redo:
         _show_final(earlier, folder)
         return
     state = agreement_module.git_state()
@@ -415,12 +502,39 @@ def agreement(
             "This opens the test half, once. Do it only when the rubric is final. Go ahead?", default=False
         ):
             raise typer.Exit(1)
+    if other_judge is not None:
+        try:
+            _, record = final_for_judge(folder, sample, store, chosen=chosen or {}, git=lambda: state)
+        except (AgreementError, SampleError, LabelError) as problem:
+            _fail(str(problem))
+            raise
+        _show_judge_final(record, folder)
+        return
     try:
         _, _, record = final(folder, sample, store, chosen=chosen, redo=redo, git=lambda: state)
     except (AgreementError, SampleError, LabelError) as problem:
         _fail(str(problem))
         raise
     _show_final(record, folder)
+
+
+def _other_judge(chosen: dict[str, Path] | None, first: dict[str, Any] | None) -> str | None:
+    """The judge of the chosen judged copies, when it isn't the judge final.json
+    measured: that judge's measurement goes in its own file."""
+    if not chosen or first is None:
+        return None
+    judges = set()
+    for path in chosen.values():
+        try:
+            info = load_run(path).run.judge
+        except (ValueError, OSError):
+            continue
+        if info is not None:
+            judges.add(info.model)
+    if len(judges) == 1:
+        judge = judges.pop()
+        return None if judge == first["judge"] else judge
+    return None
 
 
 __all__ = ["agreement", "label_app"]

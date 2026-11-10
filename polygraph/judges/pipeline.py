@@ -480,7 +480,8 @@ class RunJudge:
             settings={
                 "max_output_tokens": caller.options.max_output_tokens,
                 "temperature": caller.options.temperature,
-                "thinking": "the model's default",
+                "thinking": _thinking_setting(caller.options.think),
+                **({"context_window": caller.options.context_window} if caller.options.context_window else {}),
                 "structured_output": self.judge.structured,
                 "concurrency": caller.concurrency,
                 "votes": self.votes,
@@ -515,6 +516,13 @@ class RunJudge:
         )
         self.run_file.scores = score_run(self.run_file)
         return self.run_file
+
+
+def _thinking_setting(think: bool | None) -> str:
+    """How the judge's thinking was set, in words, for the judged file."""
+    if think is None:
+        return "the model's default"
+    return "on" if think else "off"
 
 
 def _fixes(judgement: Judgement) -> int:

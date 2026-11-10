@@ -16,6 +16,7 @@ reply still can't be used, the trap gets no verdict rather than a guessed one.
 from __future__ import annotations
 
 import collections
+import dataclasses
 import json
 import re
 from dataclasses import dataclass, field
@@ -183,11 +184,10 @@ class AIJudge:
         self.structured = structured  # the provider can enforce the JSON shape
 
     def options(self, trap_type: str) -> ChatOptions:
-        base = self.caller.options
-        return ChatOptions(
-            max_output_tokens=base.max_output_tokens,
-            temperature=base.temperature,
-            json_schema=schema_text(trap_type) if self.structured else None,
+        """The caller's settings (including a local judge's window and thinking
+        switch), plus this trap type's reply shape where it can be enforced."""
+        return dataclasses.replace(
+            self.caller.options, json_schema=schema_text(trap_type) if self.structured else None
         )
 
     def messages(

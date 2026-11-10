@@ -19,13 +19,16 @@ from rich.text import Text
 from polygraph import __version__
 from polygraph.config import Settings, load_settings
 from polygraph.interrogator import (
+    CONFIDENCE_QUESTION,
     DEFAULT_LIMIT_USD,
+    DOCUMENT_TEMPLATE,
     Caller,
     CostGuard,
     Interrogator,
     ResponseCache,
     RunAborted,
 )
+from polygraph.interrogator.reuse import check_reusable, reusable_replies
 from polygraph.judges import (
     DEFAULT_JUDGES,
     INSTRUCTIONS,
@@ -92,10 +95,12 @@ out = Console()  # answers and results
 err = Console(stderr=True)  # status messages and errors, kept apart from answers
 
 # Answer length limits and judging settings (shared with the live server).
+from polygraph.limits import local_judge_options  # noqa: E402
 from polygraph.limits import (  # noqa: E402
     ASK_THINKING_LIMIT,
     DEFAULT_VOTES,
     JUDGE_CONCURRENCY,
+    JUDGE_LOCAL_CONCURRENCY,
     JUDGE_PLAIN_LIMIT,
     JUDGE_THINKING_LIMIT,
     PLAIN_LIMIT,
@@ -255,10 +260,36 @@ def run(
         typer.Option("--price-out", min=0.0, help="... and dollars per million output tokens."),
     ] = None,
     base_url: BaseUrlOption = None,
+    reuse: Annotated[
+        Optional[Path],
+        typer.Option(
+            "--reuse",
+            help="Take the answers from this earlier run file first, word for word, instead of the saved-answer "
+            "cache. Questions it didn't ask are asked as usual. It has to be the same bot with the same settings.",
+            show_default=False,
+        ),
+    ] = None,
+    bot_name: Annotated[
+        Optional[str],
+        typer.Option("--name", help="Test your own bot: its name, like \"Bob's Pizza helper\". Use with --instructions."),
+    ] = None,
+    instructions: Annotated[
+        Optional[str],
+        typer.Option("--instructions", help="Test your own bot: its instructions (a system prompt), in quotes."),
+    ] = None,
     folder: Annotated[Path, typer.Option("--folder", help="Which trap folder to use.", hidden=True)] = DEFAULT_FOLDER,
 ) -> None:
     """Interrogate a bot with the trap library and save everything to a run file in runs/."""
     settings = load_settings()
+    if reuse is not None and fresh:
+        err.print(Text("--reuse and --fresh pull in opposite directions. Use one or the other.", style="bold red"))
+        raise typer.Exit(code=2)
+    instructions = instructions.strip() if instructions and instructions.strip() else None
+    bot_name = bot_name.strip() if bot_name and bot_name.strip() else None
+    if bool(instructions) != bool(bot_name):
+        err.print(Text("To test your own bot, give it both a --name and its --instructions.", style="bold red"))
+        raise typer.Exit(code=2)
+    earlier: RunFile | None = _load_run_file(reuse) if reuse is not None else None
 
     # 1. The traps.
     try:
@@ -305,6 +336,7 @@ def run(
             cache=cache,
             read_cache=not fresh,
             concurrency=at_once,
+            system_prompt=instructions,
             version_pin=info.version,
             on_retry=display.retrying,
         )
@@ -317,12 +349,25 @@ def run(
             model_version=info.version if name == "ollama" else None,
             model_details=info.details,
             endpoint=bot.endpoint,
+            system_prompt=instructions,
+            name=bot_name,
             settings={
                 "max_output_tokens": options.max_output_tokens,
                 "temperature": options.temperature,
                 "thinking": "the model's default",
             },
         )
+        if earlier is not None:
+            problems = check_reusable(
+                earlier, target, confidence_question=CONFIDENCE_QUESTION, document_template=DOCUMENT_TEMPLATE
+            )
+            if problems:
+                err.print(Text(f"Polygraph can't reuse the answers in {_shown_path(reuse)}:", style="bold red"))
+                for problem in problems:
+                    err.print(Text(f"  - {problem}"))
+                err.print(Text("Reusing them would mix answers to different questions or settings into this run."))
+                raise typer.Exit(code=1)
+            caller.reuse = reusable_replies(earlier, caller, confidence_question=CONFIDENCE_QUESTION)
         interrogator = Interrogator(
             caller=caller,
             library=library,
@@ -333,6 +378,7 @@ def run(
             thinks=thinks,
             concurrency=at_once,
             listener=display,
+            reused_from=reuse.name if reuse is not None else None,
         )
         estimate = interrogator.estimate()
         interrogator.estimated_usd = estimate.typical_usd
@@ -358,6 +404,8 @@ def run(
                     max_output_tokens=options.max_output_tokens,
                     thinks=thinks,
                     at_once=at_once,
+                    reusing=reuse.name if reuse is not None else None,
+                    bot_name=bot_name,
                 ),
                 title="Interrogation plan",
                 title_align="left",
@@ -641,6 +689,13 @@ def _judge_plan(job: RunJudge, run_path: Path, estimate, *, fresh: bool, limit: 
         table.add_row("Cost", "free: the judge runs on your PC")
     table.add_row("Limit", f"${limit:.2f}. Judging stops before it could go over.")
     table.add_row("Rubric", f"fingerprint {fingerprint()}" + (" · the judge thinks before answering" if thinks else ""))
+    options = job.judge.caller.options
+    if options.context_window is not None:
+        thinking = {True: "on", False: "off", None: "the model's default"}[options.think]
+        table.add_row(
+            "On this PC",
+            f"thinking {thinking} · a {options.context_window:,}-token window, so the whole rubric fits · one at a time",
+        )
     return table
 
 
@@ -695,6 +750,14 @@ def judge(
         Optional[Path],
         typer.Option("--out", help="Save the judged copy in this folder instead of next to the run file.", show_default=False),
     ] = None,
+    judge_thinking: Annotated[
+        Optional[str],
+        typer.Option(
+            "--judge-thinking",
+            help="For a judge on this PC (Ollama) that can think first: on or off. Default: the model's own default.",
+            show_default=False,
+        ),
+    ] = None,
 ) -> None:
     """Judge a run: the hard checks first, then the AI judge, then the scores and the report card.
 
@@ -738,8 +801,27 @@ def judge(
         raise typer.Exit(code=1)
     known = find_known(name, model_name)
     prices = _prices(provider, name, model_name, known, price_in, price_out)
-    thinks = bool(known and known.reasoning)
-    options = ChatOptions(max_output_tokens=JUDGE_THINKING_LIMIT if thinks else JUDGE_PLAIN_LIMIT)
+    local_judge = name == "ollama"
+    think: bool | None = None
+    if judge_thinking is not None:
+        wanted = judge_thinking.strip().lower()
+        if wanted not in ("on", "off"):
+            err.print(Text(f"--judge-thinking takes on or off, not '{judge_thinking}'.", style="bold red"))
+            raise typer.Exit(code=2)
+        if not local_judge:
+            err.print(Text("--judge-thinking is only for a judge on this PC (Ollama).", style="bold red"))
+            raise typer.Exit(code=2)
+        think = wanted == "on"
+    if local_judge:
+        try:
+            thinks = think if think is not None else "thinking" in asyncio.run(provider.capabilities(model_name))
+        except ProviderError as problem:
+            _explain(problem)
+            raise typer.Exit(code=1)
+        options = local_judge_options(thinks=thinks, think=think)
+    else:
+        thinks = bool(known and known.reasoning)
+        options = ChatOptions(max_output_tokens=JUDGE_THINKING_LIMIT if thinks else JUDGE_PLAIN_LIMIT)
 
     # Check the judge model exists, and note its details. This costs nothing.
     try:
@@ -766,7 +848,7 @@ def judge(
             options=options,
             cache=cache,
             read_cache=not fresh,
-            concurrency=JUDGE_CONCURRENCY,
+            concurrency=JUDGE_LOCAL_CONCURRENCY if local_judge else JUDGE_CONCURRENCY,
             system_prompt=INSTRUCTIONS,
             on_retry=display.retrying,
         )
@@ -781,7 +863,8 @@ def judge(
                 bot_company_from=bot_company_from,
                 model_details=model_details,
             ),
-            judge=AIJudge(caller, structured=name == "openai"),
+            # OpenAI and Ollama can both make the reply follow the JSON shape.
+            judge=AIJudge(caller, structured=name in ("openai", "ollama")),
             lookup=None,
             limit_usd=max_cost,
             prices=prices,

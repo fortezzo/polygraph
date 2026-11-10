@@ -211,10 +211,14 @@ def plan_table(
     max_output_tokens: int,
     thinks: bool,
     at_once: int,
+    reusing: str | None = None,
+    bot_name: str | None = None,
 ) -> Table:
     table = Table.grid(padding=(0, 2))
     table.add_column(style="bold")
     table.add_column()
+    if bot_name:
+        table.add_row("Your bot", f"{bot_name}: {model} with its own instructions")
     table.add_row("Bot", f"{model} via {provider_label}" + (", on this PC" if local else ""))
     if exact:
         parts = [exact.split("@sha256:")[0]]
@@ -236,6 +240,8 @@ def plan_table(
         table.add_row("Saved answers", "ignored: every question is asked fresh (--fresh)")
     else:
         table.add_row("Saved answers", f"{estimate.cached_calls} of {estimate.calls} already saved from earlier runs")
+    if reusing:
+        table.add_row("Reusing", f"the answers in {reusing} first, word for word, instead of the saved-answer cache")
     prices = estimate.prices
     if prices is not None and prices.free:
         table.add_row("Cost", "free: this model runs on your PC")

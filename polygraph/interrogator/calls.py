@@ -18,7 +18,7 @@ import random
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
-from polygraph.interrogator.cache import ResponseCache, cache_key
+from polygraph.interrogator.cache import CachedReply, ResponseCache, cache_key
 from polygraph.interrogator.costs import (
     CostGuard,
     CostLimitReached,
@@ -129,6 +129,10 @@ class Caller:
         self._failures_in_a_row = 0
         self._stopped: CostLimitReached | RunAborted | None = None  # once set, no more questions go out
         self.stats = CallStats()
+        # polygraph run --reuse: replies taken from an earlier run file, looked
+        # up before the cache (see reuse.py). Empty unless a run asks for it.
+        self.reuse: dict[str, CachedReply] = {}
+        self.reused = 0  # how many replies came from it
 
     def conversation(self, messages: list[Message]) -> list[Message]:
         """The full conversation as the model sees it, with the system prompt first."""
@@ -148,9 +152,12 @@ class Caller:
 
     def peek(self, messages: list[Message], options: ChatOptions | None = None, variant: int = 0) -> Reply | None:
         """The saved reply for this conversation, if there is one (for estimates)."""
+        key = self.key(messages, options, variant)
+        if key in self.reuse:
+            return self.reuse[key].reply
         if self.cache is None or not self.read_cache:
             return None
-        hit = self.cache.get(self.key(messages, options, variant))
+        hit = self.cache.get(key)
         return hit.reply if hit else None
 
     def stop(self, reason: CostLimitReached | RunAborted) -> None:
@@ -188,6 +195,30 @@ class Caller:
         options = options or self.options
         conversation = self.conversation(messages)
         key = self.key(messages, options, variant)
+        reused = self.reuse.get(key)
+        if reused is not None:
+            # Word for word from the earlier run file. It goes back into the
+            # cache too, so later runs and judging see the same answer.
+            if self.cache is not None:
+                self.cache.put(
+                    key,
+                    provider=self.provider.identity,
+                    model=self.model,
+                    reply=reused.reply,
+                    first_collected_at=reused.first_collected_at,
+                )
+            self.reused += 1
+            self._count(reused.reply, from_cache=True)
+            return CallResult(
+                reply=reused.reply,
+                from_cache=True,
+                first_collected_at=reused.first_collected_at,
+                cost_usd=0.0,
+                attempts=0,
+                input_tokens=reused.reply.input_tokens,
+                output_tokens=reused.reply.output_tokens,
+                tokens_estimated=False,
+            )
         if self.cache is not None and self.read_cache:
             hit = self.cache.get(key)
             if hit is not None:

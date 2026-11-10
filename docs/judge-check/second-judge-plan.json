@@ -1,0 +1,53 @@
+{
+  "format": "polygraph-second-judge-plan",
+  "format_version": 1,
+  "written_at": "2026-11-10T12:02:10-06:00",
+  "what": "The second judge's setup, fixed and committed before it judges a single test-half answer (Session 9). Christian asked for a free local judge from a company other than OpenAI, Meta or Google, measured on his locked test-half labels from Session 5 with no tuning, the same way gpt-6-luna was measured.",
+  "judge": {
+    "model": "qwen3.6:35b",
+    "maker": "Alibaba",
+    "runs_on": "this PC, through Ollama 0.40.16",
+    "download": "qwen3.6:35b@sha256:a7eb95c53bcf96b4bdd008d0fab4a5dac88047d9c1a7a9ab88ed453423fbd87c",
+    "size": "35.5B parameters (a mixture of experts, about 3B active per word), Q4_K_M, 22 GB",
+    "thinking": "off",
+    "context_window": 16384,
+    "max_output_tokens": 2048,
+    "temperature": "the model's default",
+    "reply_shape": "enforced with Ollama's structured outputs, from the rubric's own JSON schema",
+    "requests_at_once": 1
+  },
+  "measured_like_gpt_6_luna": {
+    "labels": "Christian's 50 test-half labels, exactly as locked on 2026-11-09 (lock commit 61f4f5d)",
+    "rubric": "0faa426bd649 (frozen in lock commit 08a6888, unchanged)",
+    "hard_checks": "3",
+    "votes": 3,
+    "tie_rule": "on a tie, 2 more votes; still tied, the milder verdict, flagged",
+    "answers_judged": "only the 50 test-half answers: 25 from runs/2026-11-08_21-51-00_ollama_llama3.2.json and 25 from runs/2026-11-09_15-47-13_ollama_gemma3-12b.json",
+    "measured": "once, with polygraph agreement --final, into docs/judge-check/final-qwen3.6-35b.json. gpt-6-luna's final.json is never touched."
+  },
+  "why_thinking_is_off": "Decided on speed alone, before any test-half answer was judged. On 10 Llama answers outside Christian's 100 labels (the ones he checked in Session 4), with thinking off Qwen took 2.0 seconds a vote on average (23 votes, 46 seconds in all, no fixes, no unusable replies); with thinking on, 27.9 seconds a vote (27 replies, about 1,750 thinking tokens each, 12.6 minutes in all, one fix). Grading every lineup model (about 4,200 votes) would take about 3 to 4 hours with thinking off and about 33 hours with it on, and Christian asked for the option of one judge for the whole ranking.",
+  "rules_set_by_christian": [
+    "The line is 42 of 50 (84%). At or above it, Qwen is used and the number is reported. Below it, stop and ask before Qwen grades anything.",
+    "If Qwen falls short, its settings are never changed and tested again on the same 50 answers, because that would turn the test into practice.",
+    "Report how often Qwen and gpt-6-luna agree with each other on the same 50 answers.",
+    "Show which way each judge leans compared with Christian, next to its agreement number."
+  ],
+  "speed_test": {
+    "answers": "runs/2026-11-08_21-51-00_ollama_llama3.2.json: ghost-008, premise-004, citation-006, pressure-002, consistency-001, limits-005, limits-007, number-008, number-010, document-006 (Session 4's spot check, pick #3129, left out of the 100 labels)",
+    "thinking_off": {
+      "replies": 23,
+      "mean_seconds": 2.0,
+      "mean_output_tokens": 67,
+      "fixes": 0,
+      "unusable": 0
+    },
+    "thinking_on": {
+      "replies": 27,
+      "mean_seconds": 27.9,
+      "mean_output_tokens": 1756,
+      "fixes": 1,
+      "unusable": 0
+    },
+    "verdicts_compared": "no: the choice used the timings only"
+  }
+}

@@ -48,16 +48,30 @@ class ChatOptions:
     max_output_tokens: int = 4096
     temperature: float | None = None
     # A JSON schema (as JSON text) the reply must follow. Connectors that can
-    # enforce one do (OpenAI's structured outputs); the others ignore it, and
-    # the prompt itself asks for the JSON. The judge uses this; bots never do.
+    # enforce one do (OpenAI's structured outputs, Ollama's format); the others
+    # ignore it, and the prompt itself asks for the JSON. The judge uses this;
+    # bots never do.
     json_schema: str | None = None
+    # Ollama only: how many tokens the model can hold at once (its num_ctx),
+    # the prompt and the reply together. None means Ollama's own default, which
+    # is 4,096 on this PC: plenty for the bots (their longest saved prompt is
+    # about 1,500 tokens), but too little for the judge's rubric, which Ollama
+    # would quietly cut from the start. The local judge sets it; bots never do.
+    context_window: int | None = None
+    # Ollama only: turn a thinking model's thinking on (True) or off (False).
+    # None means the model's own default. The local judge sets it; bots never do.
+    think: bool | None = None
 
     def as_dict(self) -> dict[str, Any]:
         settings: dict[str, Any] = {"max_output_tokens": self.max_output_tokens, "temperature": self.temperature}
-        # Only included when set, so every answer saved before this existed
+        # Only included when set, so every answer saved before these existed
         # keeps the same cache key.
         if self.json_schema is not None:
             settings["json_schema"] = self.json_schema
+        if self.context_window is not None:
+            settings["context_window"] = self.context_window
+        if self.think is not None:
+            settings["think"] = self.think
         return settings
 
 
@@ -79,6 +93,9 @@ class Reply:
     # Input tokens the provider stored in its own prompt cache, which some
     # providers charge a little extra for. Already included in input_tokens.
     cache_write_tokens: int | None = None
+    # How hard the model thought, as the provider reports it for this reply
+    # (OpenAI says "low", "medium", "high" and so on). None when it doesn't say.
+    thinking_level: str | None = None
 
     @property
     def truncated(self) -> bool:

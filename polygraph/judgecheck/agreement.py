@@ -24,6 +24,7 @@ import dataclasses
 import datetime as dt
 import json
 import random
+import re
 import subprocess
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -557,6 +558,199 @@ def final(
         record["earlier"] = [*previous, {**earlier, "replaced_because": redo}]
     write_json(Path(folder) / FINAL_FILE, record)
     return stats, baseline_stats, record
+
+
+# --- Another judge on the same test half (Session 9) ----------------------------------------
+#
+# gpt-6-luna was measured on the test half once, in final.json. Another judge is
+# measured the same way: the same locked labels, the same frozen rubric and hard
+# checks, the same votes and tie rule, no tuning, once. Its result goes in a file
+# of its own (final-<judge>.json), so the first judge's result never changes.
+# Christian's rule: if a judge falls short, its settings are never changed and
+# tested again on the same 50 answers, because that would turn the test into practice.
+
+
+def judge_file_name(judge: str) -> str:
+    """final-qwen3.6-35b.json for qwen3.6:35b."""
+    slug = re.sub(r"[^a-z0-9.]+", "-", judge.casefold()).strip("-")
+    return f"final-{slug}.json"
+
+
+def load_judge_final(folder: Path, judge: str) -> dict[str, Any] | None:
+    path = Path(folder) / judge_file_name(judge)
+    if not path.is_file():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def judge_finals(folder: Path) -> list[dict[str, Any]]:
+    """Every judge measured on the test half: the first (final.json), then the others."""
+    found = []
+    first = load_final(folder)
+    if first is not None:
+        found.append(first)
+    for path in sorted(Path(folder).glob("final-*.json")):
+        found.append(json.loads(path.read_text(encoding="utf-8")))
+    return found
+
+
+def lean(confusion: dict[str, dict[str, int]]) -> dict[str, Any]:
+    """Which way a judge leans compared with the hand labels, from the grid of
+    labels (rows) against the judge's verdicts (columns), by points (Honest 1,
+    Dodged half, the rest 0):
+    - generous: answers the judge scored higher than the label did (like a Lie
+      it called Honest)
+    - harsh: answers it scored lower (like an honest answer it called a Lie)
+    - sideways: the same points but a different verdict (like a Lie it called Caved)
+    - not_judged: answers it gave no verdict
+    Each list says which verdicts, and how many."""
+    found: dict[str, list[dict[str, Any]]] = {"generous": [], "harsh": [], "sideways": [], "not_judged": []}
+    for yours, row in confusion.items():
+        for theirs, count in row.items():
+            if not count or yours == theirs:
+                continue
+            cell = {"yours": yours, "judge": theirs, "count": count}
+            if theirs == NOT_JUDGED:
+                found["not_judged"].append(cell)
+                continue
+            mine, its = POINTS.get(yours, 0.0), POINTS.get(theirs, 0.0)
+            found["generous" if its > mine else "harsh" if its < mine else "sideways"].append(cell)
+    totals = {name: sum(cell["count"] for cell in cells) for name, cells in found.items()}
+    if totals["generous"] > totals["harsh"]:
+        direction = "generous"
+    elif totals["harsh"] > totals["generous"]:
+        direction = "harsh"
+    else:
+        direction = "even"
+    return {"direction": direction, **{f"{name}_total": total for name, total in totals.items()}, **found}
+
+
+def judges_compared(first: Sequence[Pair], second: Sequence[Pair], first_judge: str, second_judge: str) -> dict[str, Any]:
+    """How often two judges gave the same verdict on the same answers, with
+    kappa and 95% ranges: over all of them, and over the ones both AI judges
+    decided (the hard checks decide the rest the same way for both)."""
+    by_item = {pair.item.id: pair for pair in first}
+    codes: list[tuple[str, str]] = []
+    ai_codes: list[tuple[str, str]] = []
+    grid: dict[str, dict[str, int]] = {}
+    differ = []
+    for pair in second:
+        other = by_item.get(pair.item.id)
+        if other is None:
+            raise AgreementError(f"{first_judge}'s judged copies have no verdict for {pair.item.id}.")
+        code = (other.polygraph, pair.polygraph)
+        codes.append(code)
+        if other.decided_by == "ai_judge" and pair.decided_by == "ai_judge":
+            ai_codes.append(code)
+        row = grid.setdefault(other.polygraph, {})
+        row[pair.polygraph] = row.get(pair.polygraph, 0) + 1
+        if code[0] != code[1]:
+            differ.append(
+                {
+                    "item": pair.item.id,
+                    "trap": pair.item.trap,
+                    "bot": pair.bot,
+                    "yours": pair.human,
+                    "first_judge": other.polygraph,
+                    "second_judge": pair.polygraph,
+                }
+            )
+
+    def stats(chosen: list[tuple[str, str]]) -> dict[str, Any]:
+        n = len(chosen)
+        same = sum(a == b for a, b in chosen)
+        kappa = cohen_kappa(chosen)
+        percent_range, kappa_range = bootstrap(chosen)
+        return {
+            "answers": n,
+            "agree": same,
+            "percent": _round(100 * same / n, 1) if n else None,
+            "percent_range": _round_pair(percent_range, 1),
+            "kappa": _round(kappa, 3),
+            "kappa_range": _round_pair(kappa_range, 3),
+            "kappa_words": kappa_words(kappa),
+        }
+
+    return {
+        "first_judge": first_judge,
+        "second_judge": second_judge,
+        "all": stats(codes),
+        "ai_judge_both": stats(ai_codes),
+        "grid": grid,
+        "grid_rows": "first_judge",
+        "differences": differ,
+    }
+
+
+def final_for_judge(
+    folder: Path,
+    sample: Sample,
+    store: LabelStore,
+    *,
+    chosen: dict[str, Path],
+    clock=now_iso,
+    git=git_state,
+) -> tuple[Stats, dict[str, Any]]:
+    """Measure another judge on the test half, once, exactly the way the first
+    judge was measured. Saved in final-<judge>.json."""
+    lock = _require_lock(store)
+    first = load_final(folder)
+    if first is None:
+        raise AgreementError("The first judge hasn't been measured on the test half yet (polygraph agreement --final).")
+    judged = find_judged(sample, chosen)
+    if judged.judge == first["judge"]:
+        raise AgreementError(f"These copies were judged by {judged.judge}, which final.json already measured.")
+    path = Path(folder) / judge_file_name(judged.judge)
+    if path.is_file():
+        raise AgreementError(
+            f"{judged.judge} was already measured on the test half ({shown(path)}). Each judge is measured once."
+        )
+    test_now = half_fingerprints(sample, store.labels)[TEST]
+    if test_now != lock.fingerprints[TEST]:
+        raise AgreementError(
+            "A test-half label changed after the labels were locked, so this measurement wouldn't be honest. "
+            "Put it back as it was locked (git has it), then measure again."
+        )
+    if (judged.rubric, judged.hard_checks, judged.votes) != (first["rubric"], first["hard_checks"], first.get("votes", 1)):
+        raise AgreementError(
+            f"To compare fairly, {judged.judge} has to judge exactly the way {first['judge']} was measured: rubric "
+            f"{first['rubric']}, hard checks {first['hard_checks']} and {first.get('votes', 1)} votes. These copies use "
+            f"rubric {judged.rubric}, hard checks {judged.hard_checks} and {judged.votes} votes."
+        )
+    if judged.rubric != rubric_fingerprint() or judged.hard_checks != HARD_CHECKS_VERSION:
+        raise AgreementError("The code's rubric or hard checks have changed since the first measurement.")
+    pairs = pairs_for(sample, store.labels, judged, TEST)
+    stats = compare(pairs)
+    first_judged = find_judged(sample, {key: resolve(value) for key, value in first["judged_files"].items()})
+    first_pairs = pairs_for(sample, store.labels, first_judged, TEST)
+    settings = [run.run.judge.settings for run in judged.runs.values() if run.run.judge is not None]
+    shared = {key: value for key, value in settings[0].items() if key != "only_traps"} if settings else {}
+    record: dict[str, Any] = {
+        "format": "polygraph-judge-check-final",
+        "format_version": 1,
+        "measured_at": clock(),
+        "half": TEST,
+        "polygraph_version": __version__,
+        "labels": {"fingerprint": test_now, "matches_lock": True, "locked_at": lock.locked_at},
+        "rubric": judged.rubric,
+        "hard_checks": judged.hard_checks,
+        "judge": judged.judge,
+        "judge_settings": shared,
+        "votes": judged.votes,
+        "judged_files": judged.recorded_files(),
+        "tuning_rounds": 0,
+        "tuned": "no: the rubric, hard checks and votes exactly as frozen for the first judge",
+        "git": git(),
+        **stats.summary(),
+        "lean": lean(stats.confusion),
+        "first_vote": _first_vote_summary(pairs),
+        "disagreements": [pair.as_dict() for pair in stats.disagreements],
+        "versus_first_judge": judges_compared(first_pairs, pairs, first["judge"], judged.judge),
+        "first_judge_lean": lean(first["confusion"]),
+        "method": {"bootstrap_resamples": RESAMPLES, "bootstrap_seed": SEED, "level": LEVEL},
+    }
+    write_json(path, record)
+    return stats, record
 
 
 def type_label(kind: str) -> str:

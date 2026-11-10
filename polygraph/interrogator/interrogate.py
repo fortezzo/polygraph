@@ -153,6 +153,9 @@ class Interrogator:
     # Called after each trap in a one-at-a-time run, before the next starts (the judge).
     after_trap: Callable[[Trap, TrapResult], Awaitable[None]] | None = None
     stopped_by: str = "Ctrl+C"  # how a cancelled run was stopped, for its stop reason
+    # polygraph run --reuse: the file name of the earlier run whose replies the
+    # caller takes first (caller.reuse), recorded in the run file.
+    reused_from: str | None = None
 
     def __post_init__(self) -> None:
         self.run_file: RunFile | None = None
@@ -469,6 +472,9 @@ class Interrogator:
         counts.from_cache = sum(call.from_cache for call in calls)
         counts.fresh = counts.replies - counts.from_cache
         counts.retries = self.caller.stats.retries
+        if self.reused_from is not None:
+            run.reused_from = self.reused_from
+            run.reused_replies = self.caller.reused
 
         versions = [call.model_version for call in calls if call.model_version]
         target = run.target
@@ -499,6 +505,7 @@ def call_info(result: CallResult) -> CallInfo:
         attempts=result.attempts,
         finish_reason=reply.finish_reason,
         truncated=reply.truncated,
+        thinking_level=reply.thinking_level,
     )
 
 

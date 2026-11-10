@@ -47,12 +47,21 @@ class OllamaProvider(HttpProvider):
         settings: dict[str, object] = {"num_predict": options.max_output_tokens}
         if options.temperature is not None:
             settings["temperature"] = options.temperature
-        return {
+        if options.context_window is not None:
+            settings["num_ctx"] = options.context_window
+        payload: dict[str, object] = {
             "model": model,
             "messages": [{"role": m.role, "content": m.content} for m in messages],
             "stream": stream,
             "options": settings,
         }
+        if options.think is not None:
+            # A thinking model's thinking comes back in its own field, never in the answer.
+            payload["think"] = options.think
+        if options.json_schema is not None:
+            # Ollama's structured outputs: the reply has to match the schema.
+            payload["format"] = json.loads(options.json_schema)
+        return payload
 
     async def chat(self, messages: list[Message], model: str, options: ChatOptions | None = None) -> Reply:
         payload = self._payload(messages, model, options or ChatOptions(), stream=False)
@@ -134,6 +143,13 @@ class OllamaProvider(HttpProvider):
                     self._versions[model] = info.version
                 return info
         raise _not_downloaded(model)
+
+    async def capabilities(self, model: str) -> list[str]:
+        """What the model can do, as Ollama lists it (like "completion",
+        "thinking" or "vision"). Empty if Ollama doesn't say."""
+        data, _ = await self._request("POST", "/api/show", model=model, json={"model": full_name(model)})
+        found = data.get("capabilities") if isinstance(data, dict) else None
+        return [str(item) for item in found] if isinstance(found, list) else []
 
     def _error(self, response: httpx.Response, model: str | None) -> ProviderError:
         message, _, _ = error_body(response)

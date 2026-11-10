@@ -177,6 +177,7 @@ class OpenAIProvider(HttpProvider):
             finish_reason=finish,
             model_version=reported,
             cache_write_tokens=_cache_writes(input_details.get("cache_write_tokens")),
+            thinking_level=_thinking_level(data.get("reasoning")),
         )
 
     async def list_models(self) -> list[ModelInfo]:
@@ -264,6 +265,15 @@ class OpenAIProvider(HttpProvider):
 def _model_info(entry: dict) -> ModelInfo:
     details = {key: entry[key] for key in ("owned_by", "created", "shutdown_date") if entry.get(key) is not None}
     return ModelInfo(name=str(entry["id"]), details=details)
+
+
+def _thinking_level(value: object) -> str | None:
+    """How hard the model thought for this reply, as OpenAI reports it in the
+    response's reasoning settings (like "medium"). With no level asked for,
+    that's the model's own default: what people actually get."""
+    if isinstance(value, dict) and isinstance(value.get("effort"), str) and value["effort"].strip():
+        return value["effort"].strip().lower()
+    return None
 
 
 def _cache_writes(value: object) -> int | None:

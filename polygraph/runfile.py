@@ -62,6 +62,7 @@ class CallInfo(_Model):
     attempts: int = 0  # tries in this run, including retries (0 when from the cache)
     finish_reason: str | None = None  # stop, length, refusal, blocked or the provider's word
     truncated: bool = False  # the answer hit the length limit and was cut off
+    thinking_level: str | None = None  # how hard it thought, when the provider says (OpenAI: "medium"...)
 
 
 class Confidence(_Model):
@@ -295,6 +296,10 @@ class RunInfo(_Model):
     concurrency: int
     cost: CostInfo
     counts: Counts = Field(default_factory=Counts)
+    # polygraph run --reuse: the earlier run file whose answers this run took
+    # first, word for word, instead of the answer cache (Session 9).
+    reused_from: str | None = None
+    reused_replies: int = 0  # how many replies came from that file
 
 
 class TypeScore(_Model):
