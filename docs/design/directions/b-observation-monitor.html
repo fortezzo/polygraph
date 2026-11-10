@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Polygraph · Direction B · Observation monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=block" rel="stylesheet">
+<style>
+  :root {
+    --room: #0a0908;
+    --text: #ece5d6;
+    --muted: #9d968a;
+    --phosphor: #7dffae;
+    --phosphor-dim: rgba(125, 255, 174, 0.55);
+    --screen: #06130c;
+    --red: #ff5446;
+    --stamp: #e0342a;
+    --honest: #4fd17f;
+    --lie: #ff5f4f;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--room); color: var(--text);
+    font-family: "Courier Prime", "Courier New", monospace;
+    overflow: hidden; position: relative;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(ellipse 52% 46% at 50% -6%, rgba(255, 186, 112, 0.26), rgba(255, 170, 90, 0.07) 50%, transparent 74%),
+      radial-gradient(ellipse 120% 90% at 50% 45%, transparent 55%, rgba(0, 0, 0, 0.7) 100%);
+  }
+  body::after {
+    content: ""; position: fixed; inset: -50%; pointer-events: none; z-index: 50;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 1.1 -0.1'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.10; mix-blend-mode: overlay;
+  }
+  .wrap { position: relative; z-index: 1; height: 100%; display: flex; flex-direction: column; padding: 18px 32px 22px; gap: 14px; }
+  .osd { font-family: "Big Shoulders Display", sans-serif; font-weight: 700; letter-spacing: 0.14em; }
+
+  header { display: flex; align-items: center; justify-content: space-between; }
+  .brand { display: flex; align-items: baseline; gap: 14px; }
+  .wordmark { font-family: "Big Shoulders Display", sans-serif; font-weight: 800; font-size: 28px; letter-spacing: 0.22em; color: #f1e9da; }
+  .room { font-size: 14px; color: var(--muted); letter-spacing: 0.08em; }
+  .controls { display: flex; gap: 8px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 14px;
+    border: 1px solid rgba(236, 229, 214, 0.22); border-radius: 19px; background: rgba(255, 255, 255, 0.04);
+    color: var(--text); font-family: "Big Shoulders Display", sans-serif; font-weight: 700; font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .btn .i { width: 16px; height: 16px; display: inline-block; }
+  .btn.off { color: var(--muted); }
+
+  /* The monitor. */
+  .monitor {
+    position: relative; padding: 16px; border-radius: 24px;
+    background: linear-gradient(180deg, #2a2620 0%, #191714 18%, #121110 100%);
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 210, 160, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  }
+  .screen {
+    position: relative; height: 300px; border-radius: 16px; overflow: hidden;
+    background: radial-gradient(ellipse 80% 90% at 50% 50%, #0b2318 0%, #06140d 62%, #020704 100%);
+    box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.85), inset 0 0 0 2px #050505;
+  }
+  .screen .grid { position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(125, 255, 174, 0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(125, 255, 174, 0.07) 1px, transparent 1px);
+    background-size: 46px 46px; background-position: center center; }
+  .screen .axis { position: absolute; left: 0; right: 0; top: 50%; border-top: 1px solid rgba(125, 255, 174, 0.16); }
+  .screen > svg#trace { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .screen .scan { position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.30) 0 1px, transparent 1px 3px); }
+  .screen .glass { position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(115deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.0) 32%, transparent 100%); }
+  .osd-row { position: absolute; left: 22px; right: 22px; display: flex; justify-content: space-between; font-size: 17px; color: var(--phosphor); text-shadow: 0 0 8px rgba(125, 255, 174, 0.55); z-index: 3; }
+  .osd-row.top { top: 16px; }
+  .osd-row.bottom { bottom: 14px; }
+  .osd-row .i { width: 13px; height: 13px; display: inline-block; vertical-align: -1px; margin-right: 6px; }
+  .osd-row .dim { color: var(--phosphor-dim); }
+  .led { position: absolute; right: 30px; bottom: -2px; font-size: 11px; color: #6b655c; letter-spacing: 0.2em; }
+
+  .stamp {
+    position: absolute; z-index: 4; transform: rotate(-8deg);
+    font-family: "Big Shoulders Display", sans-serif; font-weight: 900; font-size: 68px; line-height: 0.95; letter-spacing: 0.06em;
+    color: var(--stamp); padding: 4px 18px 7px; border: 5px solid var(--stamp); border-radius: 10px;
+    opacity: 0.93;
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' seed='9'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.6 2.05'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' seed='9'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.6 2.05'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    text-shadow: 0 0 1px rgba(255, 80, 60, 0.4);
+  }
+  .under { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: -4px 4px 0; flex-wrap: wrap; }
+  .note { margin: 0; font-size: 13px; color: var(--muted); font-style: italic; }
+  .rail { display: flex; gap: 6px; }
+  .q { width: 38px; height: 26px; border: 1px solid rgba(236, 229, 214, 0.2); border-radius: 13px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-family: "Big Shoulders Display", sans-serif; font-weight: 700; font-size: 14px; color: #6f6a61; }
+  .q .i { width: 12px; height: 12px; display: inline-block; }
+  .q.honest { border-color: var(--honest); color: var(--honest); }
+  .q.lie { border-color: var(--lie); color: var(--lie); background: rgba(255, 95, 79, 0.12); }
+
+  main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 28px; }
+  .log { min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+  .log h2, .panel h2 { margin: 0; font-family: "Big Shoulders Display", sans-serif; font-weight: 700; font-size: 15px; letter-spacing: 0.2em; color: var(--muted); }
+  .line { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 14px; }
+  .speaker { font-family: "Big Shoulders Display", sans-serif; font-weight: 700; font-size: 16px; letter-spacing: 0.08em; color: #c9b48f; padding-top: 3px; overflow-wrap: anywhere; }
+  .question { margin: 0; font-size: 19px; line-height: 1.5; color: #f6efe1; }
+  .answer { position: relative; min-height: 0; overflow: hidden; font-size: 16px; line-height: 1.62; color: #dcd5c6; max-height: 100%; }
+  .answer p { margin: 0 0 10px; }
+  .answer ul { margin: 0 0 10px; padding-left: 22px; }
+  .answer-wrap { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+  .answer-wrap::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 70px; background: linear-gradient(transparent, var(--room)); }
+  .more { font-size: 13px; color: var(--muted); }
+  mark.madeup { color: #fff3ef; background: rgba(214, 48, 36, 0.30); border-bottom: 2px solid var(--lie); -webkit-box-decoration-break: clone; box-decoration-break: clone; padding: 0 2px; }
+  .madeup-tag { display: inline-flex; align-items: center; gap: 5px; margin-left: 6px; font-family: "Big Shoulders Display", sans-serif; font-weight: 800; font-size: 13px; letter-spacing: 0.12em; color: var(--lie); border: 1.5px solid var(--lie); padding: 0 6px; border-radius: 3px; vertical-align: 2px; }
+  .madeup-tag .i { width: 10px; height: 10px; display: inline-block; }
+
+  .panel { min-height: 0; border-radius: 14px; padding: 16px 20px; background: linear-gradient(180deg, #16140f, #100f0c); border: 1px solid rgba(255, 255, 255, 0.07); box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; gap: 10px; font-size: 14px; line-height: 1.42; color: #d9d2c4; }
+  .verdict { display: flex; align-items: center; gap: 12px; }
+  .verdict .badge { width: 44px; height: 44px; border-radius: 10px; background: rgba(255, 84, 70, 0.14); border: 2px solid var(--lie); color: var(--lie); padding: 7px; }
+  .verdict .word { font-family: "Big Shoulders Display", sans-serif; font-weight: 900; font-size: 46px; letter-spacing: 0.06em; color: var(--lie); line-height: 1; }
+  .verdict .votes { margin-left: auto; font-size: 12px; color: var(--muted); text-align: right; }
+  .k { font-family: "Big Shoulders Display", sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 0.18em; color: #a69e90; margin-bottom: 3px; }
+  .vu { display: flex; gap: 3px; margin-top: 6px; }
+  .vu i { flex: 1; height: 12px; border-radius: 2px; background: rgba(255, 255, 255, 0.08); }
+  .vu i.on { background: #e9dfca; box-shadow: 0 0 6px rgba(233, 223, 202, 0.35); }
+  .conf { display: flex; align-items: baseline; gap: 10px; }
+  .conf .n { font-family: "Big Shoulders Display", sans-serif; font-weight: 900; font-size: 34px; color: #f1e9da; line-height: 1; }
+  .rule { border: 0; border-top: 1px solid rgba(255, 255, 255, 0.08); margin: 0; }
+
+  @media (max-width: 640px) {
+    body { overflow: auto; }
+    .wrap { height: auto; padding: 12px 16px 24px; gap: 12px; }
+    .room { display: none; }
+    .btn { width: 44px; height: 44px; padding: 0; justify-content: center; border-radius: 22px; }
+    .btn span.t { display: none; }
+    .monitor { padding: 10px; border-radius: 18px; }
+    .screen { height: 210px; border-radius: 12px; }
+    .osd-row { left: 12px; right: 12px; font-size: 13px; }
+    .osd-row.top { top: 10px; }
+    .osd-row.bottom { bottom: 9px; }
+    .osd-row .hide-phone { display: none; }
+    .stamp { font-size: 36px; padding: 2px 10px 4px; border-width: 3px; border-radius: 6px; }
+    main { display: flex; flex-direction: column; gap: 22px; }
+    .line { grid-template-columns: 1fr; gap: 4px; }
+    .question { font-size: 17px; }
+    .answer-wrap { height: 210px; flex: none; }
+    .answer { font-size: 15px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><span class="wordmark">POLYGRAPH</span><span class="room">Observation room</span></div>
+    <div class="controls">
+      <span class="btn"><span class="i" data-icon="pause"></span><span class="t">Pause</span></span>
+      <span class="btn"><span class="i" data-icon="restart"></span><span class="t">Restart</span></span>
+      <span class="btn off"><span class="i" data-icon="soundoff"></span><span class="t">Sound off</span></span>
+    </div>
+  </header>
+
+  <div class="monitor">
+    <div class="screen" id="screen">
+      <div class="grid"></div><div class="axis"></div>
+      <svg id="trace" aria-hidden="true"></svg>
+      <div class="osd-row top osd">
+        <span><span class="i" data-icon="play"></span>REPLAY <span class="dim hide-phone">&nbsp;· NOT LIVE</span></span>
+        <span><span class="dim">RECORDED</span> <span data-bind="stamp"></span></span>
+      </div>
+      <div class="osd-row bottom osd">
+        <span><span class="dim">SUBJECT</span> <span data-bind="model"></span> <span class="dim hide-phone">· MADE BY <span data-bind="maker"></span></span></span>
+        <span>Q<span data-bind="index"></span>/<span data-bind="total"></span> <span class="dim hide-phone">· <span data-bind="typeLabel"></span></span></span>
+      </div>
+      <div class="scan"></div><div class="glass"></div>
+      <div class="stamp" id="stamp">CAUGHT</div>
+    </div>
+  </div>
+  <div class="under">
+    <p class="note" data-bind="needleNote"></p>
+    <div class="rail">
+      <span class="q honest"><span class="i" data-icon="honest"></span>1</span>
+      <span class="q lie"><span class="i" data-icon="lie"></span>2</span>
+      <span class="q">3</span><span class="q">4</span><span class="q">5</span><span class="q">6</span>
+    </div>
+  </div>
+
+  <main>
+    <section class="log">
+      <h2>INTERROGATION LOG · RECORDED <span data-bind="date"></span></h2>
+      <div class="line"><div class="speaker">POLYGRAPH</div><p class="question" data-bind="question"></p></div>
+      <div class="line" style="flex:1;min-height:0">
+        <div class="speaker" data-bind="model"></div>
+        <div class="answer-wrap"><div class="answer" data-bind-html="answerHtml"></div></div>
+      </div>
+      <div class="more">Scroll to read the whole answer (<span data-bind="answerChars"></span> characters).</div>
+    </section>
+
+    <aside class="panel">
+      <h2>FINDING · Q<span data-bind="index"></span></h2>
+      <div class="verdict">
+        <span class="badge" data-icon="lie"></span>
+        <span class="word">LIE</span>
+        <span class="votes"><span data-bind="votesFor"></span> of <span data-bind="votes"></span> judge votes<br><span data-bind="judge"></span> (<span data-bind="judgeCo"></span>)</span>
+      </div>
+      <div><div class="k">WHAT WAS MADE UP</div><span data-bind="reason"></span></div>
+      <hr class="rule">
+      <div>
+        <div class="k">HOW SURE IT SAID IT WAS</div>
+        <div class="conf"><span class="n"><span data-bind="confidence"></span>%</span><span>It replied &ldquo;<span data-bind="confidenceReply"></span>&rdquo; when asked after its answer.</span></div>
+        <div class="vu" id="vu"></div>
+      </div>
+      <hr class="rule">
+      <div><div class="k">THE TRUTH</div><span data-bind="truth"></span></div>
+      <div><div class="k">SOURCE</div><span data-bind="source"></span></div>
+    </aside>
+  </main>
+</div>
+
+<script src="sample.js"></script>
+<script src="common.js"></script>
+<script>
+  const m = document.querySelector("mark.madeup");
+  if (m) m.insertAdjacentHTML("afterend", '<span class="madeup-tag"><span class="i"><svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></span>MADE UP</span>');
+
+  // The confidence meter, as 20 lit segments.
+  const vu = document.getElementById("vu");
+  const lit = Math.round(MOCK.confidence / 5);
+  vu.innerHTML = Array.from({ length: 20 }, (_, i) => `<i class="${i < lit ? "on" : ""}"></i>`).join("");
+
+  const screen = document.getElementById("screen");
+  const svg = document.getElementById("trace");
+  const W = screen.clientWidth, H = screen.clientHeight;
+  const phone = W < 600;
+  const penX = Math.round(W * 0.9);
+  const pps = phone ? 22 : 46;
+  const spikeAt = penX - pps * 9.5;
+  const qFrom = spikeAt - pps * 3.4;
+  const tr = makeTrace({ width: W, height: H, penX, pxPerSec: pps, spikeAt, quietFrom: qFrom, quietTo: spikeAt, calmAmp: 0.075, spikeAmp: 0.33, seed: 11 });
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.innerHTML = `
+    <defs>
+      <filter id="glow" x="-10%" y="-30%" width="120%" height="160%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      <linearGradient id="fade" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.12"/><stop offset="0.55" stop-color="#fff" stop-opacity="0.85"/><stop offset="1" stop-color="#fff" stop-opacity="1"/></linearGradient>
+      <mask id="decay"><rect width="${W}" height="${H}" fill="url(#fade)"/></mask>
+    </defs>
+    <g mask="url(#decay)" filter="url(#glow)">
+      <path d="${tr.calm}" fill="none" stroke="var(--phosphor)" stroke-width="2.2" stroke-linejoin="round"/>
+      <path d="${tr.red}" fill="none" stroke="var(--red)" stroke-width="2.8" stroke-linejoin="round"/>
+    </g>
+    <text x="${spikeAt + pps * 0.85}" y="${H - 52}" text-anchor="middle" font-family="Big Shoulders Display" font-weight="700" letter-spacing="2" font-size="14" fill="var(--red)">MADE-UP WORDS</text>
+    <path d="M${spikeAt - 4} ${H - 46} v-7 M${spikeAt - 4} ${H - 46} h${pps * 1.75} v-7" fill="none" stroke="var(--red)" stroke-width="1.5" opacity="0.9"/>
+    <line x1="${penX}" y1="0" x2="${penX}" y2="${H}" stroke="rgba(125,255,174,.18)" stroke-width="1"/>
+    <circle cx="${penX}" cy="${tr.penY}" r="4.5" fill="#d9ffe8" filter="url(#glow)"/>
+  `;
+  const stamp = document.getElementById("stamp");
+  const spikeEnd = spikeAt + pps * 1.8;
+  stamp.style.left = Math.min(spikeEnd + (phone ? 10 : 34), W - stamp.offsetWidth - (phone ? 16 : 40)) + "px";
+  stamp.style.top = (phone ? 46 : 70) + "px";
+</script>
+</body>
+</html>

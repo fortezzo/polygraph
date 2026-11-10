@@ -1,0 +1,60 @@
+{
+  "layoutShift_desktop": {
+    "total": 0.000020633650414737653,
+    "entries": [],
+    "played": 113078
+  },
+  "layoutShift_phone": {
+    "total": 0,
+    "entries": [],
+    "played": 113078
+  },
+  "frames": {
+    "frames": 1441,
+    "fps": 240,
+    "p50": 4.2,
+    "p95": 4.3,
+    "p99": 4.3,
+    "worst": 8.3,
+    "longTasks": []
+  },
+  "axe": {
+    "desktop ?paused&scan": [],
+    "desktop ?state=loading": [],
+    "desktop ?state=empty": [],
+    "desktop ?state=error": [],
+    "phone ?paused&scan": [],
+    "phone ?state=loading": [],
+    "phone ?state=empty": [],
+    "phone ?state=error": []
+  },
+  "sound": {
+    "atLoad": {
+      "on": false,
+      "made": false
+    },
+    "ariaPressedAtLoad": "false",
+    "afterClick": {
+      "on": true,
+      "made": true
+    },
+    "ariaPressedAfterClick": "true"
+  },
+  "reducedMotion": {
+    "first": {
+      "grid": "translate3d(0px, 0px, 0px)",
+      "grain": "none",
+      "motion": "reduced",
+      "t": 501
+    },
+    "later": {
+      "grid": "translate3d(0px, 0px, 0px)",
+      "grain": "none",
+      "motion": "reduced",
+      "t": 3004
+    },
+    "paperStill": true,
+    "normalPaperMoves": true
+  },
+  "consoleErrors": []
+}

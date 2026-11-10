@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Polygraph · Direction A · Chart paper</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Oswald:wght@500;600;700&family=Special+Elite&display=block" rel="stylesheet">
+<style>
+  :root {
+    --room: #0c0a08;
+    --ink-text: #efe6d5;
+    --muted: #a99c86;
+    --brass: #d2aa6b;
+    --paper: #ece2cb;
+    --grid-minor: rgba(150, 62, 44, 0.13);
+    --grid-major: rgba(150, 62, 44, 0.30);
+    --ink-green: #1c6a3f;
+    --ink-red: #c2241b;
+    --stamp: #c8271e;
+    --manila: #d8b97c;
+    --manila-dark: #b8964f;
+    --manila-ink: #2a2015;
+    --honest: #4fd17f;
+    --lie: #ff5f4f;
+    --lie-on-manila: #8e1910;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--room);
+    color: var(--ink-text);
+    font-family: "Courier Prime", "Courier New", monospace;
+    overflow: hidden;
+    position: relative;
+  }
+  /* The one warm overhead light, and the dark corners of the room. */
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(ellipse 58% 62% at 50% -8%, rgba(255, 184, 108, 0.30), rgba(255, 166, 86, 0.10) 45%, transparent 72%),
+      radial-gradient(ellipse 120% 90% at 50% 40%, transparent 55%, rgba(0, 0, 0, 0.65) 100%);
+  }
+  /* Film grain. */
+  body::after {
+    content: ""; position: fixed; inset: -50%; pointer-events: none; z-index: 50;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 1.1 -0.1'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.10; mix-blend-mode: overlay;
+  }
+  .wrap { position: relative; z-index: 1; height: 100%; display: flex; flex-direction: column; padding: 18px 32px 22px; gap: 12px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .brand { display: flex; align-items: baseline; gap: 14px; }
+  .wordmark { font-family: Oswald, sans-serif; font-weight: 600; font-size: 24px; letter-spacing: 0.24em; color: #f3e8d2; }
+  .room { font-family: "Special Elite", monospace; font-size: 13px; color: var(--muted); letter-spacing: 0.06em; }
+  .controls { display: flex; gap: 8px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 14px;
+    border: 1px solid rgba(239, 228, 207, 0.28); border-radius: 4px; background: rgba(255, 255, 255, 0.03);
+    color: var(--ink-text); font-family: "Special Elite", monospace; font-size: 14px;
+  }
+  .btn .i { width: 17px; height: 17px; display: inline-block; }
+  .btn.off { color: var(--muted); }
+
+  .replay { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: 14px; color: #d8cdb8; }
+  .tag { font-family: "Special Elite", monospace; font-size: 12px; letter-spacing: 0.12em; color: var(--room); background: var(--brass); padding: 3px 8px 2px; border-radius: 2px; display: inline-flex; gap: 6px; align-items: center; }
+  .tag .i { width: 11px; height: 11px; display: inline-block; }
+  .replay b { color: #f3e8d2; font-weight: 700; }
+  .sep { color: #6f6556; }
+
+  .rail { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .q { width: 46px; height: 30px; border: 1px solid rgba(239, 228, 207, 0.2); border-radius: 3px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-family: "Special Elite", monospace; font-size: 13px; color: #7e7464; }
+  .q .i { width: 14px; height: 14px; display: inline-block; }
+  .q.honest { border-color: var(--honest); color: var(--honest); }
+  .q.lie { border-color: var(--lie); color: var(--lie); background: rgba(255, 95, 79, 0.10); }
+  .q.now { outline: 2px solid rgba(255, 95, 79, 0.35); outline-offset: 2px; }
+  .rail .where { margin-left: 10px; color: #d8cdb8; }
+
+  /* The chart paper. */
+  .chart-wrap { position: relative; }
+  .chart {
+    position: relative; height: 214px; border-radius: 3px; overflow: hidden;
+    background-color: var(--paper);
+    background-image:
+      radial-gradient(ellipse 60% 120% at 50% 0%, rgba(255, 246, 225, 0.55), transparent 70%),
+      linear-gradient(var(--grid-major) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
+      linear-gradient(var(--grid-minor) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px);
+    background-size: 100% 100%, 46px 46px, 46px 46px, 9.2px 9.2px, 9.2px 9.2px;
+    background-position: 0 0, -12px 7px, -12px 7px, -12px 7px, -12px 7px;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55), inset 0 0 60px rgba(120, 80, 30, 0.22);
+  }
+  .chart::before, .chart::after {
+    content: ""; position: absolute; left: 0; right: 0; height: 14px; z-index: 2;
+    background: radial-gradient(circle at 9px 7px, #0c0a08 3.4px, transparent 4px) repeat-x;
+    background-size: 26px 14px;
+  }
+  .chart::before { top: 0; }
+  .chart::after { bottom: 0; }
+  .chart svg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
+  .chart-label { position: absolute; top: 18px; left: 18px; z-index: 3; font-family: "Special Elite", monospace; font-size: 12px; letter-spacing: 0.12em; color: rgba(120, 50, 34, 0.85); }
+  .note { font-size: 13px; color: var(--muted); font-style: italic; margin: 8px 2px 0; }
+
+  /* The rubber stamp: ink with gaps in it. */
+  .stamp {
+    position: absolute; z-index: 4; transform: rotate(-9deg);
+    font-family: Oswald, sans-serif; font-weight: 700; font-size: 62px; line-height: 1; letter-spacing: 0.08em;
+    color: var(--stamp); padding: 6px 18px 8px; border: 5px solid var(--stamp); border-radius: 6px;
+    box-shadow: inset 0 0 0 3px var(--paper), inset 0 0 0 5px var(--stamp);
+    mix-blend-mode: multiply; opacity: 0.92;
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.6 2.05'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.6 2.05'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 28px; margin-top: 4px; }
+  .transcript { min-height: 0; display: flex; flex-direction: column; gap: 14px; }
+  .who { font-family: "Special Elite", monospace; font-size: 13px; letter-spacing: 0.14em; color: var(--brass); margin-bottom: 4px; }
+  .question { font-size: 19px; line-height: 1.5; color: #f6eedf; margin: 0; }
+  .answer { position: relative; flex: 1; min-height: 0; overflow: hidden; font-size: 16px; line-height: 1.62; color: #ddd2bf; }
+  .answer p { margin: 0 0 10px; }
+  .answer ul { margin: 0 0 10px; padding-left: 22px; }
+  .answer::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 70px; background: linear-gradient(transparent, var(--room)); }
+  .more { font-size: 13px; color: var(--muted); }
+  mark.madeup {
+    color: #fff2ee; background: rgba(214, 48, 36, 0.28); border-bottom: 2px solid var(--lie);
+    -webkit-box-decoration-break: clone; box-decoration-break: clone; padding: 0 2px;
+  }
+  .madeup-tag { display: inline-flex; align-items: center; gap: 5px; margin-left: 6px; font-family: "Special Elite", monospace; font-size: 11px; letter-spacing: 0.1em; color: var(--lie); border: 1px solid var(--lie); padding: 1px 6px 0; border-radius: 2px; vertical-align: 2px; }
+  .madeup-tag .i { width: 10px; height: 10px; display: inline-block; }
+
+  /* The manila case folder. */
+  .folder { position: relative; padding-top: 22px; min-height: 0; }
+  .folder .tabt { position: absolute; top: 0; left: 18px; height: 26px; padding: 5px 16px 0; border-radius: 6px 6px 0 0; background: var(--manila-dark); color: #2e2416; font-family: "Special Elite", monospace; font-size: 12px; letter-spacing: 0.14em; }
+  .folder .body {
+    height: 100%; border-radius: 2px 6px 6px 6px; padding: 20px 22px 18px; color: var(--manila-ink);
+    background:
+      radial-gradient(ellipse at 30% 0%, rgba(255, 240, 200, 0.35), transparent 60%),
+      linear-gradient(180deg, #dcbe82, #cfae6c);
+    box-shadow: 0 16px 34px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(80, 55, 20, 0.25);
+    display: flex; flex-direction: column; gap: 12px; font-size: 14px; line-height: 1.45;
+  }
+  .verdict { display: flex; align-items: center; gap: 12px; }
+  .verdict .badge { width: 40px; height: 40px; border-radius: 50%; border: 3px solid var(--lie-on-manila); color: var(--lie-on-manila); padding: 6px; }
+  .verdict .word { font-family: Oswald, sans-serif; font-weight: 700; font-size: 34px; letter-spacing: 0.06em; color: var(--lie-on-manila); line-height: 1; }
+  .verdict .votes { margin-left: auto; font-size: 12px; color: #5a4628; text-align: right; }
+  .k { font-family: "Special Elite", monospace; font-size: 11px; letter-spacing: 0.16em; color: #6a5330; margin-bottom: 2px; }
+  .conf { display: flex; align-items: baseline; gap: 8px; }
+  .conf .n { font-family: Oswald, sans-serif; font-weight: 700; font-size: 30px; color: var(--manila-ink); line-height: 1; }
+  .meter { height: 8px; border-radius: 4px; background: rgba(60, 40, 15, 0.18); overflow: hidden; margin-top: 6px; }
+  .meter i { display: block; height: 100%; width: 98%; background: var(--lie-on-manila); }
+  .rule { border: 0; border-top: 1px dashed rgba(60, 40, 15, 0.35); margin: 0; }
+
+  @media (max-width: 640px) {
+    body { overflow: auto; }
+    .wrap { height: auto; padding: 12px 16px 24px; gap: 10px; }
+    .room { display: none; }
+    .wordmark { font-size: 20px; letter-spacing: 0.2em; }
+    .btn { width: 44px; height: 44px; padding: 0; justify-content: center; }
+    .btn span.t { display: none; }
+    .replay { font-size: 13px; gap: 4px 10px; }
+    .replay .judge, .replay .sep { display: none; }
+    .replay > span:not(.tag) { flex-basis: 100%; }
+    .rail { gap: 6px; }
+    .q { width: 40px; }
+    .rail .where { display: none; }
+    .chart { height: 150px; }
+    .stamp { font-size: 30px; padding: 3px 9px 4px; border-width: 3px; box-shadow: inset 0 0 0 2px var(--paper), inset 0 0 0 3px var(--stamp); }
+    main { display: flex; flex-direction: column; gap: 22px; }
+    .question { font-size: 17px; }
+    .answer { height: 210px; flex: none; font-size: 15px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><span class="wordmark">POLYGRAPH</span><span class="room">INTERROGATION ROOM</span></div>
+    <div class="controls">
+      <span class="btn"><span class="i" data-icon="pause"></span><span class="t">Pause</span></span>
+      <span class="btn"><span class="i" data-icon="restart"></span><span class="t">Restart</span></span>
+      <span class="btn off"><span class="i" data-icon="soundoff"></span><span class="t">Sound off</span></span>
+    </div>
+  </header>
+
+  <div class="replay">
+    <span class="tag"><span class="i" data-icon="play"></span>REPLAY</span>
+    <span>Subject: <b data-bind="model"></b> (<span data-bind="family"></span>, made by <span data-bind="maker"></span>)</span>
+    <span class="sep">·</span>
+    <span>Recorded <b data-bind="date"></b></span>
+    <span class="sep judge">·</span>
+    <span class="judge">Judge: <span data-bind="judge"></span> (<span data-bind="judgeCo"></span>)</span>
+  </div>
+
+  <div class="rail">
+    <span class="q honest"><span class="i" data-icon="honest"></span>1</span>
+    <span class="q lie now"><span class="i" data-icon="lie"></span>2</span>
+    <span class="q">3</span><span class="q">4</span><span class="q">5</span><span class="q">6</span>
+    <span class="where">Question <span data-bind="index"></span> of <span data-bind="total"></span> · <span data-bind="typeLabel"></span></span>
+  </div>
+
+  <div class="chart-wrap">
+    <div class="chart" id="chart">
+      <svg id="trace" aria-hidden="true"></svg>
+      <div class="stamp" id="stamp">CAUGHT</div>
+    </div>
+    <p class="note" data-bind="needleNote"></p>
+  </div>
+
+  <main>
+    <section class="transcript">
+      <div>
+        <div class="who">Q · POLYGRAPH ASKED</div>
+        <p class="question" data-bind="question"></p>
+      </div>
+      <div class="who">A · <span data-bind="model"></span> ANSWERED</div>
+      <div class="answer" id="answer" data-bind-html="answerHtml"></div>
+      <div class="more">Scroll to read the whole answer (<span data-bind="answerChars"></span> characters).</div>
+    </section>
+
+    <aside class="folder">
+      <div class="tabt">CASE NOTES · Q<span data-bind="index"></span></div>
+      <div class="body">
+        <div class="verdict">
+          <span class="badge" data-icon="lie"></span>
+          <span class="word">LIE</span>
+          <span class="votes"><span data-bind="votesFor"></span> of <span data-bind="votes"></span><br>judge votes</span>
+        </div>
+        <div><div class="k">WHAT WAS MADE UP</div><span data-bind="reason"></span></div>
+        <hr class="rule">
+        <div>
+          <div class="k">HOW SURE IT SAID IT WAS</div>
+          <div class="conf"><span class="n"><span data-bind="confidence"></span>%</span><span>It replied &ldquo;<span data-bind="confidenceReply"></span>&rdquo; when asked after its answer.</span></div>
+          <div class="meter"><i></i></div>
+        </div>
+        <hr class="rule">
+        <div><div class="k">THE TRUTH</div><span data-bind="truth"></span></div>
+        <div><div class="k">SOURCE</div><span data-bind="source"></span></div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<script src="sample.js"></script>
+<script src="common.js"></script>
+<script>
+  // Mark the made-up phrase with a label as well as color.
+  const m = document.querySelector("mark.madeup");
+  if (m) m.insertAdjacentHTML("afterend", '<span class="madeup-tag"><span class="i" data-icon="lie"></span>MADE UP</span>');
+  document.querySelectorAll(".madeup-tag [data-icon]").forEach((el) => {
+    el.innerHTML = '<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+  });
+
+  // Draw the trace at the chart's real size.
+  const chart = document.getElementById("chart");
+  const svg = document.getElementById("trace");
+  const W = chart.clientWidth, H = chart.clientHeight;
+  const phone = W < 600;
+  const penX = Math.round(W * 0.86);
+  const pps = phone ? 22 : 46;              // paper speed, pixels per second
+  const spikeAt = penX - pps * 9.5;         // the made-up words, 9.5 s ago
+  const qFrom = spikeAt - pps * 3.4;        // the question took ~3.4 s to type
+  const tr = makeTrace({ width: W, height: H, penX, pxPerSec: pps, spikeAt, quietFrom: qFrom, quietTo: spikeAt, calmAmp: 0.075, spikeAmp: 0.34, seed: 11 });
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  // The pen arm pivots in the machine housing at the right edge.
+  const pivotX = W - 22, pivotY = H / 2;
+  svg.innerHTML = `
+    <rect x="${W - 34}" y="22" width="26" height="${H - 44}" rx="5" fill="#2a251f" stroke="#4d453b" stroke-width="1.5"/>
+    <line x1="${qFrom}" y1="18" x2="${qFrom}" y2="${H - 18}" stroke="rgba(120,50,34,.55)" stroke-width="1" stroke-dasharray="3 4"/>
+    <text x="${qFrom + 6}" y="34" font-family="Special Elite" font-size="12" fill="rgba(120,50,34,.9)">Q${MOCK.index} asked</text>
+    <line x1="${spikeAt}" y1="18" x2="${spikeAt}" y2="${H - 18}" stroke="rgba(120,50,34,.55)" stroke-width="1" stroke-dasharray="3 4"/>
+    <text x="${spikeAt + 6}" y="34" font-family="Special Elite" font-size="12" fill="rgba(120,50,34,.9)">answer</text>
+    <path d="${tr.calm}" fill="none" stroke="var(--ink-green)" stroke-width="2.1" stroke-linejoin="round"/>
+    <path d="${tr.red}" fill="none" stroke="var(--ink-red)" stroke-width="2.6" stroke-linejoin="round"/>
+    <path d="M${spikeAt - 4} ${H - (phone ? 44 : 54)} v8 h${pps * 1.75} v-8" fill="none" stroke="var(--ink-red)" stroke-width="1.6"/>
+    <text x="${spikeAt - 4}" y="${H - (phone ? 21 : 31)}" font-family="Special Elite" font-size="12" fill="var(--ink-red)">made-up words</text>
+    <line x1="${penX}" y1="${tr.penY}" x2="${pivotX}" y2="${pivotY}" stroke="#3a332b" stroke-width="2.2"/>
+    <circle cx="${pivotX}" cy="${pivotY}" r="7" fill="#2b2620" stroke="#5e554a" stroke-width="2"/>
+    <circle cx="${penX}" cy="${tr.penY}" r="3.4" fill="var(--ink-green)"/>
+  `;
+  // The stamp lands just after the spike, so both stay readable.
+  const stamp = document.getElementById("stamp");
+  const spikeEnd = spikeAt + pps * 1.8;
+  stamp.style.left = Math.min(spikeEnd + (phone ? 6 : 26), W - stamp.offsetWidth - 44) + "px";
+  stamp.style.top = (phone ? 22 : 30) + "px";
+</script>
+</body>
+</html>

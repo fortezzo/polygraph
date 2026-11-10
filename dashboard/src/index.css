@@ -1,0 +1,200 @@
+@import "tailwindcss";
+
+/* Direction A, "Chart paper", picked by Christian in Session 6.
+   Every color is defined once here. src/lib/contrast.test.ts checks them. */
+@theme {
+  --font-type: "Courier Prime", "Courier New", ui-monospace, monospace;
+  --font-label: "Special Elite", "Courier Prime", ui-monospace, monospace;
+  --font-display: "Oswald", "Arial Narrow", sans-serif;
+
+  --color-room: #0c0a08;
+  --color-text: #efe6d5;
+  --color-soft: #dcd2bf;
+  --color-muted: #a99c86;
+  --color-brass: #d2aa6b;
+  --color-paper: #ece2cb;
+  --color-paper-ink: #78321f;
+  --color-manila: #dcbe82;
+  --color-manila-2: #d2b274;
+  --color-manila-ink: #2a2015;
+  --color-manila-label: #4e3b1f;
+  --color-stamp: #c8271e;
+
+  /* Verdicts on the dark room. */
+  --color-honest: #4fd17f;
+  --color-lie: #ff6a5a;
+  --color-caved: #f5a524;
+  --color-contradicted: #ea72e6;
+  --color-dodged: #6aaeff;
+  /* Verdicts on manila and paper. */
+  --color-honest-ink: #164f2d;
+  --color-lie-ink: #8a170f;
+  --color-caved-ink: #633600;
+  --color-contradicted-ink: #74206f;
+  --color-dodged-ink: #173f78;
+}
+
+@layer base {
+  html, body, #root { min-height: 100%; }
+  body {
+    margin: 0;
+    background: var(--color-room);
+    color: var(--color-text);
+    font-family: var(--font-type);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  :focus-visible { outline: 2px solid var(--color-brass); outline-offset: 3px; }
+  ::selection { background: rgba(210, 170, 107, 0.35); }
+}
+
+/* ---- The room: one warm overhead light, dark corners, film grain ---------- */
+.lamp {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(ellipse 58% 62% at 50% -8%, rgba(255, 184, 108, 0.30), rgba(255, 166, 86, 0.10) 45%, transparent 72%),
+    radial-gradient(ellipse 120% 90% at 50% 40%, transparent 55%, rgba(0, 0, 0, 0.65) 100%);
+}
+.grain {
+  position: fixed; inset: -50%; pointer-events: none; z-index: 60;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 1.1 -0.1'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.10; mix-blend-mode: overlay;
+  animation: grain 0.9s steps(6) infinite;
+  will-change: transform;
+}
+@keyframes grain {
+  0% { transform: translate3d(0, 0, 0); }
+  20% { transform: translate3d(-3%, 2%, 0); }
+  40% { transform: translate3d(2%, -3%, 0); }
+  60% { transform: translate3d(-2%, -1%, 0); }
+  80% { transform: translate3d(3%, 3%, 0); }
+  100% { transform: translate3d(0, 0, 0); }
+}
+
+/* ---- The page layout ---------------------------------------------------------
+   Phone: one column, with the verdict and confidence right under the chart
+   (Christian's change), then the transcript, then the rest of the case notes.
+   Laptop: the chart across the top, the transcript left, the case folder right. */
+.screen-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "chart" "note" "summary" "transcript" "details";
+  row-gap: 14px;
+}
+.area-chart { grid-area: chart; }
+.area-note { grid-area: note; }
+.area-summary { grid-area: summary; }
+.area-transcript { grid-area: transcript; }
+.area-details { grid-area: details; }
+.folder { display: contents; }
+@media (min-width: 1024px) {
+  .screen-grid {
+    flex: 1; min-height: 0;
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-areas: "chart chart" "note note" "transcript folder";
+    column-gap: 28px; row-gap: 10px;
+  }
+  .folder {
+    display: flex; flex-direction: column; grid-area: folder; min-height: 0; padding-top: 22px; position: relative;
+    filter: drop-shadow(0 16px 24px rgba(0, 0, 0, 0.45));
+  }
+  .folder .area-summary, .folder .area-details { grid-area: auto; }
+  /* One folder, not two cards: a single shadow, and the color carries on across the fold. */
+  .folder .manila { box-shadow: inset 0 0 0 1px rgba(80, 55, 20, 0.25); }
+  .folder .area-details { background: var(--color-manila-2); }
+}
+
+/* ---- Chart paper --------------------------------------------------------------- */
+.paper {
+  position: relative; overflow: hidden; border-radius: 3px;
+  background-color: var(--color-paper);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+}
+/* The grid and the sprocket holes move with the paper. The pattern repeats every
+   48px, and the layer is 48px wider than the paper, so moving it never shows an edge. */
+.paper-grid {
+  position: absolute; top: 0; bottom: 0; left: 0; width: calc(100% + 48px);
+  will-change: transform;
+  background-image:
+    linear-gradient(rgba(150, 62, 44, 0.30) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(150, 62, 44, 0.30) 1px, transparent 1px),
+    linear-gradient(rgba(150, 62, 44, 0.13) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(150, 62, 44, 0.13) 1px, transparent 1px);
+  background-size: 48px 48px, 48px 48px, 9.6px 9.6px, 9.6px 9.6px;
+  background-position: 0 7px, 0 0, 0 7px, 0 0;
+}
+.paper-holes {
+  position: absolute; left: 0; right: 0; height: 14px;
+  background: radial-gradient(circle at 12px 7px, var(--color-room) 3.4px, transparent 4px) repeat-x;
+  background-size: 24px 14px;
+}
+/* The lamp lights the middle of the paper; the edges fall into shadow. */
+.paper-light {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 130% at 50% 0%, rgba(255, 246, 225, 0.5), transparent 70%),
+    linear-gradient(90deg, rgba(60, 35, 10, 0.18), transparent 12%, transparent 88%, rgba(60, 35, 10, 0.18));
+  box-shadow: inset 0 0 60px rgba(120, 80, 30, 0.22);
+}
+.housing {
+  position: absolute; right: 8px; top: 22px; bottom: 22px; width: 26px; border-radius: 5px;
+  background: linear-gradient(90deg, #2e2822, #221e19); box-shadow: inset 0 0 0 1.5px #4d453b, -4px 0 10px rgba(0, 0, 0, 0.25);
+}
+/* The pen arm's pivot, on top of the housing. */
+.housing::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px;
+  border-radius: 50%; background: #2b2620; box-shadow: 0 0 0 2px #6a6052;
+}
+
+/* ---- The rubber stamp: red ink with gaps in it ----------------------------------- */
+.stamp-ink {
+  font-family: var(--font-display); font-weight: 700; line-height: 1; letter-spacing: 0.08em;
+  color: var(--color-stamp); border: 5px solid var(--color-stamp); border-radius: 6px;
+  box-shadow: inset 0 0 0 3px var(--color-paper), inset 0 0 0 5px var(--color-stamp);
+  mix-blend-mode: multiply; white-space: nowrap;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.6 2.05'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.6 2.05'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ---- The transcript ------------------------------------------------------------- */
+.unseen { visibility: hidden; }
+/* "[name hidden]": a person's name in a study or citation a bot made up (names.ts). */
+.name-hidden {
+  font-family: var(--font-label); font-size: 0.86em; letter-spacing: 0.04em; white-space: nowrap;
+  color: var(--color-muted); border: 1px dashed rgba(169, 156, 134, 0.65); border-radius: 3px; padding: 0 0.3em;
+}
+.hot-lie { color: #fff3ef; background: rgba(214, 48, 36, 0.30); box-shadow: inset 0 -2px 0 var(--color-lie); }
+.hot-caved { color: #fff7e8; background: rgba(245, 165, 36, 0.24); box-shadow: inset 0 -2px 0 var(--color-caved); }
+.hot-contradicted { color: #fff1fe; background: rgba(234, 114, 230, 0.22); box-shadow: inset 0 -2px 0 var(--color-contradicted); }
+.hot-lie, .hot-caved, .hot-contradicted { -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+/* The typing caret takes no space, so nothing moves as it travels. It's a plain
+   inline element (not inline-block), so the browser can't wrap a line at it in
+   the middle of a word. */
+.caret { display: inline; position: relative; }
+.caret::after {
+  content: ""; position: absolute; left: 1px; top: 0.05em; width: 0.55em; height: 1.1em;
+  background: var(--color-brass); opacity: 0.85; animation: blink 1s steps(1) infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+.transcript-box {
+  scrollbar-width: thin; scrollbar-color: rgba(239, 230, 213, 0.25) transparent;
+  /* The edges fade, so it's clear the transcript scrolls and nothing looks cut off. */
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 14px, black calc(100% - 44px), transparent);
+  mask-image: linear-gradient(to bottom, transparent, black 14px, black calc(100% - 44px), transparent);
+}
+
+/* ---- The manila case folder --------------------------------------------------------- */
+.manila {
+  color: var(--color-manila-ink);
+  background:
+    radial-gradient(ellipse at 30% 0%, rgba(255, 240, 200, 0.35), transparent 60%),
+    linear-gradient(180deg, var(--color-manila), var(--color-manila-2));
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(80, 55, 20, 0.25);
+}
+
+/* ---- Reduce motion: no grain flicker, no blinking caret ---------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .grain { animation: none; }
+  .caret::after { animation: none; }
+}
