@@ -20,7 +20,7 @@ from typing import Literal
 
 from polygraph.pricing import Prices
 
-PRICES_CHECKED_ON = "2026-11-08"
+PRICES_CHECKED_ON = "2026-11-10"
 
 SOURCES = {
     "openai": "https://developers.openai.com/api/docs/pricing",
@@ -120,7 +120,8 @@ KNOWN_MODELS: tuple[KnownModel, ...] = (
     KnownModel("openai", "gpt-4o", 2.50, 10.00, False, "deprecated", note="Shuts down Jan 14, 2027."),
     KnownModel("openai", "gpt-4o-mini", 0.15, 0.60, False, "deprecated", note="Shuts down Jan 14, 2027."),
     # --- Anthropic ----------------------------------------------------------
-    KnownModel("anthropic", "claude-fable-5-1", 10.00, 50.00, True, note="Flagship. Always thinks first."),
+    KnownModel("anthropic", "claude-fable-5-2", 8.00, 40.00, True, note="Flagship."),
+    KnownModel("anthropic", "claude-fable-5-1", 10.00, 50.00, True, "older", note="Always thinks first."),
     KnownModel("anthropic", "claude-opus-5-5", 4.00, 20.00, True, note="Always thinks first."),
     KnownModel("anthropic", "claude-sonnet-5-5", 2.00, 10.00, True),
     KnownModel(
@@ -144,6 +145,15 @@ KNOWN_MODELS: tuple[KnownModel, ...] = (
     ),
     KnownModel("anthropic", "claude-sonnet-4-5", 3.00, 15.00, False, "deprecated", note="Retires Nov 30, 2026."),
     # --- Google -------------------------------------------------------------
+    KnownModel(
+        "google",
+        "gemini-4-carbon",
+        2.00,
+        10.00,
+        True,
+        note="Most capable. The price doubles on Dec 1, 2026.",
+        later=(PriceChange("2026-12-01", 4.00, 20.00),),
+    ),
     KnownModel(
         "google",
         "gemini-4-argon",

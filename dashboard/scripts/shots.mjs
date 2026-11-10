@@ -86,6 +86,12 @@ const MOMENTS = [
   { name: "25-data-empty", note: "No judged runs yet.", url: `?state=empty#/report?run=${GEMMA}` },
   { name: "26-data-error", note: "A run file that couldn't be loaded, with Try again.", url: `?state=error#/report?run=${GEMMA}` },
   { name: "27-evidence-no-matches", note: "Filters that match nothing (Gemma has no dodges).", url: `#/evidence?run=${GEMMA}&verdict=DODGED`, ready: true },
+  // Session 9: the lineup. Take these once every lineup run is in and judged.
+  { name: "28-lineup", note: "The lineup: every bot against the height chart, its placard below, then the judges and the side-by-sides.", url: "#/lineup", ready: true, fullPhone: true },
+  { name: "29-lineup-judge", note: "A placard's judge link opens that judge's card, with the same numbers for every judge.", url: "#/lineup?judge=qwen3.6:35b", ready: true },
+  { name: "30-lineup-loading", note: "Loading the lineup.", url: "?state=loading#/lineup" },
+  { name: "31-lineup-empty", note: "No lineup yet.", url: "?state=empty#/lineup" },
+  { name: "32-lineup-error", note: "The lineup couldn't be loaded, with Try again.", url: "?state=error#/lineup" },
 ];
 
 // Live mode needs Polygraph's server (in pretend mode), reached through the preview at /api.
@@ -181,7 +187,7 @@ try {
 
     // 1b. Nothing jumps on the Session 7 screens either: from opening until a second after they're ready.
     for (const size of Object.keys(SIZES)) {
-      for (const url of [`#/report?run=${GEMMA}`, `#/evidence?run=${GEMMA}`, `#/confidence?run=${LLAMA}`]) {
+      for (const url of [`#/report?run=${GEMMA}`, `#/evidence?run=${GEMMA}`, `#/confidence?run=${LLAMA}`, "#/lineup"]) {
         const context = await browser.newContext({ ...SIZES[size] });
         const page = await context.newPage();
         await page.addInitScript(() => {
@@ -236,6 +242,7 @@ try {
       `#/report?run=${GEMMA}`, `#/evidence?run=${GEMMA}`, `#/evidence?run=${GEMMA}&type=fake_citation`,
       `#/confidence?run=${GEMMA}`, `#/confidence?run=${LLAMA}`, `#/evidence?run=${GEMMA}&verdict=DODGED`,
       `?state=error#/report?run=${GEMMA}`,
+      "#/lineup", "?state=error#/lineup",
     ];
     for (const size of Object.keys(SIZES)) {
       for (const url of ["?paused&scan", "?state=loading", "?state=empty", "?state=error", ...DATA]) {

@@ -237,3 +237,71 @@
   .caret::after { animation: none; }
   .live-dot { animation: none; }
 }
+
+/* ---- The lineup (Session 9): every bot against a height chart -------------------------
+   Laptop and up (1280px): the bots stand side by side, each one's Truth Score its
+   height on the chart, with its placard below. Narrower: one bot a row, the
+   height turned on its side into a bar along a 0-100 ruler. */
+.lineup-wall { position: relative; border-radius: 3px; padding: 16px; --wall-h: 340px; }
+.lineup-marks { display: none; }
+.lineup-slots { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; position: relative; }
+.lineup-slot { display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); align-items: center; }
+.lineup-meter { position: relative; height: 46px; }
+.lineup-meter .lm-bar {
+  position: absolute; left: 0; top: 10px; height: 16px; width: calc(var(--score) * 1%);
+  background: var(--color-manila-ink); border-radius: 0 3px 3px 0;
+}
+.lineup-meter .lm-range {
+  position: absolute; top: 5px; height: 26px; left: calc(var(--lo) * 1%); width: calc((var(--hi) - var(--lo)) * 1%);
+  border: 2px solid rgba(120, 50, 31, 0.8); border-radius: 3px; background: rgba(120, 50, 31, 0.10);
+}
+.lineup-meter .lm-score { display: none; }
+.lineup-meter .lm-ticks { position: absolute; left: 0; right: 0; bottom: 0; height: 12px; }
+.lineup-meter .lm-ticks span { position: absolute; transform: translateX(-50%); font-family: var(--font-label); font-size: 11px; line-height: 1; color: var(--color-paper-ink); }
+.lineup-meter .lm-ticks span:first-child { transform: none; }
+.lineup-meter .lm-ticks span:last-child { transform: translateX(-100%); }
+.lineup-meter .lm-axis { position: absolute; left: 0; right: 0; top: 18px; border-top: 1px dashed rgba(120, 50, 31, 0.45); }
+.lineup-meter .lm-pending {
+  position: absolute; left: 0; right: 0; top: 4px; height: 28px; display: flex; align-items: center; justify-content: center; gap: 8px;
+  border: 2px dashed rgba(42, 32, 21, 0.5); border-radius: 4px; color: var(--color-manila-label);
+  font-family: var(--font-label); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.lineup-meter .lm-pending .lm-q { font-family: var(--font-display); font-weight: 700; font-size: 18px; }
+@media (min-width: 640px) {
+  .lineup-slot { grid-template-columns: 300px minmax(0, 1fr); gap: 18px; }
+}
+@media (min-width: 1280px) {
+  .lineup-wall { padding: 20px 18px 18px 56px; }
+  .lineup-marks { display: block; position: absolute; left: 14px; right: 18px; top: 20px; height: var(--wall-h); pointer-events: none; }
+  .lineup-marks span {
+    position: absolute; left: 0; right: 0; height: 0; border-top: 1px solid rgba(42, 32, 21, 0.28);
+    font-family: var(--font-label); font-size: 12px; color: var(--color-paper-ink);
+  }
+  .lineup-marks span.major { border-top: 2px solid rgba(42, 32, 21, 0.45); }
+  .lineup-marks span b { position: absolute; left: 0; top: -8px; font-weight: 400; background: var(--color-paper); padding-right: 4px; }
+  .lineup-slots { grid-template-columns: repeat(var(--slots), minmax(0, 1fr)); gap: 12px; align-items: start; }
+  .lineup-slot { grid-template-columns: minmax(0, 1fr); grid-template-rows: var(--wall-h) auto; gap: 12px; align-items: stretch; }
+  .lineup-meter { height: var(--wall-h); }
+  .lineup-meter .lm-bar { left: 28%; right: 28%; width: auto; top: auto; bottom: 0; height: calc(var(--score) * 1%); border-radius: 5px 5px 0 0; }
+  .lineup-meter .lm-range {
+    left: 18%; right: 18%; width: auto; top: auto; height: calc((var(--hi) - var(--lo)) * 1%); bottom: calc(var(--lo) * 1%);
+  }
+  .lineup-meter .lm-score {
+    display: block; position: absolute; left: 0; right: 0; text-align: center; bottom: calc(var(--hi) * 1% + 6px);
+    font-family: var(--font-display); font-weight: 700; font-size: 26px; line-height: 1; color: var(--color-manila-ink);
+  }
+  .lineup-meter .lm-ticks, .lineup-meter .lm-axis { display: none; }
+  .lineup-meter .lm-pending {
+    top: 0; bottom: 0; height: auto; flex-direction: column; gap: 10px; padding: 0 6px; text-align: center;
+    background: rgba(236, 226, 203, 0.55); font-size: 12px; line-height: 1.35;
+  }
+  .lineup-meter .lm-pending .lm-q { font-size: 54px; line-height: 1; color: rgba(42, 32, 21, 0.45); }
+}
+/* A placard: the card each bot holds up. */
+.placard { position: relative; border-radius: 3px; padding: 12px 13px 13px; }
+.placard .stamp-ink { box-shadow: inset 0 0 0 2px var(--color-manila), inset 0 0 0 4px var(--color-stamp); border-width: 3px; }
+/* The judge a placard points to, picked from a link: a brass outline for a moment. */
+.judge-card[data-focus] { outline: 3px solid var(--color-brass); outline-offset: 4px; }
+/* The placard comes first in a row (phone and tablet), under its bar on the wall (laptop). */
+.lineup-slot > .placard { order: -1; }
+@media (min-width: 1280px) { .lineup-slot > .placard { order: 0; } }

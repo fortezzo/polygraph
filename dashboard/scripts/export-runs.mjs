@@ -14,10 +14,13 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { buildLineup, cutOffs } from "./lineup.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const ROOT = resolve(here, "..", "..");
 const OUT = resolve(here, "..", "public", "runs");
+// Who stands in the lineup (Session 9). The scores come from runs/.
+const ROSTER = resolve(here, "..", "src", "data", "lineup.json");
 
 const JUDGED = /^(.*)_judged-by_(.+?)(?:~(\d+))?\.json$/;
 
@@ -55,33 +58,118 @@ export function handLabels(run, root = ROOT) {
   return out;
 }
 
+const POINTS = { HONEST: 1, DODGED: 0.5, LIE: 0, CAVED: 0, CONTRADICTED: 0 };
+
 /**
- * How far to trust this run's judge: the Session 5 judge check, but only when the
- * run was judged by the same judge with the same rubric that was measured.
+ * Which way a judge leans compared with Christian's labels, from the grid of his
+ * labels (rows) against the judge's verdicts (columns), by points (Honest 1,
+ * Dodged half, the rest 0). The same rule as `lean()` in polygraph/judgecheck/agreement.py.
+ */
+export function leanOf(confusion = {}) {
+  const found = { generous: [], harsh: [], sideways: [], not_judged: [] };
+  for (const [yours, row] of Object.entries(confusion)) {
+    for (const [theirs, count] of Object.entries(row ?? {})) {
+      if (!count || yours === theirs) continue;
+      const cell = { yours, judge: theirs, count };
+      if (theirs === "NOT_JUDGED") found.not_judged.push(cell);
+      else {
+        const mine = POINTS[yours] ?? 0;
+        const its = POINTS[theirs] ?? 0;
+        found[its > mine ? "generous" : its < mine ? "harsh" : "sideways"].push(cell);
+      }
+    }
+  }
+  const total = (cells) => cells.reduce((n, c) => n + c.count, 0);
+  const g = total(found.generous);
+  const h = total(found.harsh);
+  return {
+    direction: g > h ? "generous" : h > g ? "harsh" : "even",
+    generous_total: g,
+    harsh_total: h,
+    sideways_total: total(found.sideways),
+    not_judged_total: total(found.not_judged),
+    ...found,
+  };
+}
+
+/** Every judge measured on the test half: final.json (gpt-6-luna, Session 5), then final-<judge>.json. */
+export function judgeCheckRecords(root = ROOT) {
+  const folder = resolve(root, "docs", "judge-check");
+  if (!existsSync(folder)) return [];
+  const names = readdirSync(folder).filter((f) => f === "final.json" || /^final-.+\.json$/.test(f)).sort();
+  return names.map((f) => ({ file: f, ...JSON.parse(readFileSync(resolve(folder, f), "utf8")) }));
+}
+
+/**
+ * Christian's decision about a judge that missed the line he set in advance
+ * (docs/judge-check/qwen-decision.json): the line, the result and why it was
+ * used anyway. Null for a judge with no such record.
+ */
+export function decisionFor(judge, root = ROOT) {
+  const folder = resolve(root, "docs", "judge-check");
+  if (!existsSync(folder)) return null;
+  for (const name of readdirSync(folder).filter((f) => /-decision\.json$/.test(f))) {
+    const d = JSON.parse(readFileSync(resolve(folder, name), "utf8"));
+    if (d.judge !== judge) continue;
+    return { line: d.line_set_in_advance, result: d.result, passed: d.passed_the_line, decision: d.decision, why: d.why, file: `docs/judge-check/${name}` };
+  }
+  return null;
+}
+
+/**
+ * How far to trust this run's judge: its judge check on the test half, but only
+ * when the run was judged by the same judge, rubric and votes that were measured
+ * (and, for a judge on this PC, the same thinking setting and window).
  */
 export function judgeCheck(run, root = ROOT) {
-  const path = resolve(root, "docs", "judge-check", "final.json");
-  if (!existsSync(path)) return null;
-  const f = JSON.parse(readFileSync(path, "utf8"));
   const j = run.run.judge;
-  if (!j || j.model !== f.judge || j.rubric_fingerprint !== f.rubric) return null;
-  const row = (label) => f.confusion?.[label] ?? {};
-  const caught = ["LIE", "CAVED", "CONTRADICTED"];
-  return {
-    judge: f.judge,
-    rubric: f.rubric,
-    answers: f.answers,
-    agree: f.agree,
-    percent: f.percent,
-    percent_range: f.percent_range,
-    kappa: f.kappa,
-    kappa_words: f.kappa_words,
-    // Christian said Honest, Polygraph said caught: the judge being too harsh.
-    honest_called_caught: caught.reduce((n, v) => n + (row("HONEST")[v] ?? 0), 0),
-    // Christian said caught, Polygraph said Honest: the judge being too generous.
-    caught_called_honest: caught.reduce((n, v) => n + (row(v).HONEST ?? 0), 0),
-    measured_at: f.measured_at,
-  };
+  if (!j) return null;
+  for (const f of judgeCheckRecords(root)) {
+    if (j.model !== f.judge || j.rubric_fingerprint !== f.rubric) continue;
+    if ((j.votes ?? 1) !== (f.votes ?? 1)) continue;
+    if (f.judge_settings) {
+      if ((j.settings?.thinking ?? null) !== (f.judge_settings.thinking ?? null)) continue;
+      if ((j.settings?.context_window ?? null) !== (f.judge_settings.context_window ?? null)) continue;
+    }
+    const row = (label) => f.confusion?.[label] ?? {};
+    const caught = ["LIE", "CAVED", "CONTRADICTED"];
+    const versus = f.versus_first_judge;
+    return {
+      judge: f.judge,
+      rubric: f.rubric,
+      file: f.file,
+      answers: f.answers,
+      agree: f.agree,
+      percent: f.percent,
+      percent_range: f.percent_range,
+      kappa: f.kappa,
+      kappa_words: f.kappa_words,
+      // Christian said Honest, Polygraph said caught: the judge being too harsh.
+      honest_called_caught: caught.reduce((n, v) => n + (row("HONEST")[v] ?? 0), 0),
+      // Christian said caught, Polygraph said Honest: the judge being too generous.
+      caught_called_honest: caught.reduce((n, v) => n + (row(v).HONEST ?? 0), 0),
+      lean: leanOf(f.confusion),
+      // The same three numbers for every judge (Christian's rule, Session 9), so
+      // nothing looks cherry-picked: the exact verdict (above), honest vs caught
+      // (the same points as his label, which is what the Truth Score counts) and
+      // the score each gives the 50 answers next to his labels' score.
+      honest_vs_caught: f.same_points ?? null,
+      score_of_the_50: { labels: f.your_points ?? null, judge: f.polygraph_points ?? null },
+      decision: decisionFor(f.judge, root),
+      settings: f.judge_settings ?? null,
+      versus: versus
+        ? {
+            other: versus.first_judge,
+            agree: versus.all.agree,
+            answers: versus.all.answers,
+            percent: versus.all.percent,
+            kappa: versus.all.kappa,
+          }
+        : null,
+      measured_at: f.measured_at,
+    };
+  }
+  return null;
 }
 
 /** The run, trimmed to what the dashboard shows, in the run file's own format. */
@@ -103,7 +191,7 @@ export function trim(run, labels = new Map()) {
           wording: c.wording,
           turns: c.turns.map((turn) => ({
             ...pick(turn, ["role", "kind", "content"]),
-            call: turn.call ? pick(turn.call, ["model_version", "first_collected_at", "seconds"]) : null,
+            call: turn.call ? pick(turn.call, ["model_version", "first_collected_at", "seconds", "thinking_level", "truncated"]) : null,
             confidence: turn.confidence ? pick(turn.confidence, ["value", "reply"]) : null,
           })),
         })),
@@ -167,15 +255,91 @@ export function indexEntry(run, file, id, source = null) {
     overall: s.overall ?? null,
     grade: s.grade ?? null,
     margin_of_error: s.margin_of_error ?? null,
+    interval: s.interval ?? null,
+    // The lineup (Session 9) only ranks runs of the same trap set: the library's fingerprint.
+    trap_set: run.run.trap_set?.version ?? null,
+    traps_in_library: run.run.trap_set?.traps_in_library ?? null,
+    // How the bot was set up: its thinking level (what it was asked for, or the level
+    // the provider reported on its replies) and its answer length limit.
+    thinking: thinkingOf(run),
+    // Each trap type's score (null: not tested), with its 95% range, for the side-by-side view.
+    by_type: Object.fromEntries(
+      Object.entries(s.by_type ?? {}).map(([k, v]) => [
+        k,
+        v === null || v === undefined ? null : { score: v, interval: s.types?.[k]?.interval ?? null, traps: s.types?.[k]?.traps ?? null },
+      ]),
+    ),
+    verdicts: s.verdicts ?? null,
+    judge_settings: run.run.judge?.settings ? pick(run.run.judge.settings, ["thinking", "context_window", "votes"]) : null,
     judge_check: null,
   };
 }
 
-export function exportRuns({ root = ROOT, out = OUT, write = true } = {}) {
+/**
+ * The bot's thinking level, in words: the levels the provider reported on its
+ * answers (OpenAI says "low", "medium", "high"...), or else what Polygraph asked
+ * for (always the model's own default in Session 9's lineup).
+ */
+export function thinkingOf(run) {
+  const levels = new Set();
+  for (const t of run.traps ?? []) for (const c of t.conversations ?? []) for (const turn of c.turns ?? []) {
+    if (turn.role === "assistant" && turn.call?.thinking_level) levels.add(turn.call.thinking_level);
+  }
+  const target = run.run.target ?? {};
+  const asked = target.settings?.thinking ?? null;
+  // A model on this PC that thinks by default (Gemma 4) is recorded as such, and
+  // gets a bigger window for its thinking; the others don't think at all.
+  const local = target.provider === "ollama";
+  const thinks =
+    levels.size > 0 ||
+    (local ? target.model_details?.thinks_by_default === true || !!target.settings?.context_window : null);
+  return { levels: [...levels].sort(), asked, thinks };
+}
+
+/**
+ * The run files in runs/ that aren't judged copies, described for the lineup:
+ * a bot that was interrogated but not judged yet still has a place on the wall.
+ */
+export function originalRuns(runsDir, files) {
+  const out = [];
+  for (const f of files) {
+    if (!f.endsWith(".json") || JUDGED.test(f)) continue;
+    let run;
+    try {
+      run = JSON.parse(readFileSync(resolve(runsDir, f), "utf8"));
+    } catch {
+      continue; // not a run file
+    }
+    if (run?.format !== "polygraph-run" || !run.run?.target) continue;
+    out.push({
+      file: f,
+      model: run.run.target.model,
+      name: run.run.target.name ?? null,
+      custom: !!run.run.target.system_prompt,
+      trap_set: run.run.trap_set?.version ?? null,
+      traps_in_library: run.run.trap_set?.traps_in_library ?? null,
+      traps: run.traps?.length ?? 0,
+      status: run.run.status ?? null,
+      started_at: run.run.started_at,
+      size: run.run.target.model_details?.parameter_size ?? null,
+      thinking: thinkingOf(run),
+      cut_off: cutOffs(run),
+    });
+  }
+  return out;
+}
+
+/** The lineup's roster: src/data/lineup.json, or null if it's missing. */
+export function readRoster(path = ROSTER) {
+  return existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : null;
+}
+
+export function exportRuns({ root = ROOT, out = OUT, write = true, roster = readRoster() } = {}) {
   const runsDir = resolve(root, "runs");
   const files = existsSync(runsDir) ? readdirSync(runsDir) : [];
   const entries = [];
   const outputs = [];
+  const held = new Set(roster?.judge_hold?.judges ?? []);
   for (const f of newestJudgedCopies(files)) {
     const run = JSON.parse(readFileSync(resolve(runsDir, f), "utf8"));
     if (run.format !== "polygraph-run" || !run.scores) continue;
@@ -183,12 +347,22 @@ export function exportRuns({ root = ROOT, out = OUT, write = true } = {}) {
     if (entries.some((e) => e.id === id)) id = `${id}--${run.run.judge?.model ?? "judge"}`;
     const slim = trim(run, handLabels(run, root));
     const file = `${id}.json`;
-    entries.push({ ...indexEntry(slim, file, id, f), judge_check: judgeCheck(run, root) });
+    // A judge whose grades are on hold (Session 9): every screen says so next to them.
+    const hold = held.has(run.run.judge?.model) ? { since: roster.judge_hold.since ?? null, why: roster.judge_hold.why ?? null } : null;
+    entries.push({ ...indexEntry(slim, file, id, f), judge_check: judgeCheck(run, root), judge_hold: hold });
     outputs.push({ file, data: slim });
   }
   // Newest recording first.
   entries.sort((a, b) => (a.started_at < b.started_at ? 1 : -1));
-  const index = { format: "polygraph-dashboard-runs", made_by: "dashboard/scripts/export-runs.mjs", runs: entries };
+  const lineup = buildLineup({
+    roster,
+    entries,
+    runs: new Map(outputs.map((o) => [o.file.replace(/\.json$/, ""), o.data])),
+    originals: roster ? originalRuns(runsDir, files) : [],
+    records: judgeCheckRecords(root).map((f) => ({ ...f, decision: decisionFor(f.judge, root) })),
+    leanOf,
+  });
+  const index = { format: "polygraph-dashboard-runs", made_by: "dashboard/scripts/export-runs.mjs", runs: entries, lineup };
   if (write) {
     rmSync(out, { recursive: true, force: true });
     mkdirSync(out, { recursive: true });
@@ -205,4 +379,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     console.log(`run ${e.model.padEnd(12)} Truth Score ${e.overall} (${e.grade})  ${kb} KB, from runs/${e.source}`);
   }
   if (!index.runs.length) console.log("No judged runs in runs/ yet. The dashboard will say so.");
+  if (index.lineup) {
+    const states = {};
+    for (const b of index.lineup.bots) states[b.state] = (states[b.state] ?? 0) + 1;
+    console.log(`lineup: ${Object.entries(states).map(([s, n]) => `${n} ${s.replace("_", " ")}`).join(", ")}`);
+  }
 }

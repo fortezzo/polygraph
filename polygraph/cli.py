@@ -29,6 +29,7 @@ from polygraph.interrogator import (
     RunAborted,
 )
 from polygraph.interrogator.reuse import check_reusable, reusable_replies
+from polygraph.interrogator.usage import UsageError, estimate_from
 from polygraph.judges import (
     DEFAULT_JUDGES,
     INSTRUCTIONS,
@@ -95,9 +96,10 @@ out = Console()  # answers and results
 err = Console(stderr=True)  # status messages and errors, kept apart from answers
 
 # Answer length limits and judging settings (shared with the live server).
-from polygraph.limits import local_judge_options  # noqa: E402
+from polygraph.limits import LOCAL_THINKING_CONTEXT, local_judge_options  # noqa: E402
 from polygraph.limits import (  # noqa: E402
     ASK_THINKING_LIMIT,
+    CLAUDE_EFFORTS,
     DEFAULT_VOTES,
     JUDGE_CONCURRENCY,
     JUDGE_LOCAL_CONCURRENCY,
@@ -269,6 +271,15 @@ def run(
             show_default=False,
         ),
     ] = None,
+    estimate_basis: Annotated[
+        Optional[Path],
+        typer.Option(
+            "--estimate-from",
+            help="Estimate the cost from this earlier run's real token use on the same traps (say, a similar model's "
+            "run), instead of Polygraph's typical numbers. The cost guard still stops the run at its limit.",
+            show_default=False,
+        ),
+    ] = None,
     bot_name: Annotated[
         Optional[str],
         typer.Option("--name", help="Test your own bot: its name, like \"Bob's Pizza helper\". Use with --instructions."),
@@ -309,19 +320,26 @@ def run(
     known = find_known(name, model_name)
     prices = _prices(bot, name, model_name, known, price_in, price_out)
     thinks = bool(known and known.reasoning)
-    options = ChatOptions(
-        max_output_tokens=max_tokens or (THINKING_LIMIT if thinks else PLAIN_LIMIT),
-        temperature=temperature,
-    )
     at_once = concurrency or (2 if bot.local else 4)
 
     # 3. Check the model exists and which exact version it is. This costs nothing.
     try:
         with err.status(f"Checking {escape(model_name)}..."):
             info = asyncio.run(bot.describe_model(model_name))
+            # A model on this PC can think before answering by default (Gemma 4 does).
+            local_thinker = name == "ollama" and asyncio.run(bot.thinks_by_default(model_name))
     except ProviderError as problem:
         _explain(problem)
         raise typer.Exit(code=1)
+    if name == "ollama":
+        info.details["thinks_by_default"] = local_thinker
+    thinks = thinks or local_thinker
+    options = ChatOptions(
+        max_output_tokens=max_tokens or (THINKING_LIMIT if thinks else PLAIN_LIMIT),
+        temperature=temperature,
+        # Room for its thinking: Ollama's default window can't hold it.
+        context_window=LOCAL_THINKING_CONTEXT if local_thinker else None,
+    )
 
     cache = ResponseCache(settings.cache_dir)
     try:
@@ -355,6 +373,7 @@ def run(
                 "max_output_tokens": options.max_output_tokens,
                 "temperature": options.temperature,
                 "thinking": "the model's default",
+                **({"context_window": options.context_window} if options.context_window else {}),
             },
         )
         if earlier is not None:
@@ -381,6 +400,21 @@ def run(
             reused_from=reuse.name if reuse is not None else None,
         )
         estimate = interrogator.estimate()
+        estimated_from = None
+        if estimate_basis is not None and not prices.free:
+            try:
+                usage = estimate_from(
+                    _load_run_file(estimate_basis), [trap.id for trap in traps], prices, trap_set=library.fingerprint
+                )
+            except UsageError as problem:
+                err.print(Text(f"Polygraph can't base the estimate on {_shown_path(estimate_basis)}: {problem}.", style="bold red"))
+                raise typer.Exit(code=1)
+            # Answers already saved for this model cost nothing, so only the rest are counted.
+            share = 1.0 - (estimate.cached_calls / estimate.calls if estimate.calls else 0.0)
+            estimate.typical_input_tokens = round(usage.input_tokens * share)
+            estimate.typical_output_tokens = round(usage.output_tokens * share)
+            estimated_from = f"{usage.based_on}'s run ({estimate_basis.name})"
+            interrogator.estimated_from = estimate_basis.name
         interrogator.estimated_usd = estimate.typical_usd
         if cache.notice:
             err.print(Text(cache.notice, style="yellow"))
@@ -406,6 +440,7 @@ def run(
                     at_once=at_once,
                     reusing=reuse.name if reuse is not None else None,
                     bot_name=bot_name,
+                    estimated_from=estimated_from,
                 ),
                 title="Interrogation plan",
                 title_align="left",
@@ -758,6 +793,15 @@ def judge(
             show_default=False,
         ),
     ] = None,
+    judge_effort: Annotated[
+        Optional[str],
+        typer.Option(
+            "--judge-effort",
+            help="For a Claude judge (Anthropic): how hard it thinks before each verdict: low, medium, high, xhigh "
+            "or max. Default: the model's own default.",
+            show_default=False,
+        ),
+    ] = None,
 ) -> None:
     """Judge a run: the hard checks first, then the AI judge, then the scores and the report card.
 
@@ -812,6 +856,15 @@ def judge(
             err.print(Text("--judge-thinking is only for a judge on this PC (Ollama).", style="bold red"))
             raise typer.Exit(code=2)
         think = wanted == "on"
+    effort: str | None = None
+    if judge_effort is not None:
+        effort = judge_effort.strip().lower()
+        if effort not in CLAUDE_EFFORTS:
+            err.print(Text(f"--judge-effort takes {', '.join(CLAUDE_EFFORTS)}, not '{judge_effort}'.", style="bold red"))
+            raise typer.Exit(code=2)
+        if name != "anthropic":
+            err.print(Text("--judge-effort is only for a Claude judge (Anthropic).", style="bold red"))
+            raise typer.Exit(code=2)
     if local_judge:
         try:
             thinks = think if think is not None else "thinking" in asyncio.run(provider.capabilities(model_name))
@@ -821,7 +874,7 @@ def judge(
         options = local_judge_options(thinks=thinks, think=think)
     else:
         thinks = bool(known and known.reasoning)
-        options = ChatOptions(max_output_tokens=JUDGE_THINKING_LIMIT if thinks else JUDGE_PLAIN_LIMIT)
+        options = ChatOptions(max_output_tokens=JUDGE_THINKING_LIMIT if thinks else JUDGE_PLAIN_LIMIT, effort=effort)
 
     # Check the judge model exists, and note its details. This costs nothing.
     try:
@@ -863,8 +916,8 @@ def judge(
                 bot_company_from=bot_company_from,
                 model_details=model_details,
             ),
-            # OpenAI and Ollama can both make the reply follow the JSON shape.
-            judge=AIJudge(caller, structured=name in ("openai", "ollama")),
+            # OpenAI, Ollama and Anthropic (Session 9) can all make the reply follow the JSON shape.
+            judge=AIJudge(caller, structured=name in ("openai", "ollama", "anthropic")),
             lookup=None,
             limit_usd=max_cost,
             prices=prices,

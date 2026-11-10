@@ -51,6 +51,22 @@ ANTHROPIC_URL = "https://api.anthropic.com/v1"
 API_VERSION = "2026-10-21"
 
 
+def _claude_schema(schema: object) -> object:
+    """The judge's JSON schema in the form Anthropic's structured outputs
+    document: a property that can be one of several types ("type": ["string",
+    "null"]) is written as anyOf, which they list as supported."""
+    if isinstance(schema, list):
+        return [_claude_schema(item) for item in schema]
+    if not isinstance(schema, dict):
+        return schema
+    converted = {key: _claude_schema(value) for key, value in schema.items()}
+    kinds = converted.get("type")
+    if isinstance(kinds, list):
+        rest = {key: value for key, value in converted.items() if key != "type"}
+        return {"anyOf": [{"type": kind} for kind in kinds], **rest}
+    return converted
+
+
 class AnthropicProvider(HttpProvider):
     name = "anthropic"
     label = "Anthropic"
@@ -82,6 +98,16 @@ class AnthropicProvider(HttpProvider):
         }
         if system:
             payload["system"] = "\n\n".join(system)
+        # No "thinking" setting is sent: a Claude 5.x model then thinks
+        # adaptively, its default. The effort level sets how hard (Session 9).
+        output_config: dict[str, object] = {}
+        if options.effort is not None:
+            output_config["effort"] = options.effort
+        if options.json_schema is not None:
+            # Structured outputs: the reply is guaranteed to match the schema.
+            output_config["format"] = {"type": "json_schema", "schema": _claude_schema(json.loads(options.json_schema))}
+        if output_config:
+            payload["output_config"] = output_config
         return payload
 
     async def chat(self, messages: list[Message], model: str, options: ChatOptions | None = None) -> Reply:

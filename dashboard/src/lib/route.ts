@@ -4,8 +4,8 @@
 
 import { useEffect, useState } from "react";
 
-export type Screen = "replay" | "report" | "evidence" | "confidence" | "new" | "live";
-const SCREENS: readonly Screen[] = ["replay", "report", "evidence", "confidence", "new", "live"];
+export type Screen = "replay" | "report" | "evidence" | "confidence" | "lineup" | "new" | "live";
+const SCREENS: readonly Screen[] = ["replay", "report", "evidence", "confidence", "lineup", "new", "live"];
 
 export interface Route {
   screen: Screen;

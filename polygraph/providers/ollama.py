@@ -144,6 +144,19 @@ class OllamaProvider(HttpProvider):
                 return info
         raise _not_downloaded(model)
 
+    async def thinks_by_default(self, model: str) -> bool:
+        """Whether the model thinks before answering when it isn't told
+        either way. Ollama's model details say, for models that can think
+        ({"thinking": {"values": [false, true], "default": true}})."""
+        data, _ = await self._request("POST", "/api/show", model=model, json={"model": full_name(model)})
+        if not isinstance(data, dict):
+            return False
+        thinking = data.get("thinking")
+        if isinstance(thinking, dict) and isinstance(thinking.get("default"), bool):
+            return thinking["default"]
+        capabilities = data.get("capabilities")
+        return isinstance(capabilities, list) and "thinking" in capabilities
+
     async def capabilities(self, model: str) -> list[str]:
         """What the model can do, as Ollama lists it (like "completion",
         "thinking" or "vision"). Empty if Ollama doesn't say."""

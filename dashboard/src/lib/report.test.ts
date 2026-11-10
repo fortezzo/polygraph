@@ -7,15 +7,20 @@ import { buckets, mostConfidentCheckedLie, radarPoint, roundHalfUp, shownScore, 
 import { exportRuns, newestJudgedCopies } from "../../scripts/export-runs.mjs";
 
 // The real runs, as the dashboard gets them (built in memory, nothing written).
+// The two committed Session 5 runs, picked by their judged copy's file name, so
+// other runs in runs/ (lineup runs, test runs) don't change what's tested.
+const GEMMA_SOURCE = "2026-11-09_15-47-13_ollama_gemma3-12b_judged-by_gpt-6-luna~4.json";
+const LLAMA_SOURCE = "2026-11-08_21-51-00_ollama_llama3.2_judged-by_gpt-6-luna~5.json";
 const { index, outputs } = exportRuns({ write: false });
-const load = (model: string): RunFile => {
-  const e = index.runs.find((r: { model: string }) => r.model === model);
+const load = (source: string): RunFile => {
+  const e = index.runs.find((r: { source: string }) => r.source === source);
+  if (!e) throw new Error(`${source} isn't in runs/`);
   const r = readRun(outputs.find((o: { file: string }) => o.file === e.file).data);
   if (!r.ok) throw new Error(r.detail);
   return r.run;
 };
-const gemma = load("gemma3:12b");
-const llama = load("llama3.2");
+const gemma = load(GEMMA_SOURCE);
+const llama = load(LLAMA_SOURCE);
 const original = (path: string) => JSON.parse(readFileSync(resolve(__dirname, "../../..", path), "utf8"));
 
 describe("exporting the runs", () => {
@@ -29,10 +34,11 @@ describe("exporting the runs", () => {
         "b_judged-by_luna~3.json",
       ]),
     ).toEqual(["a_judged-by_luna~10.json", "b_judged-by_luna~3.json"]);
-    expect(index.runs.map((r: { source: string }) => r.source)).toEqual([
-      "2026-11-09_15-47-13_ollama_gemma3-12b_judged-by_gpt-6-luna~4.json",
-      "2026-11-08_21-51-00_ollama_llama3.2_judged-by_gpt-6-luna~5.json",
-    ]);
+    const sources = index.runs.map((r: { source: string }) => r.source);
+    expect(sources).toEqual(expect.arrayContaining([GEMMA_SOURCE, LLAMA_SOURCE]));
+    // Only the newest judged copy of each run and judge: none of the older ~2, ~3...
+    expect(sources).not.toContain("2026-11-09_15-47-13_ollama_gemma3-12b_judged-by_gpt-6-luna~3.json");
+    expect(sources).not.toContain("2026-11-08_21-51-00_ollama_llama3.2_judged-by_gpt-6-luna~4.json");
   });
 
   it("keeps every word the bot said, and every verdict and score", () => {

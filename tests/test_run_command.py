@@ -15,9 +15,28 @@ from polygraph import cli
 from polygraph.config import Settings
 from polygraph.interrogator import CONFIDENCE_QUESTION
 from polygraph.providers import ModelInfo, Provider, ProviderError, Reply, SetupError
+from polygraph.providers.catalog import PRICES_CHECKED_ON
 from polygraph.runfile import load_run
+from polygraph.traps import load_library
 
 runner = CliRunner()
+
+
+# How many answers the real trap library asks for: one per question and per
+# push-back, four for a consistency trap. Every answer is followed by a
+# confidence question, so a run sends twice as many messages. Worked out from
+# the library itself, so the tests keep up as it grows (80 traps in Session 2,
+# 200 since Session 9).
+_LIBRARY = load_library()
+
+
+def answers_for(*kinds: str) -> int:
+    traps = [t for t in _LIBRARY.traps if not kinds or t.type in kinds]
+    return sum(len(t.wordings()) if t.type == "consistency" else 1 + len(t.follow_ups) for t in traps)
+
+
+def traps_of(*kinds: str) -> int:
+    return sum(1 for t in _LIBRARY.traps if t.type in kinds)
 
 
 class FakeBot(Provider):
@@ -79,17 +98,17 @@ def test_a_full_free_run_saves_a_run_file(folders, monkeypatch):
 
     assert result.exit_code == 0, result.output
     assert "Interrogation plan" in result.output
-    assert "240 to the bot: 120 answers" in result.output
+    assert f"{2 * answers_for()} to the bot: {answers_for()} answers" in result.output
     assert "free: this model runs on your PC" in result.output
     assert "✓ ghost-001" in result.output
     assert "Interrogation finished." in result.output
-    assert "120 collected" in result.output
-    assert bot.calls == 240
+    assert f"{answers_for()} collected" in result.output
+    assert bot.calls == 2 * answers_for()
     [saved] = run_files(folders)
     run_file = load_run(saved)
     assert run_file.run.status == "finished"
     assert run_file.run.target.model_version == "llama3.2:latest@sha256:abc123"
-    assert run_file.run.counts.answers == 120
+    assert run_file.run.counts.answers == answers_for()
 
 
 def test_running_it_again_uses_saved_answers(folders, monkeypatch):
@@ -100,8 +119,9 @@ def test_running_it_again_uses_saved_answers(folders, monkeypatch):
     result = runner.invoke(cli.app, ["run", "--type", "pressure"])
 
     assert result.exit_code == 0, result.output
-    assert "40 of 40 already saved from earlier runs" in result.output
-    assert "0 newly asked, 40 from saved answers" in result.output
+    pressure = 2 * answers_for("pressure_test")
+    assert f"{pressure} of {pressure} already saved from earlier runs" in result.output
+    assert f"0 newly asked, {pressure} from saved answers" in result.output
     assert bot.calls == 0
     assert len(run_files(folders)) == 2
 
@@ -114,7 +134,7 @@ def test_fresh_asks_everything_again(folders, monkeypatch):
     result = runner.invoke(cli.app, ["run", "--type", "ghost", "--fresh"])
 
     assert result.exit_code == 0, result.output
-    assert bot.calls == 20
+    assert bot.calls == 2 * answers_for("ghost_fact")
 
 
 def test_estimate_only_shows_the_plan_and_asks_nothing(folders, monkeypatch):
@@ -131,9 +151,9 @@ def test_estimate_only_shows_the_plan_and_asks_nothing(folders, monkeypatch):
 @pytest.mark.parametrize(
     ("args", "traps"),
     [
-        (["--type", "pressure"], 10),
-        (["--type", "ghost,premise"], 20),
-        (["-t", "ghost", "-t", "number"], 20),
+        (["--type", "pressure"], traps_of("pressure_test")),
+        (["--type", "ghost,premise"], traps_of("ghost_fact", "false_premise")),
+        (["-t", "ghost", "-t", "number"], traps_of("ghost_fact", "number_trap")),
         (["--trap", "ghost-001", "--trap", "number-002"], 2),
         (["--type", "ghost", "--trap", "ghost-003"], 1),
     ],
@@ -212,11 +232,11 @@ def test_yes_starts_a_paid_run_and_the_cost_is_tracked(folders, monkeypatch):
     result = runner.invoke(cli.app, ["run", "--model", "gpt-6-luna", "--type", "ghost", "--yes"])
 
     assert result.exit_code == 0, result.output
-    assert bot.calls == 20
+    assert bot.calls == 2 * answers_for("ghost_fact")
     run_file = load_run(run_files(folders)[0])
     # 20 replies x (200 tokens in at $0.10 + 50 out at $0.50 per million).
-    assert run_file.run.cost.spent_usd == pytest.approx(20 * (200 * 0.10 + 50 * 0.50) / 1_000_000)
-    assert run_file.run.cost.prices.checked_on == "2026-11-08"
+    assert run_file.run.cost.spent_usd == pytest.approx(2 * answers_for("ghost_fact") * (200 * 0.10 + 50 * 0.50) / 1_000_000)
+    assert run_file.run.cost.prices.checked_on == PRICES_CHECKED_ON
     assert run_file.run.cost.estimated_usd > 0
 
 
@@ -231,7 +251,7 @@ def test_a_paid_run_asks_before_starting(folders, monkeypatch):
 
     accepted = runner.invoke(cli.app, ["run", "--model", "gpt-6-luna", "--type", "ghost"], input="y\n")
     assert accepted.exit_code == 0, accepted.output
-    assert bot.calls == 20
+    assert bot.calls == 2 * answers_for("ghost_fact")
 
 
 def test_over_the_limit_it_asks_first_and_spends_nothing_if_you_say_no(folders, monkeypatch):
@@ -255,7 +275,7 @@ def test_approving_a_higher_limit_lets_the_run_go(folders, monkeypatch):
 
     assert result.exit_code == 0, result.output
     assert "The limit for this run is now $2.00." in result.output
-    assert bot.calls == 240
+    assert bot.calls == 2 * answers_for()
     assert load_run(run_files(folders)[0]).run.cost.limit_usd == 2.00
 
 
@@ -288,7 +308,7 @@ def test_prices_you_give_make_an_unknown_model_usable(folders, monkeypatch):
     )
 
     assert result.exit_code == 0, result.output
-    assert bot.calls == 20
+    assert bot.calls == 2 * answers_for("ghost_fact")
     assert load_run(run_files(folders)[0]).run.cost.prices.input_per_million == 1
 
 
@@ -344,7 +364,7 @@ def test_models_lists_known_models_and_prices(folders, monkeypatch):
     assert result.exit_code == 0, result.output
     for expected in ("gpt-6-luna", "claude-haiku-5-5", "gemini-2.5-flash-lite", "llama3.2:latest", "gemma3:latest"):
         assert expected in result.output
-    assert "checked 2026-11-08" in result.output
+    assert f"checked {PRICES_CHECKED_ON}" in result.output
     assert "gpt-5-nano" not in result.output  # shutting down: only shown with --all
 
 

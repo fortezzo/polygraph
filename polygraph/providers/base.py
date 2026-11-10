@@ -61,6 +61,10 @@ class ChatOptions:
     # Ollama only: turn a thinking model's thinking on (True) or off (False).
     # None means the model's own default. The local judge sets it; bots never do.
     think: bool | None = None
+    # Anthropic only: how hard a Claude 5.x model thinks (output_config.effort):
+    # low, medium, high, xhigh or max. None means the model's own default. A
+    # Claude judge can set it (Session 9); bots never do.
+    effort: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         settings: dict[str, Any] = {"max_output_tokens": self.max_output_tokens, "temperature": self.temperature}
@@ -72,6 +76,8 @@ class ChatOptions:
             settings["context_window"] = self.context_window
         if self.think is not None:
             settings["think"] = self.think
+        if self.effort is not None:
+            settings["effort"] = self.effort
         return settings
 
 
@@ -207,6 +213,12 @@ class Provider(ABC):
         """Check that `model` exists before a run starts, and say exactly which
         version it is if the provider tells us. Raises ProviderError if not."""
         return ModelInfo(name=model)
+
+    async def thinks_by_default(self, model: str) -> bool:
+        """Whether a model thinks before answering when it isn't told either
+        way, as the provider itself reports it. Only Ollama says (its models'
+        details do); for cloud models Polygraph's price list says instead."""
+        return False
 
     async def __aenter__(self) -> Provider:
         return self

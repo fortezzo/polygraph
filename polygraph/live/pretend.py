@@ -14,6 +14,7 @@ import asyncio
 import json
 import re
 from collections import defaultdict
+from pathlib import Path
 from typing import Any
 
 from polygraph.config import Settings
@@ -22,6 +23,30 @@ from polygraph.providers.base import STOP, ChatOptions, Message, ModelInfo, Prov
 from polygraph.runfile import RunFile
 
 PRETEND_LABEL = "Pretend"  # the live screen adds "PRETEND: replaying a recorded run"
+
+
+def recorded_library(run_file: RunFile, folder: Path) -> Path:
+    """The traps the recorded run asked, written out as a trap folder, so a
+    pretend run asks exactly those and every answer it replays is real. The
+    library itself can grow after a run is recorded (Session 9 took it from 80
+    traps to 200), and a pretend bot has no answer to a question it never saw."""
+    from polygraph.traps.schema import TYPE_INFO, TrapType
+
+    folder.mkdir(parents=True, exist_ok=True)
+    by_type: dict[str, list[dict[str, Any]]] = {kind.value: [] for kind in TrapType}
+    for result in run_file.traps:
+        by_type.setdefault(result.type, []).append(result.trap)
+    for kind, info in TYPE_INFO.items():
+        data: dict[str, Any] = {"type": kind.value}
+        if kind == TrapType.STICK_TO_DOCUMENT:
+            data["documents"] = [
+                {"id": doc_id, "title": doc.title, "fictional": True, "text": doc.text}
+                for doc_id, doc in run_file.documents.items()
+            ]
+        data["traps"] = by_type[kind.value]
+        text = json.dumps(data, ensure_ascii=False, indent=2) + "\n"
+        (folder / info.file_name).write_text(text, encoding="utf-8")
+    return folder
 
 
 def _key(messages: list[Message] | list[tuple[str, str]]) -> str:

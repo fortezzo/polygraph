@@ -99,6 +99,7 @@ export function EvidenceCard({ run, trap }: { run: RunFile; trap: TrapResult }) 
         <div key={`a${key}`} className="mt-2">
           <Key>{label} · <span className="normal-case">{run.run.target.name ?? run.run.target.model}</span></Key>
           <RichAnswer text={turn.content} hot={hot} hidden={hidden} excerpt />
+          {turn.call?.truncated && <CutOff />}
         </div>,
       );
       whole.push(
@@ -183,5 +184,15 @@ export function EvidenceCard({ run, trap }: { run: RunFile; trap: TrapResult }) 
         </p>
       )}
     </article>
+  );
+}
+
+/** Under an answer that hit the length limit (Christian, Session 9): it still counts, as it stands. */
+function CutOff() {
+  return (
+    <p className="m-0 mt-1 text-[12px] leading-snug text-manila-label">
+      <span className="font-label tracking-[0.12em]" aria-hidden="true">✂ </span>
+      <span className="font-label tracking-[0.12em]">CUT OFF</span> · this answer hit the length limit. It was judged and scored as it stands.
+    </p>
   );
 }

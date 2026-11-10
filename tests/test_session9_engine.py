@@ -403,3 +403,147 @@ def test_the_first_judges_result_is_never_touched(tmp_path: Path):
 
     with pytest.raises(AgreementError):
         final_for_judge(tmp_path, object(), Store(), chosen={})  # type: ignore[arg-type]
+
+
+# --- Local bots that think by default (Gemma 4) -------------------------------------------
+
+
+def test_ollama_says_whether_a_model_thinks_by_default():
+    provider, _ = ollama({"capabilities": ["completion", "thinking"], "thinking": {"values": [False, True], "default": True}})
+    assert asyncio.run(provider.thinks_by_default("gemma4:12b")) is True
+    provider, _ = ollama({"capabilities": ["completion", "thinking"], "thinking": {"values": [False, True], "default": False}})
+    assert asyncio.run(provider.thinks_by_default("some-model")) is False
+    provider, _ = ollama({"capabilities": ["completion", "vision"]})  # gemma3, ministral-3, phi4, llama3.2
+    assert asyncio.run(provider.thinks_by_default("gemma3:12b")) is False
+
+
+def test_a_cloud_provider_never_claims_a_thinking_default():
+    from polygraph.config import Secret
+
+    provider = OpenAIProvider(Secret("sk-test-FAKE-0123456789abcdefghij"))
+    assert asyncio.run(provider.thinks_by_default("gpt-6-luna")) is False  # the price list says instead
+
+
+def test_a_local_thinker_gets_room_and_the_others_keep_ollamas_defaults():
+    from polygraph.limits import LOCAL_THINKING_CONTEXT, PLAIN_LIMIT, THINKING_LIMIT
+
+    assert LOCAL_THINKING_CONTEXT > THINKING_LIMIT  # the question fits next to the thinking
+    thinker = ChatOptions(max_output_tokens=THINKING_LIMIT, context_window=LOCAL_THINKING_CONTEXT)
+    plain = ChatOptions(max_output_tokens=PLAIN_LIMIT)
+    assert thinker.as_dict()["context_window"] == LOCAL_THINKING_CONTEXT
+    assert plain.as_dict() == {"max_output_tokens": 4096, "temperature": None}  # saved answers keep their keys
+
+
+# --- Pretend mode asks only what its recording asked -----------------------------------------
+
+
+def test_pretend_mode_builds_its_library_from_the_recording(tmp_path):
+    from polygraph.live.pretend import recorded_library
+    from polygraph.runfile import load_run
+    from polygraph.traps import load_library
+
+    recording = load_run(Path(__file__).resolve().parent.parent / "runs" / "2026-11-09_15-47-13_ollama_gemma3-12b_judged-by_gpt-6-luna~4.json")
+    library = load_library(recorded_library(recording, tmp_path / "traps"))
+    assert sorted(t.id for t in library.traps) == sorted(t.id for t in recording.traps)
+    assert len(library.traps) == 80 and set(library.documents) == set(recording.documents)
+    asked = {t.id: t.trap for t in recording.traps}
+    assert all(trap.model_dump(mode="json") == asked[trap.id] for trap in library.traps)  # word for word
+
+
+# --- polygraph run --estimate-from: a cost estimate from an earlier run's real use -------------
+
+
+def _priced_run():
+    turns = [
+        asked("Q1?"),
+        Turn(
+            role="assistant",
+            kind="answer",
+            content="A1.",
+            call=CallInfo(first_collected_at=STAMP, input_tokens=100, output_tokens=300),
+            confidence=Confidence(value=90, reply="90", call=CallInfo(first_collected_at=STAMP, input_tokens=150, output_tokens=20)),
+        ),
+    ]
+    earlier = run_file([trap("ghost-001", "ghost_fact", [])])
+    earlier.traps[0].conversations = [Conversation(turns=turns)]
+    return earlier
+
+
+def test_the_estimate_prices_the_earlier_runs_real_tokens_at_the_new_models_prices():
+    from polygraph.interrogator.usage import estimate_from
+    from polygraph.pricing import Prices
+
+    usage = estimate_from(_priced_run(), ["ghost-001"], Prices(10.0, 50.0), trap_set="abc123def456")
+    assert (usage.input_tokens, usage.output_tokens, usage.replies) == (250, 320, 2)
+    assert usage.usd == pytest.approx(250 * 10 / 1e6 + 320 * 50 / 1e6)
+
+
+def test_the_estimate_needs_the_same_traps():
+    from polygraph.interrogator.usage import UsageError, estimate_from
+    from polygraph.pricing import Prices
+
+    with pytest.raises(UsageError, match="different version of the trap library"):
+        estimate_from(_priced_run(), ["ghost-001"], Prices(1.0, 5.0), trap_set="ffffffffffff")
+    with pytest.raises(UsageError, match="no finished answers for 1 of these traps"):
+        estimate_from(_priced_run(), ["ghost-001", "ghost-002"], Prices(1.0, 5.0), trap_set="abc123def456")
+
+
+# --- A third judge (Claude Haiku 5.5): effort, and newer hard checks on the test half ------------
+
+
+def test_a_claude_judges_effort_joins_the_cache_key_only_when_set():
+    from polygraph.interrogator.cache import cache_key
+
+    plain = ChatOptions(max_output_tokens=16384)
+    assert "effort" not in plain.as_dict()
+    assert ChatOptions(max_output_tokens=16384, effort="medium").as_dict()["effort"] == "medium"
+    messages = [Message("user", "Judge this.")]
+    assert cache_key("anthropic", "claude-haiku-5-5", messages, plain, None) != cache_key(
+        "anthropic", "claude-haiku-5-5", messages, ChatOptions(max_output_tokens=16384, effort="medium"), None
+    )
+
+
+def _checked(trap_id: str, *, decided: bool, verdict: str, labels: list[str], note: str = "", closest: str | None = None):
+    """A judged trap with a reference check, the way a judged copy stores it."""
+    from types import SimpleNamespace
+
+    references = [
+        {"label": label, "status": "made_up" if label == "made up" else "checks_out", "note": note, "doi": "10.1/x",
+         "closest": {"title": closest} if closest else None}
+        for label in labels
+    ]
+    check = SimpleNamespace(kind="references", outcome="caught" if decided else "checked", summary=f"{len(labels)} references",
+                            details={"references": references})
+    judgement = SimpleNamespace(hard_check=check, decided_by="hard_check" if decided else "ai_judge")
+    return SimpleNamespace(id=trap_id, verdict=verdict, judgement=judgement)
+
+
+def _judged(*traps):
+    from types import SimpleNamespace
+
+    return SimpleNamespace(runs={"A": SimpleNamespace(traps=list(traps))})
+
+
+def test_newer_hard_checks_count_as_the_same_only_if_they_found_the_same():
+    from types import SimpleNamespace
+
+    from polygraph.judgecheck.agreement import checks_changed
+
+    items = [SampleItem(id="item-1", run="A", trap="citation-001", type="fake_citation", half="test"),
+             SampleItem(id="item-2", run="A", trap="citation-002", type="fake_citation", half="test")]
+    sample = SimpleNamespace(half=lambda half: items)
+    before = _judged(_checked("citation-001", decided=False, verdict="HONEST", labels=["checks out"]),
+                     _checked("citation-002", decided=True, verdict="LIE", labels=["made up"], closest="Paper A"))
+    # The AI judge is told the same, and the trap the computer settled has the same
+    # verdict (a search result that changed inside it doesn't matter): the same.
+    same = _judged(_checked("citation-001", decided=False, verdict="HONEST", labels=["checks out"]),
+                   _checked("citation-002", decided=True, verdict="LIE", labels=["made up"], closest="Paper B"))
+    assert checks_changed(sample, before, same, "test") == []  # type: ignore[arg-type]
+    # A different finding the AI judge would read: not the same.
+    told_otherwise = _judged(_checked("citation-001", decided=False, verdict="HONEST", labels=["checks out"], note="new"),
+                             _checked("citation-002", decided=True, verdict="LIE", labels=["made up"]))
+    assert checks_changed(sample, before, told_otherwise, "test") == ["item-1"]  # type: ignore[arg-type]
+    # The computer no longer settles a trap: not the same.
+    unsettled = _judged(_checked("citation-001", decided=False, verdict="HONEST", labels=["checks out"]),
+                        _checked("citation-002", decided=False, verdict="LIE", labels=["made up"]))
+    assert checks_changed(sample, before, unsettled, "test") == ["item-2"]  # type: ignore[arg-type]

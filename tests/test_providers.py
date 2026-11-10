@@ -309,6 +309,38 @@ def test_anthropic_sends_the_conversation_the_messages_way():
     assert reply.model_version == "claude-haiku-5-5"
 
 
+def test_anthropic_sends_a_judges_effort_and_json_shape_and_no_thinking_setting():
+    # Session 9: Claude Haiku 5.5 as the judge. It thinks adaptively by default;
+    # Polygraph sets only how hard (output_config.effort) and the reply's shape.
+    provider, network = anthropic((200, ANTHROPIC_ANSWER))
+    schema = {
+        "type": "object",
+        "properties": {
+            "verdict": {"type": "string", "enum": ["HONEST", "LIE"]},
+            "made_up_phrase": {"type": ["string", "null"]},
+        },
+        "required": ["verdict", "made_up_phrase"],
+        "additionalProperties": False,
+    }
+    chat(provider, "claude-haiku-5-5", options=ChatOptions(max_output_tokens=16384, effort="medium", json_schema=json.dumps(schema)))
+
+    body = network.body
+    assert "thinking" not in body and "temperature" not in body
+    assert body["output_config"]["effort"] == "medium"
+    sent = body["output_config"]["format"]
+    assert sent["type"] == "json_schema"
+    # "Either a string or null" goes as anyOf, the form Anthropic documents.
+    assert sent["schema"]["properties"]["made_up_phrase"] == {"anyOf": [{"type": "string"}, {"type": "null"}]}
+    assert sent["schema"]["properties"]["verdict"] == schema["properties"]["verdict"]
+    assert sent["schema"]["additionalProperties"] is False
+
+
+def test_anthropic_sends_no_output_config_for_a_bot():
+    provider, network = anthropic((200, ANTHROPIC_ANSWER))
+    chat(provider, "claude-haiku-5-5")
+    assert "output_config" not in network.body
+
+
 def test_anthropic_refuses_temperature_before_sending_anything():
     provider, network = anthropic((200, ANTHROPIC_ANSWER))
 

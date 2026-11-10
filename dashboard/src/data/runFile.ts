@@ -13,6 +13,10 @@ export interface Call {
   model_version?: string;
   first_collected_at?: string;
   seconds?: number;
+  /** How hard the bot thought, as its provider reported it (OpenAI: "medium"...). Session 9. */
+  thinking_level?: string | null;
+  /** The answer hit the length limit and was cut off. It's judged and scored as it stands. */
+  truncated?: boolean;
 }
 
 export interface Turn {

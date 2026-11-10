@@ -7,8 +7,11 @@ import { parseHash, hrefFor } from "./route";
 // @ts-expect-error: a plain JavaScript module with no type declarations
 import { exportRuns } from "../../scripts/export-runs.mjs";
 
+// The committed Session 5 Gemma run, picked by its judged copy's file name, so a
+// newer Gemma run in runs/ (the 200-trap lineup run) doesn't change what's tested.
+const GEMMA_SOURCE = "2026-11-09_15-47-13_ollama_gemma3-12b_judged-by_gpt-6-luna~4.json";
 const { index, outputs } = exportRuns({ write: false });
-const gemmaEntry = index.runs.find((r: { model: string }) => r.model === "gemma3:12b");
+const gemmaEntry = index.runs.find((r: { source: string }) => r.source === GEMMA_SOURCE);
 const read = readRun(outputs.find((o: { file: string }) => o.file === gemmaEntry.file).data);
 if (!read.ok) throw new Error(read.detail);
 const gemma: RunFile = read.run;

@@ -1,0 +1,36 @@
+{
+  "what": "Who stands in the lineup (Session 9, as Christian approved it), which side-by-sides it shows, and which judge's grades are on hold. Scores never come from here: they come from the judged runs in runs/ (scripts/export-runs.mjs reads both). When a run is judged, or a hold ends, only data changes: this file, or runs/.",
+  "trap_set": "d2492cb9427b",
+  "bots": [
+    { "model": "llama3.2", "maker": "Meta", "provider": "ollama" },
+    { "model": "gemma3:12b", "maker": "Google", "provider": "ollama" },
+    { "model": "gemma4:12b", "maker": "Google", "provider": "ollama" },
+    { "model": "ministral-3:14b", "maker": "Mistral AI", "provider": "ollama" },
+    { "model": "phi4:14b", "maker": "Microsoft", "provider": "ollama" },
+    { "model": "gpt-6-luna", "maker": "OpenAI", "provider": "openai" },
+    { "model": "gpt-6.1-terra", "maker": "OpenAI", "provider": "openai" },
+    { "model": "gpt-6-astra", "maker": "OpenAI", "provider": "openai" }
+  ],
+  "pairs": [
+    {
+      "id": "instructions",
+      "kind": "custom",
+      "model": "llama3.2",
+      "why": "The same model twice: once told to always sound sure and never admit it doesn't know, once as it comes. It isn't ranked: it's here to show what instructions alone do."
+    },
+    {
+      "id": "gemma",
+      "kind": "models",
+      "left": "gemma3:12b",
+      "right": "gemma4:12b",
+      "why": "Two generations of the same family at the same size. Gemma 4 thinks before it answers, by default."
+    }
+  ],
+  "judge_hold": {
+    "judges": ["qwen3.6:35b"],
+    "bots": ["gpt-6-luna", "gpt-6.1-terra", "gpt-6-astra"],
+    "since": "2026-11-10",
+    "headline": "Judge being chosen",
+    "why": "Christian checked every verdict Qwen3.6 35B marked as caught on the OpenAI bots, and about two thirds look wrong to him. So its grades are on hold, and the OpenAI bots get no score until he picks how they'll be judged."
+  }
+}

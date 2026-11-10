@@ -11,6 +11,7 @@ import { EvidenceScreen } from "./screens/EvidenceScreen";
 import { ConfidenceScreen } from "./screens/ConfidenceScreen";
 import { NewRunScreen } from "./screens/NewRunScreen";
 import { LiveScreen } from "./screens/LiveScreen";
+import { LineupScreen } from "./screens/LineupScreen";
 
 // The faces the dashboard uses. Nothing shows until they're ready, so text never
 // changes shape (and nothing jumps) when a font arrives late.
@@ -60,6 +61,7 @@ const TITLES: Record<Screen, string> = {
   report: "Report card",
   evidence: "Evidence wall",
   confidence: "Overconfidence meter",
+  lineup: "The lineup",
   new: "New interrogation",
   live: "Live interrogation",
 };
@@ -102,6 +104,8 @@ export default function App() {
     body = <NewRunScreen />;
   } else if (route.screen === "live") {
     body = <LiveScreen route={route} />;
+  } else if (route.screen === "lineup") {
+    body = <LineupScreen route={route} forced={state} />;
   } else {
     body = (
       <DataScreen route={route} forced={state}>

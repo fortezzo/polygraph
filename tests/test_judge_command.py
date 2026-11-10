@@ -7,6 +7,7 @@ never touch the internet, your real cache in .cache/ or your real runs/ folder.
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import json
 
 import httpx
@@ -378,3 +379,73 @@ def test_run_ends_by_saying_how_to_judge_it(setup):
     result = runner.invoke(cli.app, ["run", "--trap", "ghost-001"])
     assert result.exit_code == 0, result.output
     assert "Next, judge it: polygraph judge" in flat(result)
+
+
+# --- A Claude judge (Session 9: Claude Haiku 5.5 replaces Qwen) ---------------------------------
+
+
+class FakeClaude(FakeJudge):
+    name, label, local = "anthropic", "Anthropic", False
+
+    def __init__(self):
+        super().__init__()
+        self.options = []
+
+    async def chat(self, messages, model, options=None):
+        self.options.append(options)
+        return await super().chat(messages, model, options)
+
+
+@pytest.fixture
+def claude(setup, monkeypatch):
+    tmp_path, settings, _ = setup
+    with_key = dataclasses.replace(settings, anthropic_api_key=Secret("sk-ant-test-PolygraphNeverWritesThis"))
+    monkeypatch.setattr(cli, "load_settings", lambda: with_key)
+    judge = FakeClaude()
+    monkeypatch.setattr(cli, "make_provider", lambda name, settings, base_url=None: judge if name == "anthropic" else FakeBot())
+    return tmp_path, judge
+
+
+def test_a_claude_judge_gets_its_effort_and_the_json_shape(claude):
+    tmp_path, judge = claude
+    path = _save(tmp_path)
+
+    result = runner.invoke(cli.app, ["judge", str(path), "--judge", "claude-haiku-5-5", "--judge-effort", "Medium", "--yes"])
+
+    assert result.exit_code == 0, result.output
+    assert judge.options and all(o.effort == "medium" and o.json_schema for o in judge.options)
+    [judged] = [p for p in (tmp_path / "runs").glob("*_judged-by_claude-haiku-5-5.json")]
+    settings = load_run(judged).run.judge.settings
+    assert settings["effort"] == "medium"
+    assert settings["structured_output"] is True
+    assert settings["thinking"] == "the model's default"
+
+
+def test_without_an_effort_a_claude_judge_uses_the_models_default(claude):
+    tmp_path, judge = claude
+    path = _save(tmp_path)
+
+    result = runner.invoke(cli.app, ["judge", str(path), "--judge", "claude-haiku-5-5", "--yes"])
+
+    assert result.exit_code == 0, result.output
+    assert all(o.effort is None for o in judge.options)
+    [judged] = [p for p in (tmp_path / "runs").glob("*_judged-by_claude-haiku-5-5.json")]
+    assert "effort" not in load_run(judged).run.judge.settings
+
+
+@pytest.mark.parametrize(
+    ("args", "words"),
+    [
+        (["--judge", "claude-haiku-5-5", "--judge-effort", "extreme"], "--judge-effort takes low, medium, high, xhigh, max"),
+        (["--judge", "gpt-6-luna", "--judge-effort", "high"], "--judge-effort is only for a Claude judge"),
+    ],
+)
+def test_judge_effort_is_checked_before_anything_is_spent(claude, args, words):
+    tmp_path, judge = claude
+    path = _save(tmp_path)
+
+    result = runner.invoke(cli.app, ["judge", str(path), *args, "--yes"])
+
+    assert result.exit_code == 2
+    assert words in flat(result)
+    assert judge.calls == 0

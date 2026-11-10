@@ -17,7 +17,7 @@ from fastapi.testclient import TestClient
 
 from polygraph.config import PROJECT_ROOT, Secret, Settings
 from polygraph.judges.rubric import build_prompt, fingerprint, instructions_block
-from polygraph.live.pretend import ReplayBot, ReplayJudge, pretend_factory
+from polygraph.live.pretend import ReplayBot, ReplayJudge, pretend_factory, recorded_library
 from polygraph.providers import ModelInfo, Provider, ProviderError, Reply
 from polygraph.runfile import load_run
 from polygraph.server import create_app
@@ -43,6 +43,9 @@ def settings_for(tmp_path: Path, openai: bool = True) -> Settings:
 
 def client_for(tmp_path: Path, factory, **extra) -> TestClient:
     (tmp_path / "runs").mkdir(exist_ok=True)
+    # The recorded Gemma run's own 80 traps, as pretend mode uses them, so the
+    # replayed answers always fit the questions (the library has 200 since Session 9).
+    extra.setdefault("folder", recorded_library(load_run(RECORDED), tmp_path / "traps"))
     app = create_app(settings_for(tmp_path, extra.pop("openai", True)), factory=factory, export=None, **extra)
     return TestClient(app, base_url="http://127.0.0.1:8420", headers={"Origin": ORIGIN})
 

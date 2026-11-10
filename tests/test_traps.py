@@ -102,6 +102,28 @@ def test_the_real_trap_library_passes():
     assert re.fullmatch(r"[0-9a-f]{12}", library.fingerprint)
 
 
+def test_the_full_library_has_25_traps_of_each_type():
+    # Session 9: about 200 traps, 25 per type (PLAN.md section 4).
+    library = load_library(DEFAULT_FOLDER)
+    assert library.counts() == {kind: 25 for kind in TrapType}
+    assert len(library.traps) == 200
+
+
+def test_every_document_is_clearly_made_up():
+    # Web addresses end in .example and phone numbers are in 555-0100 to
+    # 555-0199, the range reserved for fiction. (Every address given is in the
+    # invented town of Brambleford; the robot-vacuum warranty gives none.)
+    library = load_library(DEFAULT_FOLDER)
+    for doc_id, document in library.documents.items():
+        assert document.title.endswith("(fictional)"), doc_id
+        for phone in re.findall(r"\b555-\d{4}\b", document.text):
+            assert re.fullmatch(r"555-01\d\d", phone), (doc_id, phone)
+        for address in re.findall(r"\b[\w-]+(?:\.[\w-]+)+\b", document.text):
+            if re.search(r"\.(com|org|net|co|io|uk)$", address):
+                raise AssertionError(f"{doc_id} has a real-looking web address: {address}")
+        assert re.search(r"\.example\b", document.text), doc_id
+
+
 def test_the_real_library_follows_the_session_2_rules():
     library = load_library(DEFAULT_FOLDER)
 
@@ -110,8 +132,9 @@ def test_the_real_library_follows_the_session_2_rules():
         assert isinstance(trap, Consistency)
         assert len(trap.wordings()) == 4
 
-    # 2 or 3 short made-up documents, each with exactly one question it doesn't answer.
-    assert 2 <= len(library.documents) <= 3
+    # Short made-up documents (3 in Session 2, 8 since Session 9), each with
+    # exactly one question it doesn't answer.
+    assert len(library.documents) >= 2
     for doc_id, document in library.documents.items():
         assert document.fictional is True
         questions = [t for t in library.of_type(TrapType.STICK_TO_DOCUMENT) if t.document == doc_id]

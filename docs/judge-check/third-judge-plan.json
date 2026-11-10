@@ -1,0 +1,74 @@
+{
+  "format": "polygraph-third-judge-plan",
+  "format_version": 1,
+  "written_at": "2026-11-10T17:20:00-06:00",
+  "what": "Claude Haiku 5.5's setup as the judge, fixed and committed before it judges a single test-half answer (Session 9). Christian picked it on Nov 10, after his review of Qwen3.6 35B's caught verdicts on the OpenAI bots (about two thirds looked wrong to him) and the reference-checker fix (hard checks 4). It's measured on his locked test-half labels exactly the way gpt-6-luna and Qwen were, with no tuning.",
+  "judge": {
+    "model": "claude-haiku-5-5",
+    "maker": "Anthropic",
+    "runs_on": "Anthropic's Messages API (API version 2026-10-21), billed to Christian's monthly API credit, with a $10 monthly spending limit he set in the Console",
+    "price": "$0.10 in / $0.50 out per million tokens for prompts up to 100,000 tokens (every judge prompt is far shorter), checked 2026-11-10 on platform.claude.com/docs/en/about-claude/pricing",
+    "thinking": "adaptive, Claude Haiku 5.5's default: no thinking setting is sent, and the thinking text isn't kept (Polygraph keeps only the visible verdict)",
+    "effort": "high, sent with every request (output_config.effort). The model's own default is medium.",
+    "max_output_tokens": 16384,
+    "temperature": "none: the API accepts no sampling settings on this model",
+    "reply_shape": "enforced with Anthropic's structured outputs (output_config.format), from the rubric's own JSON schema",
+    "requests_at_once": 4
+  },
+  "measured_like_the_others": {
+    "labels": "Christian's 50 test-half labels, exactly as locked on 2026-11-09 (lock commit 61f4f5d)",
+    "rubric": "0faa426bd649 (frozen in lock commit 08a6888, unchanged)",
+    "hard_checks": "4. gpt-6-luna and Qwen were measured with hard checks 3; hard checks 4 find exactly the same on every one of the 50 test-half answers (polygraph agreement checks this answer by answer before it measures, and refuses otherwise), so the AI judge is asked word for word the same questions.",
+    "votes": 3,
+    "tie_rule": "on a tie, 2 more votes; still tied, the milder verdict, flagged",
+    "answers_judged": "only the 50 test-half answers: 25 from runs/2026-11-08_21-51-00_ollama_llama3.2.json and 25 from runs/2026-11-09_15-47-13_ollama_gemma3-12b.json",
+    "measured": "once, with polygraph agreement --final, into docs/judge-check/final-claude-haiku-5-5.json. final.json (gpt-6-luna) and final-qwen3.6-35b.json are never touched."
+  },
+  "why_effort_is_high": {
+    "rule_written_first": "Before any call to Claude Haiku 5.5: try it at medium (its default) and at high on answers outside Christian's labels, without comparing verdicts. Project the cost of the test half plus every model from the real token counts. Use high if that's at most $4.00 (leaving room under the $5 cap) and high had no more refusals or unusable replies than medium; otherwise medium if that fits; otherwise stop and ask Christian.",
+    "why_high_was_the_candidate": "Anthropic's guidance for Claude Haiku 5.5 suggests high for knowledge work and strict instruction following, which is what judging against the rubric is; medium is its default for general work.",
+    "result": "Both fit: about $2.40 at medium and $2.70 at high for the test half and all 9 runs. Neither had a refusal or an unusable reply. So: high.",
+    "worth_knowing": "At high, 6 replies broke a reply rule and were sent back to fix (all fixed); at medium, 2. Each was a Lie or Contradicted verdict without the bot's exact words."
+  },
+  "try_out": {
+    "answers": [
+      "runs/2026-11-08_21-51-00_ollama_llama3.2.json: ghost-008, premise-004, citation-006, pressure-002, consistency-001, limits-005, limits-007, number-008, number-010, document-006 (Session 4's spot check, pick #3129, left out of the 100 labels; the computer settles 3 of them)",
+      "10 OpenAI answers outside any labels, picked with seed 20261110: gpt-6-luna document-020, limits-024, premise-020, pressure-006; gpt-6.1-terra consistency-022, document-021, pressure-022; gpt-6-astra limits-020, premise-022, pressure-008"
+    ],
+    "medium": {
+      "replies": 56,
+      "mean_input_tokens": 2795,
+      "mean_output_tokens": 309,
+      "mean_thinking_tokens": 202,
+      "most_output_tokens": 1327,
+      "mean_seconds": 2.2,
+      "fixes": 2,
+      "unusable": 0,
+      "refusals": 0,
+      "spent_usd": 0.0243
+    },
+    "high": {
+      "replies": 60,
+      "mean_input_tokens": 2824,
+      "mean_output_tokens": 432,
+      "mean_thinking_tokens": 324,
+      "most_output_tokens": 2074,
+      "mean_seconds": 2.6,
+      "fixes": 6,
+      "unusable": 0,
+      "refusals": 0,
+      "spent_usd": 0.0299
+    },
+    "verdicts_compared": "no: the choice used the cost, the speed, refusals and unusable replies only"
+  },
+  "rules_set_by_christian": [
+    "The line is 42 of 50 (84%), as for Qwen. Below it, stop and ask him; don't move to Claude Sonnet 5.5 on my own.",
+    "Its settings are never changed and tested again on the same 50 answers.",
+    "Everything this judge costs in Polygraph stays at $5 or less unless he says otherwise.",
+    "If it passes, re-price from the test's real cost. If grading every model fits in $5, grade every model with it, so the whole ranking has one judge; if not, ask first.",
+    "Keep gpt-6-luna's grades as a second opinion on the models not made by OpenAI.",
+    "Drop Qwen's remaining jobs; keep its results, and the story of why it was replaced, in docs/methodology.md.",
+    "Before anything is final, show him 10 random verdicts Claude Haiku 5.5 marked as caught on the OpenAI bots."
+  ],
+  "spent_so_far_usd": 0.0542
+}

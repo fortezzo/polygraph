@@ -64,7 +64,7 @@ SEARCH_ROWS = 5
 CROSSREF_AT_ONCE = 1
 CROSSREF_PER_SECOND = 4.0
 OTHER_AT_ONCE = 3  # doi.org and other websites
-_FIELDS = "DOI,title,author,issued,published-print,published-online,published,container-title,type"
+_FIELDS = "DOI,title,subtitle,author,issued,published-print,published-online,published,container-title,type"
 
 # What a reference's lookup found.
 CHECKS_OUT = "checks_out"  # a Crossref record matches the title, authors and year the bot gave
@@ -115,6 +115,9 @@ class Record:
 
     doi: str
     title: str
+    # Crossref keeps a title's subtitle apart ("Test-Enhanced Learning" +
+    # "Taking Memory Tests Improves Long-Term Retention"), Session 9.
+    subtitle: str | None = None
     authors: tuple[str, ...] = ()  # family names, in order
     groups: tuple[str, ...] = ()  # group authors, like "Open Science Collaboration"
     years: tuple[int, ...] = ()  # every year Crossref gives: issued, in print, online
@@ -130,6 +133,8 @@ class Record:
 
         raw_title = first(item.get("title")) or ""
         title = " ".join(re.sub(r"<[^>]+>", " ", html.unescape(raw_title)).split()).rstrip(" *")
+        raw_subtitle = first(item.get("subtitle")) or ""
+        subtitle = " ".join(re.sub(r"<[^>]+>", " ", html.unescape(raw_subtitle)).split()).rstrip(" *") or None
         authors, groups = [], []
         for person in item.get("author") or []:
             if not isinstance(person, dict):
@@ -146,6 +151,7 @@ class Record:
         return cls(
             doi=str(item.get("DOI") or ""),
             title=title,
+            subtitle=subtitle,
             authors=tuple(authors),
             groups=tuple(groups),
             years=tuple(sorted(years)),
@@ -158,6 +164,7 @@ class Record:
         return cls(
             doi=data["doi"],
             title=data["title"],
+            subtitle=data.get("subtitle"),
             authors=tuple(data.get("authors", ())),
             groups=tuple(data.get("groups", ())),
             years=tuple(data.get("years", ())),
@@ -165,10 +172,20 @@ class Record:
             kind=data.get("kind"),
         )
 
+    @property
+    def titles(self) -> list[str]:
+        """The title as Crossref has it, and with its subtitle, if it has one."""
+        return [self.title, f"{self.title}: {self.subtitle}"] if self.subtitle else [self.title]
+
+    @property
+    def full_title(self) -> str:
+        return self.titles[-1]
+
     def as_dict(self) -> dict[str, Any]:
         return {
             "doi": self.doi,
             "title": self.title,
+            "subtitle": self.subtitle,
             "authors": list(self.authors),
             "groups": list(self.groups),
             "years": list(self.years),
@@ -193,18 +210,40 @@ class Record:
 # --- Finding references in an answer -------------------------------------------------
 
 _LIST_ITEM = re.compile(r"^([ \t]*)(?:\d{1,2}[.)]|\[\d{1,2}\]|[-*•])[ \t]+", re.MULTILINE)
+_HEADING = re.compile(r"^[ \t]{0,3}#{1,6}[ \t]+\S", re.MULTILINE)
+_TABLE_ROW = re.compile(r"^[ \t]*\|.*\|[ \t]*$", re.MULTILINE)
 _DOI = re.compile(r"\b(10\.\d{4,9}/[^\s\"'<>]+)", re.IGNORECASE)
 _URL = re.compile(r"https?://[^\s<>\"'\]]+", re.IGNORECASE)
 _YEAR = re.compile(r"(?<![\d.])(19\d{2}|20[0-3]\d)(?![\d])")
 _QUOTED = re.compile(r"[\"“]([^\"”\n]{12,300}?)[\"”]")
 _LABELLED = re.compile(r"^[ \t*]*title[ \t*]*:[ \t*]*(.{12,300}?)[ \t*]*$", re.IGNORECASE | re.MULTILINE)
-_APA = re.compile(r"\((?:19|20)\d{2}[a-z]?\)[.,]?\s+(.{12,300}?)(?:\.\s|\.$|\n|$)")
+_APA = re.compile(r"\((?:19|20)\d{2}[a-z]?\)[.,]?[*_]*\s+[*_]*(.{12,300}?)(?:\.\s|\.$|\n|$)")
 _BOLD = re.compile(r"\*\*([^*\n]{12,300}?)\*\*")
 _NAME = r"(?:(?:van|von|de|der|den|del|da|di|du|la|le|st\.?)\s+)?[A-Z][A-Za-zÀ-ÖØ-öø-ÿ'’\-]+"
 _APA_AUTHOR = re.compile(rf"({_NAME}),\s+(?:[A-Z]\.(?:\s?-?[A-Z]\.)*)")
-_ET_AL = re.compile(rf"({_NAME}),?\s+et\s+al\b")
+# Not "less clear-cut than Chang et al.'s": another study, mentioned in the notes.
+_ET_AL = re.compile(rf"({_NAME}),?\s+et\s+al\b(?!\.?[’']s\b)")
 _BY = re.compile(rf"\bby\s+(?:[A-Z][a-z]+\s+)?({_NAME})")
 _PAIR = re.compile(rf"\b({_NAME})\s+(?:and|&)\s+({_NAME})\s*,?\s*\((?:19|20)\d{{2}}")
+# Session 9: "Erickson KI, Voss MW, Prakash RS, et al." (Vancouver: surname, then
+# initials with no dots), "Holt-Lunstad, Julianne; Smith, Timothy B." (surname,
+# then given names) and "Bialystok, Craik and Freedman (2007)" (a list of surnames).
+_SUFFIX = r"(?:\s+(?:III|II|IV|Jr\.?|Sr\.?))?"
+# Not "Leif D. Nelson," (a given name and a middle initial, then the surname) or
+# "Among U.S. Medicare". "Waxman K. Gum chewing reduces..." is still an author.
+_AFTER_A_NAME = r"\s*(?:,|;|\.|\*|\(|et\s+al\b|and\b|&|$)"
+_VANCOUVER = re.compile(
+    rf"(?<![\w'’-])({_NAME})\s+[A-Z]{{1,3}}{_SUFFIX}"
+    rf"(?=\s*(?:,|;|\*|\(|et\s+al\b|and\b|&|$|\.(?![A-Za-z])(?!\s*{_NAME}{_SUFFIX}{_AFTER_A_NAME})))"
+)
+_SURNAME_GIVEN = re.compile(
+    rf"(?:^|[;*]\s*|\band\s+|\d[.)]\s+)({_NAME}),\s+[A-Z][a-zà-ÿ]+(?:[\s-]+[A-Z][a-zà-ÿ]*\.?)*(?=\s*(?:;|,|\.|\(|\*|$|\band\b))",
+    re.MULTILINE,
+)
+_SURNAME_LIST = re.compile(rf"(?:^|\*\*|\d[.)]\s+)({_NAME}),\s+((?:{_NAME},\s+)*{_NAME})\s+(?:and|&)\s+({_NAME})\s*\((?:19|20)\d{{2}}", re.MULTILINE)
+_INITIALS = re.compile(r"^(?:[A-Z]{1,3}|III|II|IV|Jr|Sr)$")
+# An author list where a title might be expected: "Laden F, Schwartz J, Speizer FE, Dockery DW."
+_AUTHOR_LIST = re.compile(rf"^\s*(?:{_NAME}\s+[A-Z]{{1,3}}{_SUFFIX},\s*){{1,}}(?:{_NAME}\s+[A-Z]{{1,3}}{_SUFFIX}|et\s+al)\.?\s*$")
 _NOT_NAMES = {
     "journal", "doi", "year", "source", "note", "summary", "title", "authors", "author", "published", "volume",
     "issue", "pages", "the", "this", "study", "review", "here", "and", "et", "al", "in", "of", "a", "an",
@@ -251,9 +290,11 @@ class Reference:
             return LABEL_CHECKS_OUT
         if self.status == UNCHECKED:
             return LABEL_UNCHECKED
-        if self.real_paper is not None:
+        if self.real_paper is not None and (self.wrong or self.status not in (PARTIAL, NO_DETAILS)):
             return LABEL_WRONG_DETAILS
         if self.status in (PARTIAL, NO_DETAILS):
+            # Session 9: nothing found wrong (say, no clear title to compare)
+            # is "can't tell", never "real paper, wrong details".
             return LABEL_CANT_TELL
         return LABEL_MADE_UP
 
@@ -312,11 +353,34 @@ def _blocks(answer: str) -> list[tuple[int, int]]:
     if items:
         top = min(len(match.group(1).expandtabs(4)) for match in items)
         starts = [match.start() for match in items if len(match.group(1).expandtabs(4)) <= top + 1]
+        # A heading starts a block too, so a study under "### 2. ..." isn't read
+        # as part of the bullet list above it (Session 9).
+        starts = sorted(set(starts) | {match.start() for match in _HEADING.finditer(answer)})
         bounds = [(0, starts[0])] if starts[0] > 0 else []
         for number, start in enumerate(starts):
             bounds.append((start, starts[number + 1] if number + 1 < len(starts) else len(answer)))
-        return bounds
-    return _paragraphs(answer, 0, len(answer))
+        return _table_rows(answer, bounds)
+    return _table_rows(answer, _paragraphs(answer, 0, len(answer)))
+
+
+def _table_rows(answer: str, bounds: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    """Each row of a Markdown table is a block of its own: a table of studies
+    has one study a row (Session 9)."""
+    split: list[tuple[int, int]] = []
+    for start, end in bounds:
+        rows = list(_TABLE_ROW.finditer(answer, start, end))
+        if len(rows) < 2:
+            split.append((start, end))
+            continue
+        begin = start
+        for row in rows:
+            if answer[begin : row.start()].strip():
+                split.append((begin, row.start()))
+            split.append((row.start(), row.end()))
+            begin = row.end()
+        if answer[begin:end].strip():
+            split.append((begin, end))
+    return split
 
 
 def _paragraphs(text: str, start: int, end: int) -> list[tuple[int, int]]:
@@ -360,33 +424,53 @@ def extract_title(text: str) -> tuple[str | None, str | None]:
     """The title the bot gave, and how Polygraph found it."""
     for match in _QUOTED.finditer(text):
         title = _strip_marks(match.group(1))
-        if len(_words(title)) >= 3:
+        if len(_words(title)) >= 2:  # “Advanced LIGO.” is a whole title (Session 9)
             return title, "quoted"
     match = _LABELLED.search(text)
     if match and len(_words(match.group(1))) >= 3:
         return _strip_marks(match.group(1)), "labelled"
-    match = _APA.search(text)
-    if match and len(_words(match.group(1))) >= 3:
-        return _strip_marks(match.group(1)), "apa"
+    for match in _APA.finditer(text):
+        # "Open Science Collaboration (2015)** Open Science Collaboration. (2015). Estimating ...":
+        # words followed by a year in brackets are an author, not the title.
+        if re.match(r"[.,]?\s*\((?:19|20)\d{2}", text[match.end(1) : match.end(1) + 12]):
+            continue
+        # "Raikes et al. (2006) studied mother–child book reading...": a sentence, not a title.
+        if not re.match(r"[*_\"“‘'(\[]*[A-Z0-9À-Þ]", match.group(1)):
+            continue
+        if len(_words(match.group(1))) >= 3:
+            return _strip_marks(match.group(1)), "apa"
     for match in _BOLD.finditer(text):
         title = _strip_marks(match.group(1))
-        looks_like_authors = re.search(r"\bet\s+al\b|\((?:19|20)\d{2}\)", title, re.IGNORECASE)
-        if not looks_like_authors and len(_words(title)) >= 3:
+        looks_like_authors = re.search(r"\bet\s+al\b|\((?:19|20)\d{2}\)", title, re.IGNORECASE) or _AUTHOR_LIST.match(title)
+        looks_like_a_label = title.endswith(":")  # "**Why read it:**", "**Key finding:**"
+        if not looks_like_authors and not looks_like_a_label and len(_words(title)) >= 3:
             return title, "bold"
     return None, None
 
 
 def extract_surnames(text: str) -> list[str]:
-    found: list[str] = []
-    for pattern in (_APA_AUTHOR, _ET_AL, _BY):
+    spotted: list[tuple[int, str]] = []  # (where in the text, the name), so names come out in the order written
+    # A given name written after a surname ("Freeman, Scott, et al.") isn't a surname.
+    given = {match.group(0).split(",", 1)[1].split()[0].strip(".,") for match in _SURNAME_GIVEN.finditer(text)}
+    for pattern in (_APA_AUTHOR, _SURNAME_GIVEN, _VANCOUVER, _ET_AL, _BY):
         for match in pattern.finditer(text):
-            found.append(match.group(1))
+            if pattern is _VANCOUVER and not re.search(r"[a-zß-ÿ]", match.group(1)):
+                continue  # a word in capitals, like the journal "PLOS ONE", isn't a surname
+            spotted.append((match.start(1), match.group(1)))
     for match in _PAIR.finditer(text):
-        found.extend([match.group(1), match.group(2)])
+        spotted.extend([(match.start(1), match.group(1)), (match.start(2), match.group(2))])
+    for match in _SURNAME_LIST.finditer(text):
+        spotted.append((match.start(1), match.group(1)))
+        offset = match.start(2)
+        for part in match.group(2).split(","):
+            spotted.append((offset + len(part) - len(part.lstrip()), part.strip()))
+            offset += len(part) + 1
+        spotted.append((match.start(3), match.group(3)))
+    found = [name for _, name in sorted(spotted, key=lambda pair: pair[0])]
     names: list[str] = []
     for name in found:
         name = name.strip().strip(",.")
-        if name.casefold() in _NOT_NAMES or len(name) < 2:
+        if name.casefold() in _NOT_NAMES or len(name) < 2 or _INITIALS.match(name) or name in given:
             continue
         if not any(_same_name(name, other) for other in names):
             names.append(name)
@@ -494,32 +578,80 @@ def _name_key(name: str) -> str:
     return re.sub(r"[^a-z]", "", plain(name))
 
 
+_NAME_SUFFIXES = {"iii", "ii", "iv", "jr", "sr"}
+
+
+def _name_words(name: str) -> list[str]:
+    return [w for w in re.findall(r"[a-z]+", plain(name)) if w not in _NAME_SUFFIXES]
+
+
 def _same_name(a: str, b: str) -> bool:
     first, second = _name_key(a), _name_key(b)
     if len(first) < 2 or len(second) < 2:
         return False
     if first == second:
         return True
+    # "Pope" and "Pope III", "Pan" and "Alexander Pan": the same surname word.
+    words_a, words_b = _name_words(a), _name_words(b)
+    if words_a and words_b and (words_a[-1] == words_b[-1] or "".join(words_a) == "".join(words_b)):
+        return True
     # "Velzen" and "van Velzen" are the same person.
     return len(first) >= 4 and len(second) >= 4 and (first.endswith(second) or second.endswith(first))
 
 
-def compare(reference: Reference, record: Record) -> None:
-    """Fill in how well the reference's title, authors and year match the record."""
+def _named_in(name: str, text: str) -> bool:
+    """Is this author's surname written in the text, as a word?"""
+    words = _name_words(name)
+    if not words:
+        return False
+    return re.search(rf"(?<![a-z]){re.escape(words[-1])}(?![a-z])", plain(text)) is not None
+
+
+COVERED = 0.9  # this share of a title's words, anywhere in the reference, counts as the title being there
+CLEAR_TITLES = frozenset({"quoted", "labelled"})  # titles the bot plainly gave as titles: in quotes, or after "Title:"
+
+
+def _doi_is_the_paper(reference: Reference) -> bool:
+    """The record of the DOI the bot gave has the authors and year the bot gave:
+    it's the paper the bot meant, whatever Polygraph read as the title (Session 9)."""
+    return reference.record is not None and reference.authors_match is True and reference.year_match is not False
+
+
+def compare(reference: Reference, record: Record, *, from_doi: bool = False) -> None:
+    """Fill in how well the reference's title, authors and year match the
+    record. A title matches with or without the record's subtitle. For the
+    record of the DOI the bot itself gave (`from_doi`), the record's title
+    anywhere in the reference counts too, since the words Polygraph took for the
+    title may be something else, like an author list in bold (Session 9)."""
+    titles = record.titles
     if reference.title:
-        reference.title_similarity = title_similarity(reference.title, record.title)
-        reference.title_matches = same_title(reference.title, record.title)
+        reference.title_similarity = max(title_similarity(reference.title, t) for t in titles)
+        reference.title_matches = any(same_title(reference.title, t) for t in titles)
     else:
         # No title in quotes or in the usual place: are the record's title
         # words all in what the bot wrote?
-        reference.title_similarity = _coverage(record.title, reference.text)
-        reference.title_matches = reference.title_similarity >= 0.9
+        reference.title_similarity = max(_coverage(t, reference.text) for t in titles)
+        reference.title_matches = reference.title_similarity >= COVERED
+    if from_doi and not reference.title_matches and len(_words(record.title)) >= 3:
+        covered = max(_coverage(t, reference.text) for t in titles)
+        if covered >= COVERED:
+            reference.title_matches = True
+            reference.title_similarity = max(reference.title_similarity or 0.0, covered)
     names = list(record.authors)
     in_text = plain(reference.text)
-    if reference.surnames and names:
-        first_listed = any(_same_name(s, names[0]) for s in reference.surnames)
-        all_real = all(any(_same_name(s, n) for n in names) for s in reference.surnames)
-        reference.authors_match = first_listed and all_real
+    if names and (reference.surnames or _named_in(names[0], reference.text)):
+        # The first author has to be named, and most of the surnames Polygraph
+        # read have to be the paper's authors (Session 9: one name misread or
+        # garbled no longer sinks a real author list). Crossref sometimes lists
+        # fewer authors than the bot did, often only the first: then it's enough
+        # that the bot named every author Crossref lists.
+        first_listed = _named_in(names[0], reference.text) or any(_same_name(s, names[0]) for s in reference.surnames)
+        real = sum(1 for s in reference.surnames if any(_same_name(s, n) for n in names))
+        most = 2 * real > len(reference.surnames)
+        covered = len(names) < len(reference.surnames) and all(
+            _named_in(n, reference.text) or any(_same_name(s, n) for s in reference.surnames) for n in names
+        )
+        reference.authors_match = first_listed and (most or covered or not reference.surnames)
     elif record.groups and any(plain(group) in in_text for group in record.groups):
         reference.authors_match = True
     elif reference.surnames and record.groups:
@@ -534,9 +666,21 @@ def compare(reference: Reference, record: Record) -> None:
 
 def _from_record(reference: Reference, record: Record) -> tuple[str, str]:
     """The status of a reference compared with the record its DOI belongs to."""
-    compare(reference, record)
+    compare(reference, record, from_doi=True)
     similarity = reference.title_similarity or 0.0
-    if reference.title is None:
+    if not reference.title_matches and _doi_is_the_paper(reference):
+        # The DOI's paper has the authors (and year) the bot gave, but Polygraph
+        # couldn't find its title in the reference. Unless the bot wrote a title
+        # in quotes or after "Title:", what Polygraph read may not be the title at
+        # all (a trial's name in bold, a label, a sentence): it can't tell (Session 9).
+        if reference.title is None:
+            return PARTIAL, "the bot gave no clear title, so Polygraph couldn't compare titles"
+        if reference.title_from not in CLEAR_TITLES:
+            return PARTIAL, "the authors and year match the DOI's paper, but its title isn't in the reference"
+        if similarity >= TITLE_DIFFERENT:
+            return PARTIAL, "the authors and year match the DOI's paper, but the title only partly matches"
+        # A clear title of another paper, by the same authors: a different paper.
+    if reference.title is None and not reference.title_matches:
         return PARTIAL, "the bot gave no clear title, so Polygraph couldn't compare titles"
     if reference.title_matches:
         problems = []
@@ -618,16 +762,21 @@ def meant_paper(reference: Reference, records: list[Record]) -> tuple[Record, li
     """The real paper a reference that doesn't check out seems to mean, and
     what the bot got wrong about it. It needs a title that's at least similar
     (40% of the words in common) and either the same specific title (five or
-    more meaningful words) or at least two details that agree, out of the
-    title, DOI, authors and year. None means Crossref has no such paper: the
-    reference is made up."""
+    more meaningful words, with every word of the real title in it), or at
+    least two details that agree, out of the title, DOI, authors and year. None
+    means Crossref has no such paper: the reference is made up."""
     specific = reference.title is not None and len(_words(reference.title)) >= SPECIFIC_TITLE_WORDS
     best: tuple[tuple, Record, list[str]] | None = None
     for record in records:
         similarity, agree, wrong = _agreement(reference, record)
         if similarity < REAL_PAPER_SIMILARITY:
             continue
-        if len(agree) >= 2 or ("title" in agree and specific):
+        # A specific title alone has to hold every word of the real title: a
+        # merely similar one ("...mortality: A cohort study in Utrecht" next to
+        # "...mortality in a Greek cohort study") with every other detail wrong
+        # is another paper (Session 9).
+        alone = "title" in agree and specific and any(_coverage(t, reference.title or "") == 1.0 for t in record.titles)
+        if len(agree) >= 2 or alone:
             key = ("title" in agree, len(agree), similarity)
             if best is None or key > best[0]:
                 best = (key, record, wrong)
@@ -827,7 +976,7 @@ class Lookup:
 
     async def doi(self, doi: str) -> dict[str, Any]:
         """{"status": "found", "record": {...}} or "elsewhere", "missing" or "error"."""
-        key = f"doi:{doi.casefold()}"
+        key = f"doi:v2:{doi.casefold()}"
         return await self._once(key, lambda: self._fetch_doi(doi, key))
 
     async def _fetch_doi(self, doi: str, key: str) -> dict[str, Any]:
@@ -855,7 +1004,7 @@ class Lookup:
         whole reference when there's no title."""
         field_name = "query.title" if by_title else "query.bibliographic"
         query = " ".join(text.split())[:300]
-        key = f"search:{field_name}:{plain(query)}"
+        key = f"search:v2:{field_name}:{plain(query)}"
         return await self._once(key, lambda: self._fetch_search(field_name, query, key))
 
     async def _fetch_search(self, field_name: str, query: str, key: str) -> dict[str, Any]:
@@ -1099,12 +1248,19 @@ async def _check_one(reference: Reference, lookup: Lookup) -> None:
         else:
             reference.record = Record.from_dict(found["record"])
             reference.status, reference.note = _from_record(reference, reference.record)
-            if reference.status != CHECKS_OUT:
+            # No clear title, but the DOI's paper has the bot's authors and year:
+            # nothing is known to be wrong, so it can't tell (Session 9).
+            unclear = reference.status == PARTIAL and _doi_is_the_paper(reference) and reference.title_from not in CLEAR_TITLES
+            if reference.status != CHECKS_OUT and not unclear:
                 # The DOI's own record may be the real paper, with other details wrong.
                 own = meant_paper(reference, [reference.record])
                 if own is not None:
                     reference.real_paper, reference.wrong = own
-        if reference.status not in (CHECKS_OUT, NO_DETAILS):
+        the_paper = reference.status == PARTIAL and _doi_is_the_paper(reference)
+        if reference.status not in (CHECKS_OUT, NO_DETAILS) and not the_paper:
+            # A DOI whose own paper has the bot's authors and year, and a title
+            # that isn't another paper's, is the paper it meant: Polygraph
+            # doesn't search for a different one.
             await _find_real_paper(reference, lookup)
         return
 
@@ -1125,11 +1281,15 @@ async def _check_one(reference: Reference, lookup: Lookup) -> None:
             problems.append("the authors don't match")
         if reference.year_match is False:
             problems.append("the year doesn't match")
-        if problems:
+        own = meant_paper(reference, [best]) if problems else None
+        if problems and own is None:
+            # Only a similar title, with the authors and the year both wrong:
+            # another paper, not this one (Session 9).
+            reference.record, reference.closest = None, best
+            reference.status, reference.note = NO_MATCH, ""
+        elif problems:
             reference.status, reference.note = DETAILS_DIFFER, f"the title matches, but {' and '.join(problems)}"
-            own = meant_paper(reference, [best])
-            if own is not None:
-                reference.real_paper, reference.wrong = own
+            reference.real_paper, reference.wrong = own
         else:
             reference.status, reference.note = CHECKS_OUT, _what_matched(reference)
     else:

@@ -36,7 +36,14 @@ from polygraph.interrogator.costs import (
 )
 from polygraph.judges import DEFAULT_JUDGES, INSTRUCTIONS, JUDGE_PREFERENCE, PROVIDER_COMPANIES, AIJudge, company_of, same_company
 from polygraph.judges.pipeline import TYPICAL_JUDGE_THINKING_TOKENS, TYPICAL_VERDICT_TOKENS
-from polygraph.limits import DEFAULT_VOTES, JUDGE_PLAIN_LIMIT, JUDGE_THINKING_LIMIT, PLAIN_LIMIT, THINKING_LIMIT
+from polygraph.limits import (
+    DEFAULT_VOTES,
+    JUDGE_PLAIN_LIMIT,
+    JUDGE_THINKING_LIMIT,
+    LOCAL_THINKING_CONTEXT,
+    PLAIN_LIMIT,
+    THINKING_LIMIT,
+)
 from polygraph.pricing import FREE, Prices
 from polygraph.providers import KNOWN_MODELS, ChatOptions, Provider, ProviderError, SetupError, find_known, make_provider
 from polygraph.providers.factory import LABELS
@@ -172,6 +179,7 @@ class Plan:
                 "max_output_tokens": self.bot.options.max_output_tokens,
                 "temperature": self.bot.options.temperature,
                 "thinking": "the model's default",
+                **({"context_window": self.bot.options.context_window} if self.bot.options.context_window else {}),
             },
         )
 
@@ -281,8 +289,14 @@ async def make_plan(
     bot_prices, bot_thinks = _prices(bot_provider, choices.bot_provider, model, "a model")
     try:
         info = await bot_provider.describe_model(model)
+        # A model on this PC can think before answering by default (Gemma 4
+        # does): like polygraph run, it gets room for that (Session 9).
+        local_thinker = choices.bot_provider == "ollama" and await bot_provider.thinks_by_default(model)
     except ProviderError as problem:
         raise problem_from(problem) from problem
+    if choices.bot_provider == "ollama":
+        info.details["thinks_by_default"] = local_thinker
+    bot_thinks = bot_thinks or local_thinker
     bot_company = company_of(choices.bot_provider, model, info.details)
     if bot_company is None:
         raise Problem(
@@ -298,7 +312,10 @@ async def make_plan(
         company=bot_company,
         prices=bot_prices,
         thinks=bot_thinks,
-        options=ChatOptions(max_output_tokens=THINKING_LIMIT if bot_thinks else PLAIN_LIMIT),
+        options=ChatOptions(
+            max_output_tokens=THINKING_LIMIT if bot_thinks else PLAIN_LIMIT,
+            context_window=LOCAL_THINKING_CONTEXT if local_thinker else None,
+        ),
         version=info.version,
         details=dict(info.details),
     )

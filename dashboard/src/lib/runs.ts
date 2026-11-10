@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { readRun, type RunFile } from "../data/runFile";
+import type { LineupData } from "./lineup";
 
 export interface JudgeCheck {
   judge: string;
@@ -41,6 +42,8 @@ export interface RunEntry {
   grade: string | null;
   margin_of_error: number | null;
   judge_check: JudgeCheck | null;
+  /** The judge's grades are on hold (Session 9): every screen says so next to them. */
+  judge_hold?: { since: string | null; why: string | null } | null;
 }
 
 /** What to call the bot on screen: a custom bot's name with its model, or just the model. */
@@ -109,6 +112,23 @@ export function useRunIndex(): [Load<RunEntry[]>, () => void] {
     const runs = (data as { runs?: RunEntry[] })?.runs;
     if (!Array.isArray(runs)) throw new Error("The list of runs is damaged. Run npm run runs in the dashboard folder to make it again.");
     return runs;
+  });
+}
+
+/** The lineup (Session 9), from the same index.json. Null when the export made none. */
+export function useLineup(): [Load<LineupData | null>, () => void] {
+  return useLoad("lineup", async () => {
+    let data: unknown;
+    try {
+      data = await cached("./runs/index.json");
+    } catch {
+      throw new Error(
+        "The dashboard's copy of the runs is missing. Start the dashboard with npm run dev (or build it with npm run build), which makes it from the runs folder first.",
+      );
+    }
+    const lineup = (data as { lineup?: LineupData | null })?.lineup ?? null;
+    if (lineup !== null && !Array.isArray(lineup?.bots)) throw new Error("The lineup is damaged. Run npm run runs in the dashboard folder to make it again.");
+    return lineup;
   });
 }
 

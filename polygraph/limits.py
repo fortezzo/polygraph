@@ -17,6 +17,14 @@ JUDGE_THINKING_LIMIT = 16_384
 JUDGE_PLAIN_LIMIT = 2_048
 JUDGE_CONCURRENCY = 4
 
+# A bot on this PC that thinks before answering by default (Gemma 4, Session 9)
+# gets the same room to think as a cloud model that thinks, THINKING_LIMIT. Its
+# thinking counts against the limit, and Ollama's default window (4,096 tokens on
+# this PC) can't hold that, so the window grows to fit the limit plus the
+# question. Bots that don't think keep Ollama's defaults exactly, so every saved
+# answer still counts.
+LOCAL_THINKING_CONTEXT = THINKING_LIMIT + 4_096
+
 # A judge on this PC (Ollama, Session 9). Ollama's default window is 4,096
 # tokens, which is too small for the judge's prompt (about 2,000 tokens on
 # average and 3,500 at most for Llama and Gemma, more for wordier bots) plus
@@ -28,6 +36,10 @@ JUDGE_LOCAL_CONTEXT = 16_384
 JUDGE_LOCAL_THINKING_CONTEXT = 32_768
 JUDGE_LOCAL_THINKING_LIMIT = 12_288  # leaves room in the window for the prompt
 JUDGE_LOCAL_CONCURRENCY = 1
+
+# How hard a Claude 5.x judge can be told to think (Anthropic's effort levels,
+# checked 2026-11-10). Claude Haiku 5.5's own default is medium.
+CLAUDE_EFFORTS = ("low", "medium", "high", "xhigh", "max")
 
 # The AI judge can give a different verdict when asked the same thing again,
 # so by default it judges each trap 3 times and the majority wins (Session 5).

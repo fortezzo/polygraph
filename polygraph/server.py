@@ -311,7 +311,7 @@ def pretend_app(run_path: Path, *, port: int = DEFAULT_PORT, fast: bool = False,
     """A server whose bot and judge replay a recorded, judged run (screenshots
     and tests). It uses a throwaway folder (or `folder`) for the cache and the
     run files, never runs/ or the real cache."""
-    from polygraph.live.pretend import pretend_factory
+    from polygraph.live.pretend import pretend_factory, recorded_library
 
     run_file = load_run(run_path)
     real = load_settings()
@@ -332,7 +332,11 @@ def pretend_app(run_path: Path, *, port: int = DEFAULT_PORT, fast: bool = False,
         runs_dir=scratch / "runs",
     )
     (scratch / "runs").mkdir(exist_ok=True)
-    return create_app(settings, port=port, factory=pretend_factory(run_file, fast=fast), export=None, pretend=True)
+    # The recording's own traps, so every question has a recorded answer (Session 9).
+    traps = recorded_library(run_file, scratch / "traps")
+    return create_app(
+        settings, port=port, folder=traps, factory=pretend_factory(run_file, fast=fast), export=None, pretend=True
+    )
 
 
 def port_is_free(port: int) -> bool:

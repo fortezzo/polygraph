@@ -5,6 +5,7 @@ import { subjectOf, useRunFile, useRunIndex, type RunEntry } from "../lib/runs";
 import { ReplayBar } from "../components/Header";
 import { StatePanel } from "../components/States";
 import { TopBar } from "../components/TopBar";
+import { day as holdDay } from "../lib/lineup";
 
 /** A run's name in the Subject picker: with its date and size when another run has the same name. */
 function pickerLabel(run: RunEntry, all: RunEntry[]): string {
@@ -81,12 +82,12 @@ export function DataScreen({
     <div className="mx-auto flex max-w-[1680px] flex-col gap-3 px-4 pt-3 pb-12 sm:px-6 lg:px-8 lg:pt-[18px]">
       <TopBar active={route.screen} run={entry?.id}>
         {runs.length > 1 && entry && (
-          <label className="flex items-center gap-2 text-[13px] text-muted">
+          <label className="flex min-w-0 items-center gap-2 text-[13px] text-muted">
             <span className="font-label tracking-[0.08em]">Subject</span>
             <select
               value={entry.id}
               onChange={(e) => pick(e.target.value)}
-              className="h-11 rounded-[4px] border border-text/25 bg-[#17130f] px-2.5 font-type text-[14px] text-text sm:h-[38px]"
+              className="h-11 max-w-[calc(100vw-8.5rem)] min-w-0 rounded-[4px] border border-text/25 bg-[#17130f] px-2.5 font-type text-[14px] text-text sm:h-[38px] sm:max-w-[min(340px,calc(100vw-10rem))]"
             >
               {runs.map((r) => (
                 <option key={r.id} value={r.id}>
@@ -108,6 +109,22 @@ export function DataScreen({
               recorded={recorded}
               judge={entry.judge ? `${entry.judge}${entry.judge_company ? ` (${entry.judge_company})` : ""}${entry.votes && entry.votes > 1 ? `, ${entry.votes} votes each` : ""}` : undefined}
             />
+            {entry.judge_hold && (
+              // Session 9: this judge's grades are on hold, so its numbers here aren't final.
+              <aside
+                aria-label="Grades on hold"
+                className="mt-3 flex flex-col gap-1.5 rounded-[4px] border border-lie/50 bg-lie/[0.07] px-4 py-3 sm:flex-row sm:items-start sm:gap-4"
+              >
+                <span className="shrink-0 font-label text-[13px] tracking-[0.14em] text-lie">GRADES ON HOLD</span>
+                <p className="m-0 text-[14px] leading-relaxed text-soft">
+                  Every verdict and score on this screen is {entry.judge}&rsquo;s. {entry.judge_hold.why}
+                  {entry.judge_hold.since ? ` On hold since ${holdDay(entry.judge_hold.since)}.` : ""}{" "}
+                  <a href={hrefFor("lineup", { judge: entry.judge })} className="text-brass underline underline-offset-2">
+                    More in the lineup
+                  </a>
+                </p>
+              </aside>
+            )}
           </div>
         )}
         <div key={showBar ? "content" : "state"}>{body}</div>

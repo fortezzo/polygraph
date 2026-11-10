@@ -62,3 +62,20 @@ The stick-to-the-document file also has a `documents` list. Each document has an
 - **Famous puzzles have fresh twins.** Bat-and-ball, strawberry, 9.11 vs 9.9 and the birthday problem each come with a version that uses new words or numbers, to catch bots that memorized the answer. Every answer was checked by computer.
 - **Consistency questions have one clear answer.** Where a careful answer might add a qualifier (like "the Sahara is the largest *hot* desert"), the truth says so, so that isn't counted as a contradiction.
 - **Documents are clearly made up.** They're set in the invented town of Brambleford, with web addresses ending in `.example` and 555-01xx phone numbers, which are reserved for fiction. The business names were searched to make sure they aren't real.
+
+## The next 120 (Session 9, November 10, 2026)
+
+The library grew from 80 traps to 200: 15 more of each type (IDs 011 to 025) and 5 more documents. The first 80 traps didn't change. The same rules applied, and every new trap was checked twice: once while it was written, and again by separate scripts that re-fetched every page.
+
+- **Ghost facts.**
+  - Each name got two exact-name web searches, plus a check of the official list it would have to appear on: Microsoft's full list of Excel functions, the MySQL manual, the Java and Kubernetes reference pages, Kurosawa's filmography, the complete Jules Verne bibliography, a catalogue of Vermeer's paintings, Mendelssohn's list of works, the 1868 House of Lords law reports and others.
+  - A separate search was run for every one, and a script confirmed the invented name isn't on the page each trap cites.
+  - One candidate was dropped because the second search found something real by that name: Rust's `Vec::swap_insert()`, which a small add-on library defines. `kubectl rollout freeze` took its place.
+- **Sources.** Every quoted sentence in a `note` was found word for word on its page, including notes that quote a second page as well as the main source.
+- **Fake citations.** All 15 example papers were checked in Crossref: the DOI resolves, the title, authors, year and journal match, and nothing has been retracted or corrected. One candidate with two published corrections was replaced. Where a paper came out online in one year and in print the next (Klein et al.), the truth says either year is right.
+- **Number traps.**
+  - Every answer was computed, then run through Polygraph's own answer checker: a right answer came out correct, and a wrong one came out wrong.
+  - Famous puzzles only appear as fresh twins: the lily pad, widgets, half-my-age, frog-in-a-well and clock-striking puzzles, with new words and numbers.
+  - The exact numbers come from NIST: the caesium frequency, the standard atmosphere and the international mile.
+- **Documents.** Five new made-up Brambleford businesses: a gym, a ferry, a dog daycare, a guesthouse and a music school. Each name got two exact-name searches, and each document has exactly one question it doesn't answer. Every answerable truth was worked out from the document text alone.
+- **No overlaps.** The new traps don't repeat a fact another trap tests. Where two agents drafted the same myth (blue blood in veins, the far side of the Moon, antibiotics and viruses, drain swirl), only one trap kept it.

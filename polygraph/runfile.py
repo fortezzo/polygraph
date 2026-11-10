@@ -212,6 +212,9 @@ class PricesUsed(_Model):
 class CostInfo(_Model):
     limit_usd: float
     estimated_usd: float | None = None  # the "about $X" shown before the run
+    # polygraph run --estimate-from: the earlier run whose real token use the
+    # estimate was based on (Session 9). None: Polygraph's typical numbers.
+    estimated_from: str | None = None
     spent_usd: float = 0.0
     prices: PricesUsed | None = None
     input_tokens: int = 0  # sent in this run (replies from the cache aren't counted)

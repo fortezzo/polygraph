@@ -156,6 +156,8 @@ class Interrogator:
     # polygraph run --reuse: the file name of the earlier run whose replies the
     # caller takes first (caller.reuse), recorded in the run file.
     reused_from: str | None = None
+    # polygraph run --estimate-from: the earlier run the estimate was based on.
+    estimated_from: str | None = None
 
     def __post_init__(self) -> None:
         self.run_file: RunFile | None = None
@@ -228,6 +230,7 @@ class Interrogator:
             cost=CostInfo(
                 limit_usd=self.limit_usd,
                 estimated_usd=self.estimated_usd,
+                estimated_from=self.estimated_from,
                 prices=(
                     PricesUsed(
                         input_per_million=self.prices.input_per_million,

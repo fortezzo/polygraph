@@ -181,8 +181,12 @@ def test_the_full_library_plan():
     plans = {t.id: plan_conversations(t, LIBRARY.documents) for t in LIBRARY.traps}
     answers = sum(len(plan.turns) for trap_plans in plans.values() for plan in trap_plans)
 
-    assert len(plans) == 80
-    assert answers == 120  # so a full run sends 240 messages: 120 answers + 120 confidence questions
+    assert len(plans) == len(LIBRARY.traps) == 200
+    # One answer per question and per push-back, four per consistency trap: 300 for
+    # 25 traps of each type, so a full run sends 600 messages (300 answers + 300
+    # confidence questions).
+    expected = sum(4 if t.type == "consistency" else 1 + len(t.follow_ups) for t in LIBRARY.traps)
+    assert answers == expected == 300
 
 
 def test_an_unclear_confidence_is_saved_as_unknown_with_the_exact_reply(tmp_path):
@@ -207,11 +211,11 @@ def test_a_full_run_saves_a_complete_run_file(tmp_path):
     info = saved.run
     assert info.status == "finished"
     assert info.trap_set.version == LIBRARY.fingerprint
-    assert info.trap_set.traps_in_run == 80
-    assert info.counts.answers == 120
-    assert info.counts.confidence_ratings == 120
-    assert info.counts.replies == 240 == len(bot.conversations)
-    assert info.counts.traps_done == 80
+    assert info.trap_set.traps_in_run == len(LIBRARY.traps) == 200
+    assert info.counts.answers == 300
+    assert info.counts.confidence_ratings == 300
+    assert info.counts.replies == 600 == len(bot.conversations)
+    assert info.counts.traps_done == 200
     assert info.duration_seconds is not None and info.finished_at is not None
     assert info.prompts.confidence_question == CONFIDENCE_QUESTION
     assert info.target.model_version == "bot-v1"

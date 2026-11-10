@@ -6,6 +6,8 @@ const TABS: { screen: Screen; label: string; short: string }[] = [
   { screen: "report", label: "Report card", short: "Report" },
   { screen: "evidence", label: "Evidence wall", short: "Evidence" },
   { screen: "confidence", label: "Overconfidence", short: "Confidence" },
+  // The lineup (Session 9): every bot on one wall, ranked by Truth Score.
+  { screen: "lineup", label: "Lineup", short: "Lineup" },
   // Live mode (Session 8): start a run and watch it. The live screen counts as this tab.
   { screen: "new", label: "New interrogation", short: "New" },
 ];
@@ -79,7 +81,16 @@ function Tabs({ active, run, compact }: { active: Screen; run?: string | null; c
                 compact ? "px-[10px]" : "px-3"
               } ${on ? "border-brass text-[#f3e8d2]" : "border-transparent text-muted hover:text-text"}`}
             >
-              {compact ? t.short : t.label}
+              {compact ? (
+                t.short
+              ) : (
+                // Session 9: with the Lineup tab, the full names only fit next to the
+                // controls on a wide screen. Narrower laptops get the phone's short names.
+                <>
+                  <span className="min-[1600px]:hidden">{t.short}</span>
+                  <span className="hidden min-[1600px]:inline">{t.label}</span>
+                </>
+              )}
             </a>
           </li>
         );

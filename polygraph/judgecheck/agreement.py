@@ -711,7 +711,10 @@ def final_for_judge(
             "A test-half label changed after the labels were locked, so this measurement wouldn't be honest. "
             "Put it back as it was locked (git has it), then measure again."
         )
-    if (judged.rubric, judged.hard_checks, judged.votes) != (first["rubric"], first["hard_checks"], first.get("votes", 1)):
+    newer_checks = judged.hard_checks == HARD_CHECKS_VERSION and judged.hard_checks != first["hard_checks"]
+    if (judged.rubric, judged.votes) != (first["rubric"], first.get("votes", 1)) or not (
+        judged.hard_checks == first["hard_checks"] or newer_checks
+    ):
         raise AgreementError(
             f"To compare fairly, {judged.judge} has to judge exactly the way {first['judge']} was measured: rubric "
             f"{first['rubric']}, hard checks {first['hard_checks']} and {first.get('votes', 1)} votes. These copies use "
@@ -719,9 +722,25 @@ def final_for_judge(
         )
     if judged.rubric != rubric_fingerprint() or judged.hard_checks != HARD_CHECKS_VERSION:
         raise AgreementError("The code's rubric or hard checks have changed since the first measurement.")
+    first_judged = find_judged(sample, {key: resolve(value) for key, value in first["judged_files"].items()})
+    checks_note = None
+    if newer_checks:
+        # Newer hard checks are fair only if they find exactly what the first
+        # judge's found on every test-half answer, so the AI judge is asked the
+        # same things (Session 9: hard checks 4).
+        changed = checks_changed(sample, first_judged, judged, TEST)
+        if changed:
+            raise AgreementError(
+                f"Hard checks {judged.hard_checks} find something different from hard checks {first['hard_checks']} on "
+                f"{len(changed)} test-half answer(s) ({', '.join(changed)}), so {judged.judge} wouldn't be judging what "
+                f"{first['judge']} judged. Measure it with hard checks {first['hard_checks']}."
+            )
+        checks_note = (
+            f"hard checks {judged.hard_checks} instead of {first['hard_checks']}: they found exactly the same on every "
+            f"one of the {len(sample.half(TEST))} test-half answers, checked answer by answer"
+        )
     pairs = pairs_for(sample, store.labels, judged, TEST)
     stats = compare(pairs)
-    first_judged = find_judged(sample, {key: resolve(value) for key, value in first["judged_files"].items()})
     first_pairs = pairs_for(sample, store.labels, first_judged, TEST)
     settings = [run.run.judge.settings for run in judged.runs.values() if run.run.judge is not None]
     shared = {key: value for key, value in settings[0].items() if key != "only_traps"} if settings else {}
@@ -734,6 +753,7 @@ def final_for_judge(
         "labels": {"fingerprint": test_now, "matches_lock": True, "locked_at": lock.locked_at},
         "rubric": judged.rubric,
         "hard_checks": judged.hard_checks,
+        **({"hard_checks_note": checks_note} if checks_note else {}),
         "judge": judged.judge,
         "judge_settings": shared,
         "votes": judged.votes,
@@ -751,6 +771,69 @@ def final_for_judge(
     }
     write_json(path, record)
     return stats, record
+
+
+_REFERENCE_FINDINGS = (
+    "label",
+    "status",
+    "note",
+    "doi",
+    "url",
+    "title",
+    "surnames",
+    "years",
+    "link_status",
+    "searched_for",
+    "title_similarity",
+    "authors_match",
+    "year_match",
+)
+_RECORD_FINDINGS = ("doi", "title", "authors", "groups", "years", "journal")
+
+
+def _what_checks_found(result: Any) -> dict[str, Any]:
+    """What the hard checks found on one answer, in the terms the AI judge is
+    told and the verdict rests on: whether they settled it (and how), their
+    outcome and summary, and for each reference what was read and found."""
+    judgement = result.judgement
+    check = judgement.hard_check if judgement is not None else None
+    decided = judgement is not None and judgement.decided_by == "hard_check"
+    found: dict[str, Any] = {"decided": decided, "verdict": result.verdict if decided else None}
+    if check is None:
+        return found
+    found.update(kind=check.kind, outcome=check.outcome)
+    if decided:
+        # Settled with no AI: the verdict is all that's measured. (A search
+        # result for one of several references can change as Crossref grows.)
+        return found
+    found["summary"] = check.summary
+    if check.kind != "references":
+        found["details"] = check.details
+        return found
+    references = []
+    for reference in check.details.get("references", []) or []:
+        seen = {name: reference.get(name) for name in _REFERENCE_FINDINGS}
+        for record in ("record", "real_paper", "closest"):
+            value = reference.get(record)
+            seen[record] = {name: value.get(name) for name in _RECORD_FINDINGS} if isinstance(value, dict) else None
+        references.append(seen)
+    found["references"] = references
+    return found
+
+
+def checks_changed(sample: Sample, first: Judged, judged: Judged, half: str) -> list[str]:
+    """The answers in a half where two judged copies' hard checks found
+    different things: anything other than the same outcome, summary, decision
+    and, reference by reference, the same findings."""
+    first_by_run = {key: {result.id: result for result in run.traps} for key, run in first.runs.items()}
+    judged_by_run = {key: {result.id: result for result in run.traps} for key, run in judged.runs.items()}
+    changed = []
+    for item in sample.half(half):
+        before = first_by_run[item.run].get(item.trap)
+        after = judged_by_run[item.run].get(item.trap)
+        if before is None or after is None or _what_checks_found(before) != _what_checks_found(after):
+            changed.append(item.id)
+    return changed
 
 
 def type_label(kind: str) -> str:

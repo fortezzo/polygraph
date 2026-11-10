@@ -213,6 +213,7 @@ def plan_table(
     at_once: int,
     reusing: str | None = None,
     bot_name: str | None = None,
+    estimated_from: str | None = None,
 ) -> Table:
     table = Table.grid(padding=(0, 2))
     table.add_column(style="bold")
@@ -250,7 +251,8 @@ def plan_table(
         table.add_row(
             "Cost",
             f"about {format_usd(estimate.typical_usd)} "
-            f"(${prices.input_per_million:g} in / ${prices.output_per_million:g} out per million tokens{checked})",
+            + (f"(from the real token use of {estimated_from}, " if estimated_from else "(")
+            + f"${prices.input_per_million:g} in / ${prices.output_per_million:g} out per million tokens{checked})",
         )
     table.add_row("Limit", f"${limit:.2f}. The run stops before it could go over.")
     length = f"{max_output_tokens:,} tokens per answer"
