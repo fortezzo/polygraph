@@ -136,16 +136,21 @@ class Caller:
             return [Message("system", self.system_prompt), *messages]
         return list(messages)
 
-    def key(self, messages: list[Message], options: ChatOptions | None = None) -> str:
+    def key(self, messages: list[Message], options: ChatOptions | None = None, variant: int = 0) -> str:
         return cache_key(
-            self.provider.identity, self.model, self.conversation(messages), options or self.options, self.version_pin
+            self.provider.identity,
+            self.model,
+            self.conversation(messages),
+            options or self.options,
+            self.version_pin,
+            variant=variant,
         )
 
-    def peek(self, messages: list[Message], options: ChatOptions | None = None) -> Reply | None:
+    def peek(self, messages: list[Message], options: ChatOptions | None = None, variant: int = 0) -> Reply | None:
         """The saved reply for this conversation, if there is one (for estimates)."""
         if self.cache is None or not self.read_cache:
             return None
-        hit = self.cache.get(self.key(messages, options))
+        hit = self.cache.get(self.key(messages, options, variant))
         return hit.reply if hit else None
 
     def stop(self, reason: CostLimitReached | RunAborted) -> None:
@@ -160,13 +165,15 @@ class Caller:
         if isinstance(reason, RunAborted):
             raise RunAborted(reason.problem, reason.why)
 
-    async def ask(self, messages: list[Message], options: ChatOptions | None = None) -> CallResult:
+    async def ask(self, messages: list[Message], options: ChatOptions | None = None, *, variant: int = 0) -> CallResult:
         """Ask once. `options` overrides the Caller's settings for this question
-        only (the judge uses a different reply shape for each trap type)."""
+        only (the judge uses a different reply shape for each trap type).
+        `variant` makes it a separate question with its own saved reply (the
+        judge's votes); the model is sent exactly the same thing either way."""
         self._raise_if_stopped()
         options = options or self.options
         conversation = self.conversation(messages)
-        key = self.key(messages, options)
+        key = self.key(messages, options, variant)
         if self.cache is not None and self.read_cache:
             hit = self.cache.get(key)
             if hit is not None:

@@ -43,6 +43,7 @@ from polygraph.judges import (
     known_company,
     same_company,
 )
+from polygraph.judges.pipeline import LEFT_OUT
 from polygraph.judgecheck.commands import agreement as agreement_command
 from polygraph.judgecheck.commands import label_app
 from polygraph.pricing import FREE, Prices, format_usd
@@ -506,6 +507,10 @@ JUDGE_THINKING_LIMIT = 16_384
 JUDGE_PLAIN_LIMIT = 2_048
 JUDGE_CONCURRENCY = 4
 CARD_WIDTH = 104
+# The AI judge can give a different verdict when asked the same thing again,
+# so by default it judges each trap 3 times and the majority wins (Session 5).
+# The judge check measured its agreement with Christian's labels this way.
+DEFAULT_VOTES = 3
 
 RunPathArgument = Annotated[
     Path,
@@ -613,13 +618,22 @@ def _judge_plan(job: RunJudge, run_path: Path, estimate, *, fresh: bool, limit: 
         if kind != "side_by_side":
             text += f": {caught} caught with no AI"
         lines.append(text)
-    errors = [j for j in job.jobs if j.error]
+    errors = [j for j in job.jobs if j.error and j.error != LEFT_OUT]
     if errors:
         lines.append(f"{len(errors)} trap{'s' if len(errors) != 1 else ''} can't be judged (see the report)")
     table.add_row("Hard checks", "\n".join(lines) if lines else "none in this run")
     ai = len(job.ai_jobs)
+    if job.only is not None:
+        table.add_row("Only", f"{len(job.only)} trap{'s' if len(job.only) != 1 else ''} chosen with --trap; the rest stay unjudged")
     saved = "ignored (--fresh)" if fresh else f"{estimate.cached_calls} of {estimate.calls} already saved from earlier judging"
-    table.add_row("AI judge", f"{ai} trap{'s' if ai != 1 else ''} · {saved}")
+    asks = f"{ai} trap{'s' if ai != 1 else ''}" + (f" × {job.votes} votes = {ai * job.votes} replies" if job.votes > 1 else "")
+    table.add_row("AI judge", f"{asks} · {saved}")
+    if job.votes > 1:
+        table.add_row(
+            "Votes",
+            f"{job.votes} per trap, each asked separately. The verdict is the majority. On a tie, 2 more are asked; "
+            "if it's still tied, the milder verdict is used and flagged.",
+        )
     prices = estimate.prices
     if prices is not None and not prices.free:
         checked = f", checked {prices.checked_on}" if prices.checked_on else ""
@@ -668,6 +682,24 @@ def judge(
     price_out: Annotated[
         Optional[float], typer.Option("--price-out", min=0.0, help="... and dollars per million output tokens.")
     ] = None,
+    votes: Annotated[
+        int,
+        typer.Option(
+            "--votes",
+            min=1,
+            max=9,
+            help="How many times the AI judge judges each trap, each time as a separate question. The verdict is "
+            "the majority, and every vote is saved. Use an odd number.",
+        ),
+    ] = DEFAULT_VOTES,
+    trap_ids: Annotated[
+        Optional[list[str]],
+        typer.Option("--trap", help="Judge only these traps, like ghost-003. Repeat it, or separate IDs with commas."),
+    ] = None,
+    out_folder: Annotated[
+        Optional[Path],
+        typer.Option("--out", help="Save the judged copy in this folder instead of next to the run file.", show_default=False),
+    ] = None,
 ) -> None:
     """Judge a run: the hard checks first, then the AI judge, then the scores and the report card.
 
@@ -675,6 +707,16 @@ def judge(
     """
     settings = load_settings()
     run_file = _load_run_file(run_path)
+    if votes % 2 == 0:
+        err.print(Text(f"Use an odd number of votes, like 1, 3 or 5, so a majority usually decides. You asked for {votes}.", style="bold red"))
+        raise typer.Exit(code=2)
+    only: set[str] | None = None
+    if trap_ids:
+        only = {part.strip().lower() for value in trap_ids for part in value.split(",") if part.strip()}
+        missing = sorted(only - {result.id for result in run_file.traps})
+        if missing:
+            err.print(Text(f"There's no trap called {', '.join(missing)} in this run. IDs look like ghost-001.", style="bold red"))
+            raise typer.Exit(code=2)
 
     # 1. Who made the bot, and a judge from a different company.
     bot_company, bot_company_from = _bot_company(run_file, bot_maker)
@@ -751,6 +793,8 @@ def judge(
             thinks=thinks,
             judged_from=run_path.name,
             listener=display,
+            votes=votes,
+            only=only,
         )
 
         # 2. The hard checks: free, but the reference check uses the internet.
@@ -789,7 +833,9 @@ def judge(
         references.close()
 
     # 5. Save the judged copy, then the report card.
-    path = judged_path(run_path, model_name)
+    if out_folder is not None:
+        out_folder.mkdir(parents=True, exist_ok=True)
+    path = judged_path(out_folder / run_path.name if out_folder is not None else run_path, model_name)
     save_run(judged, path.parent, path)
     out.print()
     out.print(report_card(judged, width=min(out.width, CARD_WIDTH)))

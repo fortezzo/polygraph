@@ -47,7 +47,7 @@ from polygraph.judgecheck.sample import (
 from polygraph.judgecheck.server import LabelServer, page_html
 from polygraph.judges.pipeline import HARD_CHECKS_VERSION, base_name
 from polygraph.judges.rubric import fingerprint
-from polygraph.runfile import CostInfo, DocumentCopy, JudgeInfo, Judgement, load_run, save_run
+from polygraph.runfile import CostInfo, DocumentCopy, JudgeInfo, Judgement, Vote, load_run, save_run
 from polygraph.traps.schema import TYPE_INFO, TrapType
 
 runner = CliRunner()
@@ -108,13 +108,17 @@ def _label_all(store: LabelStore, verdict_for=lambda item: "HONEST") -> None:
         store.set(item.id, verdict=verdict_for(item))
 
 
-def _judge_copy(run_path, verdict_for, *, rubric: str | None = None, checks: str = HARD_CHECKS_VERSION, name: str = "gpt-test", finished: str = "2026-11-09T12:00:00-06:00"):
+def _judge_copy(run_path, verdict_for, *, rubric: str | None = None, checks: str = HARD_CHECKS_VERSION, name: str = "gpt-test", finished: str = "2026-11-09T12:00:00-06:00", own_for=lambda result: None, votes_for=None, votes: int = 1):
     made = load_run(run_path)
     for result in made.traps:
         verdict = verdict_for(result)
         result.verdict = verdict
         result.reason = f"The judge said {verdict}."
-        result.judgement = Judgement(decided_by="hard_check" if result.type == "number_trap" else "ai_judge")
+        result.judgement = Judgement(
+            decided_by="hard_check" if result.type == "number_trap" else "ai_judge",
+            own_knowledge=own_for(result),
+            votes=[Vote(verdict=v) for v in votes_for(result)] if votes_for and result.type != "number_trap" else [],
+        )
     made.run.judge = JudgeInfo(
         provider="openai",
         provider_label="OpenAI",
@@ -124,6 +128,7 @@ def _judge_copy(run_path, verdict_for, *, rubric: str | None = None, checks: str
         bot_company_from="the model's name",
         rubric_fingerprint=rubric or fingerprint(),
         hard_checks_version=checks,
+        votes=votes,
         started_at=finished,
         finished_at=finished,
         judged_from=run_path.name,
@@ -694,6 +699,73 @@ def test_the_agreement_command_shows_the_tuning_half_and_logs_rounds(picked, run
         assert item.id not in result.output  # the test half stays hidden
     assert "Tuning rounds" in result.output and "Session 4 rubric" in result.output
 
+
+def test_verdicts_on_the_judges_own_knowledge_are_marked_and_counted(picked, runs, monkeypatch):
+    monkeypatch.setenv("COLUMNS", "200")
+    lie_on_ghosts = lambda r: "LIE" if r.type == "ghost_fact" else "HONEST"  # noqa: E731
+    sample, folder, store, _ = _ready(picked, runs, judge_for=lie_on_ghosts, own_for=lambda r: r.type == "ghost_fact")
+    stats, record, _ = tuning(folder, sample, store)
+    ghosts = [item for item in sample.half(TUNING) if item.type == "ghost_fact"]
+    assert ghosts and stats.own_knowledge == [0, len(ghosts)]  # all labeled Honest, so none agree
+    assert record["own_knowledge"] == [0, len(ghosts)]
+    assert all(row["own_knowledge"] is True for row in record["disagreements"])
+    result = runner.invoke(cli.app, ["agreement", "--folder", str(folder)])
+    assert result.exit_code == 0, result.output
+    assert "⚑ own knowledge: The judge said LIE." in result.output
+    assert f"⚑ Own knowledge  0/{len(ghosts)} of the judge's verdicts" in result.output
+
+
+def test_judged_copies_from_before_the_flag_mark_nothing(picked, runs):
+    sample, folder, store, _ = _ready(picked, runs, judge_for=lambda r: "LIE")
+    stats, record, _ = tuning(folder, sample, store)
+    assert stats.own_knowledge == [0, 0]
+    assert all(row["own_knowledge"] is None for row in record["disagreements"])
+
+
+
+def _split_on_ghosts(result):
+    """The AI judge's votes: LIE first on ghost traps, then HONEST twice (so HONEST wins)."""
+    return ["LIE", "HONEST", "HONEST"] if result.type == "ghost_fact" else ["HONEST"] * 3
+
+
+def test_votes_are_kept_and_the_first_vote_alone_is_measured_too(picked, runs):
+    sample, folder, store, _ = _ready(picked, runs, votes_for=_split_on_ghosts, votes=3)
+    stats, record, _ = tuning(folder, sample, store)
+    ghosts = [item for item in sample.half(TUNING) if item.type == "ghost_fact"]
+    numbers = [item for item in sample.half(TUNING) if item.type == "number_trap"]  # decided by the answer key
+    assert stats.agree == 50 and record["votes"] == 3
+    assert record["first_vote"]["agree"] == 50 - len(ghosts)
+    assert record["first_vote"]["answers"] == 50
+    assert stats.by_votes == {"unanimous": [50 - len(ghosts) - len(numbers)] * 2, "split": [len(ghosts)] * 2}
+
+
+def test_copies_judged_with_different_numbers_of_votes_cant_be_compared(picked, runs):
+    sample, folder, store, _ = _ready(picked, runs)
+    _judge_copy(runs[1], lambda r: "HONEST", votes_for=_split_on_ghosts, votes=3, name="gpt-test~2", finished="2026-11-09T15:00:00-06:00")
+    with pytest.raises(AgreementError, match="weren't judged the same way"):
+        tuning(folder, sample, store)
+
+
+def test_judging_with_votes_is_a_new_round_even_with_the_same_rubric(picked, runs):
+    sample, folder, store, _ = _ready(picked, runs)
+    tuning(folder, sample, store)
+    for path in runs:
+        _judge_copy(path, lambda r: "HONEST", votes_for=_split_on_ghosts, votes=3, name="gpt-test~2", finished="2026-11-09T16:00:00-06:00")
+    _, record, new = tuning(folder, sample, store)
+    assert new and record["round"] == 2 and record["votes"] == 3
+
+
+def test_a_split_disagreement_shows_how_the_votes_went(picked, runs, monkeypatch):
+    monkeypatch.setenv("COLUMNS", "200")
+    lie_on_ghosts = lambda r: "LIE" if r.type == "ghost_fact" else "HONEST"  # noqa: E731
+    two_lies = lambda r: ["LIE", "HONEST", "LIE"] if r.type == "ghost_fact" else ["HONEST"] * 3  # noqa: E731
+    sample, folder, store, _ = _ready(picked, runs, judge_for=lie_on_ghosts, votes_for=two_lies, votes=3)
+    result = runner.invoke(cli.app, ["agreement", "--folder", str(folder)])
+    assert result.exit_code == 0, result.output
+    assert "AI judge 2/3" in result.output
+    assert "Judge's votes" in result.output and "split 0/" in result.output
+    assert "3 votes per trap, the majority wins" in result.output
+    assert "First vote alone" in result.output
 
 def test_the_final_command_needs_committed_code_and_a_yes(picked, runs, monkeypatch):
     sample, folder, store, _ = _ready(picked, runs)

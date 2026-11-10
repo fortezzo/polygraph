@@ -11,7 +11,9 @@ else, then the scores. PLAN.md section 5.
    - consistency: the 4 answers lined up side by side, with any clashes
      flagged, for the AI judge.
 2. The AI judge, from a different company than the bot, for every trap the
-   hard checks didn't settle.
+   hard checks didn't settle. It judges each trap several times (3 by
+   default), each time as a separate question, and the verdict is the
+   majority. Every vote is saved.
 3. The scores: see scoring.py.
 
 The run file that was judged never changes: everything goes into a new
@@ -40,7 +42,7 @@ from polygraph.interrogator.costs import (
 from polygraph.judges.citations import CAUGHT as REFERENCES_CAUGHT
 from polygraph.judges.citations import NOT_CHECKED, Lookup, check_references
 from polygraph.judges.consistency import line_up
-from polygraph.judges.judge import AIJudge, Outcome
+from polygraph.judges.judge import EXTRA_VOTES, MAJORITY_RULE, AIJudge, Outcome, combine
 from polygraph.judges.numbers import WRONG, check_number, with_unit
 from polygraph.judges.rubric import fingerprint, rubric_record
 from polygraph.pricing import Prices
@@ -55,6 +57,7 @@ from polygraph.runfile import (
     RunFile,
     Scores,
     TrapResult,
+    Vote,
 )
 from polygraph.scoring import answers_of, score_run
 from polygraph.traps.schema import TrapType
@@ -71,6 +74,7 @@ from polygraph.traps.schema import TrapType
 HARD_CHECKS_VERSION = "3"
 TYPICAL_VERDICT_TOKENS = 150  # a typical verdict reply, for the estimate
 JUDGED_MARK = "_judged-by_"
+LEFT_OUT = "Not judged: left out of this judging (only the traps chosen with --trap were judged)."
 
 
 @dataclass(frozen=True)
@@ -94,7 +98,10 @@ class Job:
     hard_check: HardCheck | None = None
     findings: str | None = None  # what the AI judge is told about the hard check
     decided: Outcome | None = None  # set when a hard check settled the verdict
-    outcome: Outcome | None = None  # set when the AI judge gave its verdict
+    outcome: Outcome | None = None  # set when the AI judge gave its verdict (the majority of its votes)
+    votes: list[Outcome] = field(default_factory=list)  # each of the AI judge's votes, in order
+    tie_broken: bool = False  # the first votes tied, so 2 more were asked
+    unsettled: bool = False  # ... and it was still tied, so the milder verdict was used
     error: str | None = None  # why the trap can't be judged
 
     @property
@@ -123,7 +130,13 @@ class RunJudge:
         judged_from: str | None = None,
         listener: JudgeListener | None = None,
         clock: Callable[[], str] = now_iso,
+        votes: int = 1,
+        only: set[str] | None = None,
     ) -> None:
+        if votes < 1:
+            raise ValueError("The judge needs at least 1 vote per trap.")
+        self.votes = votes
+        self.only = set(only) if only is not None else None
         self.run_file = fresh_copy(run_file)
         self.setup = setup
         self.judge = judge
@@ -137,6 +150,10 @@ class RunJudge:
         self.estimated_usd: float | None = None
         self.started_at = clock()
         self.jobs = [Job(result=result) for result in self.run_file.traps]
+        if self.only is not None:
+            for job in self.jobs:
+                if job.result.id not in self.only:
+                    job.error = LEFT_OUT
         self.aborted: RunAborted | None = None
         self.stop_reason: str | None = None
         self._started = time.perf_counter()
@@ -147,6 +164,8 @@ class RunJudge:
         citations: list[Job] = []
         for job in self.jobs:
             result = job.result
+            if job.error is not None:  # left out with --trap
+                continue
             if result.status != "done":
                 job.error = "Not judged: this trap didn't finish in the run, so there's nothing to judge."
                 continue
@@ -225,19 +244,20 @@ class RunJudge:
         for job in self.ai_jobs:
             messages = self.judge.messages(job.result, self.run_file.documents, job.findings)
             options = self.judge.options(job.result.type)
-            estimate.calls += 1
-            if caller.peek(messages, options) is not None:
-                estimate.cached_calls += 1
-                continue
             seen = caller.conversation(messages)
-            worst_in = worst_case_input_tokens(seen)
-            estimate.typical_input_tokens += typical_input_tokens(seen)
-            estimate.typical_output_tokens += TYPICAL_VERDICT_TOKENS + (TYPICAL_THINKING_TOKENS if self.thinks else 0)
-            estimate.worst_input_tokens += worst_in
-            estimate.worst_output_tokens += options.max_output_tokens
-            if self.prices is not None:
-                single = self.prices.cost(worst_in, options.max_output_tokens)
-                estimate.worst_single_call_usd = max(estimate.worst_single_call_usd, single)
+            for variant in range(self.votes):  # each vote is its own question
+                estimate.calls += 1
+                if caller.peek(messages, options, variant) is not None:
+                    estimate.cached_calls += 1
+                    continue
+                worst_in = worst_case_input_tokens(seen)
+                estimate.typical_input_tokens += typical_input_tokens(seen)
+                estimate.typical_output_tokens += TYPICAL_VERDICT_TOKENS + (TYPICAL_THINKING_TOKENS if self.thinks else 0)
+                estimate.worst_input_tokens += worst_in
+                estimate.worst_output_tokens += options.max_output_tokens
+                if self.prices is not None:
+                    single = self.prices.cost(worst_in, options.max_output_tokens)
+                    estimate.worst_single_call_usd = max(estimate.worst_single_call_usd, single)
         return estimate
 
     async def judge_all(self) -> None:
@@ -256,8 +276,24 @@ class RunJudge:
                 raise
 
     async def _judge_one(self, job: Job) -> None:
+        """Every vote on one trap, one after another, then the majority. On a
+        tie, 2 more votes are asked; if it's still tied, the milder verdict is
+        used and flagged as unsettled. If any vote can't be asked, the trap
+        isn't judged: a majority of fewer votes than planned wouldn't be the
+        same test. (Replies already given stay saved, so judging again is cheaper.)"""
         try:
-            job.outcome = await self.judge.judge(job.result, self.run_file.documents, job.findings)
+            votes = []
+            for number in range(1, self.votes + 1):
+                votes.append(await self.judge.judge(job.result, self.run_file.documents, job.findings, vote=number))
+            outcome, tied = combine(votes)
+            if tied:
+                job.tie_broken = True
+                for number in range(self.votes + 1, self.votes + EXTRA_VOTES + 1):
+                    votes.append(await self.judge.judge(job.result, self.run_file.documents, job.findings, vote=number))
+                outcome, tied = combine(votes)
+                job.unsettled = tied
+            job.votes = votes
+            job.outcome = outcome
         except CostLimitReached as limit:
             job.error = "Not judged: the judging stopped at its cost limit."
             self.stop_reason = self.stop_reason or str(limit)
@@ -289,11 +325,29 @@ class RunJudge:
             result.reason = outcome.reason
             judgement.decided_by = "hard_check" if job.decided is not None else "ai_judge"
             judgement.phrase_answer = outcome.phrase_answer
+            # The hard checks never rest on anyone's knowledge; the AI judge says when it does.
+            judgement.own_knowledge = judgement.decided_by == "ai_judge" and outcome.own_knowledge
         else:
             result.verdict = None
             result.made_up_phrase = None
             result.reason = None
             judgement.error = job.error or "Not judged."
+        if job.decided is None and len(job.votes) > 1:
+            judgement.votes = [
+                Vote(
+                    verdict=vote.verdict,  # type: ignore[arg-type]
+                    made_up_phrase=vote.made_up_phrase,
+                    phrase_answer=vote.phrase_answer,
+                    reason=vote.reason,
+                    own_knowledge=vote.own_knowledge,
+                    replies=len(vote.replies),
+                    fix_requested=vote.fix_requested,
+                    error=vote.error,
+                )
+                for vote in job.votes
+            ]
+            judgement.tie_broken = job.tie_broken
+            judgement.unsettled = job.unsettled
         result.judgement = judgement
 
     def finish(self, status: str = "finished", reason: str | None = None) -> RunFile:
@@ -319,12 +373,18 @@ class RunJudge:
             not_judged=sum(r.verdict is None for r in results),
             ai_calls=len(calls),
             from_cache=sum(call.from_cache for call in calls),
-            fixes=sum(bool(r.judgement and r.judgement.fix_requested) for r in results),
+            fixes=sum(_fixes(r.judgement) for r in results if r.judgement),
             references_checked=sum(
                 len(r.judgement.hard_check.details.get("references", []))
                 for r in results
                 if r.judgement and r.judgement.hard_check and r.judgement.hard_check.kind == "references"
             ),
+            own_knowledge=sum(bool(r.verdict and r.judgement and r.judgement.own_knowledge) for r in results),
+            split_votes=sum(
+                bool(r.judgement and len({vote.verdict for vote in r.judgement.votes}) > 1) for r in results
+            ),
+            tie_breaks=sum(bool(r.judgement and r.judgement.tie_broken) for r in results),
+            unsettled=sum(bool(r.verdict and r.judgement and r.judgement.unsettled) for r in results),
         )
         self.run_file.run.judge = JudgeInfo(
             provider=self.setup.provider,
@@ -339,6 +399,7 @@ class RunJudge:
             rubric_fingerprint=fingerprint(),
             rubric=rubric_record(),
             hard_checks_version=HARD_CHECKS_VERSION,
+            votes=self.votes,
             polygraph_version=__version__,
             settings={
                 "max_output_tokens": caller.options.max_output_tokens,
@@ -346,6 +407,9 @@ class RunJudge:
                 "thinking": "the model's default",
                 "structured_output": self.judge.structured,
                 "concurrency": caller.concurrency,
+                "votes": self.votes,
+                "majority": MAJORITY_RULE,
+                **({"only_traps": sorted(self.only)} if self.only is not None else {}),
             },
             status=status,  # type: ignore[arg-type]
             stop_reason=reason,
@@ -374,6 +438,13 @@ class RunJudge:
         )
         self.run_file.scores = score_run(self.run_file)
         return self.run_file
+
+
+def _fixes(judgement: Judgement) -> int:
+    """How many times the AI judge was asked to fix a reply for this trap."""
+    if judgement.votes:
+        return sum(bool(vote.fix_requested) for vote in judgement.votes)
+    return int(bool(judgement.fix_requested))
 
 
 def fresh_copy(run_file: RunFile) -> RunFile:

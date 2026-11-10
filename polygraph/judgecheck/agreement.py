@@ -20,6 +20,7 @@ test half is measured once, after the rubric is final (`polygraph agreement
 from __future__ import annotations
 
 import collections
+import dataclasses
 import datetime as dt
 import json
 import random
@@ -125,6 +126,9 @@ class Pair:
     decided_by: str | None  # hard_check or ai_judge
     reason: str | None
     phrase: str | None
+    own_knowledge: bool | None = None  # the AI judge's LIE rests on its own knowledge (None: not asked)
+    votes: tuple[str | None, ...] = ()  # each of the AI judge's votes, when it voted more than once
+    unsettled: bool = False  # the votes stayed tied, so the milder verdict was used
 
     @property
     def human(self) -> str:
@@ -137,6 +141,11 @@ class Pair:
     @property
     def agree(self) -> bool:
         return self.verdict is not None and self.verdict == self.label.verdict
+
+    @property
+    def unanimous(self) -> bool | None:
+        """Whether the AI judge's votes all agreed (None when it voted once)."""
+        return len(set(self.votes)) == 1 if len(self.votes) > 1 else None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -152,7 +161,18 @@ class Pair:
             "decided_by": self.decided_by,
             "reason": self.reason,
             "made_up_phrase": self.phrase,
+            "own_knowledge": self.own_knowledge,
+            "votes": list(self.votes),
+            "unsettled": self.unsettled,
         }
+
+
+def first_votes(pairs: Sequence[Pair]) -> list[Pair]:
+    """The same pairs, with the AI judge's first vote in place of the majority:
+    what judging each trap once would have given."""
+    return [
+        dataclasses.replace(pair, verdict=pair.votes[0], votes=(), unsettled=False) if pair.votes else pair for pair in pairs
+    ]
 
 
 @dataclass
@@ -173,6 +193,8 @@ class Stats:
     by_sureness: dict[str, list[int]] = field(default_factory=dict)  # sure / not sure
     disagreements: list[Pair] = field(default_factory=list)
     not_judged: int = 0
+    own_knowledge: list[int] = field(default_factory=lambda: [0, 0])  # [agree, n] for verdicts on the judge's own knowledge
+    by_votes: dict[str, list[int]] = field(default_factory=dict)  # unanimous / split, when the judge voted more than once
 
     def summary(self) -> dict[str, Any]:
         return {
@@ -192,6 +214,8 @@ class Stats:
             "by_decider": self.by_decider,
             "by_bot": self.by_bot,
             "by_sureness": self.by_sureness,
+            "own_knowledge": self.own_knowledge,
+            "by_votes": self.by_votes,
         }
 
 
@@ -240,6 +264,12 @@ def compare(pairs: Sequence[Pair], *, resamples: int = RESAMPLES, seed: int = SE
         _tally(stats.by_decider, pair.decided_by or "not_judged", pair.agree)
         _tally(stats.by_bot, pair.bot, pair.agree)
         _tally(stats.by_sureness, "not sure" if pair.label.unsure else "sure", pair.agree)
+        if pair.verdict is not None and pair.own_knowledge:
+            stats.own_knowledge[0] += int(pair.agree)
+            stats.own_knowledge[1] += 1
+        if pair.unanimous is not None:
+            kind = "unanimous" if pair.unanimous else ("still tied" if pair.unsettled else "split")
+            _tally(stats.by_votes, kind, pair.agree)
     return stats
 
 
@@ -255,6 +285,7 @@ class Judged:
     rubric: str
     hard_checks: str
     judge: str
+    votes: int = 1  # how many times the AI judge judged each trap
 
     def recorded_files(self) -> dict[str, str]:
         return {key: shown(path) for key, path in self.files.items()}
@@ -303,14 +334,17 @@ def find_judged(sample: Sample, chosen: dict[str, Path] | None = None) -> Judged
     rubrics = {r.run.judge.rubric_fingerprint for r in runs.values()}  # type: ignore[union-attr]
     checks = {r.run.judge.hard_checks_version for r in runs.values()}  # type: ignore[union-attr]
     judges = {r.run.judge.model for r in runs.values()}  # type: ignore[union-attr]
-    if len(rubrics) > 1 or len(checks) > 1 or len(judges) > 1:
+    votes = {r.run.judge.votes for r in runs.values()}  # type: ignore[union-attr]
+    if len(rubrics) > 1 or len(checks) > 1 or len(judges) > 1 or len(votes) > 1:
         described = "; ".join(
             f"{shown(files[key])}: rubric {r.run.judge.rubric_fingerprint}, hard checks {r.run.judge.hard_checks_version}, "  # type: ignore[union-attr]
-            f"judge {r.run.judge.model}"  # type: ignore[union-attr]
+            f"judge {r.run.judge.model}, {r.run.judge.votes} vote(s)"  # type: ignore[union-attr]
             for key, r in runs.items()
         )
         raise AgreementError(f"The runs weren't judged the same way ({described}). Judge them again so they match.")
-    return Judged(files=files, runs=runs, rubric=rubrics.pop(), hard_checks=checks.pop(), judge=judges.pop())
+    return Judged(
+        files=files, runs=runs, rubric=rubrics.pop(), hard_checks=checks.pop(), judge=judges.pop(), votes=votes.pop()
+    )
 
 
 def pairs_for(sample: Sample, labels: dict[str, Label], judged: Judged, half: str) -> list[Pair]:
@@ -332,9 +366,26 @@ def pairs_for(sample: Sample, labels: dict[str, Label], judged: Judged, half: st
                 decided_by=result.judgement.decided_by if result.judgement else None,
                 reason=result.reason,
                 phrase=result.made_up_phrase,
+                own_knowledge=result.judgement.own_knowledge if result.judgement else None,
+                votes=tuple(vote.verdict for vote in result.judgement.votes) if result.judgement else (),
+                unsettled=bool(result.judgement and result.judgement.unsettled),
             )
         )
     return pairs
+
+
+def _first_vote_summary(pairs: Sequence[Pair]) -> dict[str, Any] | None:
+    """Agreement using only the AI judge's first vote, when it voted more than once."""
+    if not any(pair.votes for pair in pairs):
+        return None
+    stats = compare(first_votes(pairs), resamples=0)
+    return {
+        "what": "the AI judge's first vote only, as if it had judged each trap once",
+        "answers": stats.n,
+        "agree": stats.agree,
+        "percent": _round(stats.percent, 1),
+        "kappa": _round(stats.kappa, 3),
+    }
 
 
 def _require_lock(store: LabelStore):
@@ -374,12 +425,13 @@ def tuning(
         "rubric": judged.rubric,
         "hard_checks": judged.hard_checks,
         "judge": judged.judge,
+        "votes": judged.votes,
         "judged_files": judged.recorded_files(),
         "labels": labels_fp,
     }
     rounds = load_rounds(folder)
     for existing in rounds:
-        if all(existing.get(name) == value for name, value in key.items()):
+        if all(existing.get(name, 1 if name == "votes" else None) == value for name, value in key.items()):
             return stats, existing, False
     record = {
         "round": len(rounds) + 1,
@@ -391,6 +443,7 @@ def tuning(
         "note": note,
         "half": TUNING,
         **stats.summary(),
+        "first_vote": _first_vote_summary(pairs),
         "disagreements": [pair.as_dict() for pair in stats.disagreements],
     }
     rounds.append(record)
@@ -455,7 +508,8 @@ def final(
             f"now has rubric {current} and hard checks {HARD_CHECKS_VERSION}. Judge both runs again first."
         )
     rounds = load_rounds(folder)
-    stats = compare(pairs_for(sample, store.labels, judged, TEST))
+    test_pairs = pairs_for(sample, store.labels, judged, TEST)
+    stats = compare(test_pairs)
     baseline_stats: Stats | None = None
     baseline: dict[str, Any] | None = None
     if rounds:
@@ -469,6 +523,7 @@ def final(
                 "rubric": before.rubric,
                 "hard_checks": before.hard_checks,
                 "judge": before.judge,
+                "votes": before.votes,
                 "judged_files": before.recorded_files(),
                 **baseline_stats.summary(),
                 "disagreements": [pair.as_dict() for pair in baseline_stats.disagreements],
@@ -487,10 +542,12 @@ def final(
         "rubric": judged.rubric,
         "hard_checks": judged.hard_checks,
         "judge": judged.judge,
+        "votes": judged.votes,
         "judged_files": judged.recorded_files(),
         "tuning_rounds": len(rounds),
         "git": git(),
         **stats.summary(),
+        "first_vote": _first_vote_summary(test_pairs),
         "disagreements": [pair.as_dict() for pair in stats.disagreements],
         "baseline": baseline,
         "method": {"bootstrap_resamples": RESAMPLES, "bootstrap_seed": SEED, "level": LEVEL},

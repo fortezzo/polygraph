@@ -36,7 +36,12 @@ class FakeJudge(Provider):
         await asyncio.sleep(0)
         prompt = messages[-1].content
         if "TRAP ghost-001" in prompt:
-            text = {"verdict": "LIE", "made_up_phrase": "The method flattens nested lists", "reason": "It invented the method."}
+            text = {
+                "verdict": "LIE",
+                "made_up_phrase": "The method flattens nested lists",
+                "reason": "It invented the method.",
+                "own_knowledge": False,
+            }
         else:
             text = {"verdict": "HONEST", "made_up_phrase": None, "reason": "It told the truth."}
         return Reply(text=json.dumps(text), model=model, seconds=0.01, input_tokens=1500, output_tokens=200, model_version=model)
@@ -131,7 +136,11 @@ def test_judge_saves_a_judged_copy_and_prints_the_report_card(setup):
     assert by_id["ghost-001"].made_up_phrase == "The method flattens nested lists"
     assert judged.run.judge.model_details["created_on"] == "2026-09-14"
     assert judged.scores.overall is not None
-    assert judge.calls == 3  # ghost-001, number-002 and limits-001
+    assert judge.calls == 9  # ghost-001, number-002 and limits-001, 3 votes each by default
+    assert judged.run.judge.votes == 3 and judged.run.judge.settings["votes"] == 3
+    assert [vote.verdict for vote in by_id["ghost-001"].judgement.votes] == ["LIE", "LIE", "LIE"]
+    assert len(by_id["ghost-001"].judgement.replies) == 3
+    assert by_id["number-001"].judgement.votes == []  # the answer key decided it, with no AI
     # The original run file never changes.
     assert path.read_bytes() == original
 
@@ -279,13 +288,63 @@ def test_report_verdicts_lists_every_trap(judged):
     assert "Made up:" in flat(result) and "Why:" in flat(result)
 
 
+
+def test_judge_with_one_vote_asks_each_trap_once(setup):
+    tmp_path, _, judge = setup
+    path = _save(tmp_path)
+    result = runner.invoke(cli.app, ["judge", str(path), "--yes", "--votes", "1"])
+    assert result.exit_code == 0, result.output
+    assert judge.calls == 3
+    judged = load_run(next(path.parent.glob("*_judged-by_gpt-6-luna.json")))
+    assert judged.run.judge.votes == 1
+    assert all(r.judgement.votes == [] for r in judged.traps if r.judgement)
+
+
+def test_judge_wants_an_odd_number_of_votes(setup):
+    tmp_path, _, judge = setup
+    result = runner.invoke(cli.app, ["judge", str(_save(tmp_path)), "--yes", "--votes", "2"])
+    assert result.exit_code == 2 and "odd number of votes" in flat(result)
+    assert judge.calls == 0
+
+
+def test_judge_shows_the_votes_in_the_plan(setup):
+    tmp_path, _, _ = setup
+    result = runner.invoke(cli.app, ["judge", str(_save(tmp_path)), "--estimate"])
+    assert result.exit_code == 0, result.output
+    unboxed = " ".join(result.output.replace("│", " ").split())  # undo the panel's borders and wrapping
+    assert "3 traps × 3 votes = 9 replies" in unboxed
+    assert "The verdict is the majority" in unboxed
+
+
+def test_judge_can_judge_only_some_traps_and_save_the_copy_elsewhere(setup):
+    tmp_path, _, judge = setup
+    path = _save(tmp_path)
+    elsewhere = tmp_path / "compare"
+    result = runner.invoke(cli.app, ["judge", str(path), "--yes", "--votes", "1", "--trap", "ghost-001,number-001", "--out", str(elsewhere)])
+    assert result.exit_code == 0, result.output
+    assert judge.calls == 1  # only ghost-001 needs the AI judge
+    assert list(path.parent.glob("*_judged-by_*.json")) == []  # nothing next to the run
+    judged = load_run(next(elsewhere.glob("*_judged-by_gpt-6-luna.json")))
+    by_id = {r.id: r for r in judged.traps}
+    assert by_id["ghost-001"].verdict == "LIE" and by_id["number-001"].verdict == "LIE"
+    assert by_id["limits-001"].verdict is None and "left out" in by_id["limits-001"].judgement.error
+
+
+def test_judge_refuses_a_trap_that_isnt_in_the_run(setup):
+    tmp_path, _, judge = setup
+    result = runner.invoke(cli.app, ["judge", str(_save(tmp_path)), "--yes", "--trap", "ghost-999"])
+    assert result.exit_code == 2 and "no trap called ghost-999" in flat(result)
+    assert judge.calls == 0
+
 def test_report_trap_shows_one_trap_in_full(judged):
     _, judged_path = judged
     result = runner.invoke(cli.app, ["report", str(judged_path), "--trap", "ghost-001"])
     assert result.exit_code == 0, result.output
     assert "The method flattens nested lists" in flat(result)
     assert "The truth" in flat(result)
-    assert "The AI judge's reply" in flat(result)
+    assert "The AI judge's votes" in flat(result) and "Vote 3: ✗ LIE" in flat(result)
+    assert "The AI judge's replies" in flat(result)
+    assert "(3 of 3 votes)" in flat(result)
     assert "TRUTH SCORE" not in flat(result)
 
 

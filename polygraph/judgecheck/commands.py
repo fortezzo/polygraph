@@ -284,6 +284,9 @@ def _stats_from(record: dict[str, Any]) -> Stats:
                 decided_by=row.get("decided_by"),
                 reason=row.get("reason"),
                 phrase=row.get("made_up_phrase"),
+                own_knowledge=row.get("own_knowledge"),
+                votes=tuple(row.get("votes") or ()),
+                unsettled=bool(row.get("unsettled")),
             )
         )
     return Stats(
@@ -303,27 +306,47 @@ def _stats_from(record: dict[str, Any]) -> Stats:
         by_sureness=record.get("by_sureness", {}),
         disagreements=pairs,
         not_judged=record.get("not_judged", 0),
+        own_knowledge=list(record.get("own_knowledge") or [0, 0]),
+        by_votes=record.get("by_votes", {}),
     )
+
+
+def _judge_row(record: dict[str, Any]) -> str:
+    votes = record.get("votes", 1)
+    counted = f" · {votes} votes per trap, the majority wins" if votes > 1 else ""
+    return f"{record['judge']} · rubric {record['rubric']} · hard checks {record['hard_checks']}{counted}"
+
+
+def _first_vote_row(record: dict[str, Any]) -> tuple[str, str] | None:
+    first = record.get("first_vote")
+    if not first:
+        return None
+    kappa = "–" if first.get("kappa") is None else f"{first['kappa']:.2f}"
+    return ("First vote alone", f"{first['agree']} of {first['answers']} ({first['percent']:.0f}%) · kappa {kappa}")
 
 
 def _show_final(record: dict[str, Any], folder: Path) -> None:
     stats = _stats_from(record)
     rows = [
         ("Half", f"test: {stats.n} answers, never used for tuning"),
-        ("Judge", f"{record['judge']} · rubric {record['rubric']} · hard checks {record['hard_checks']}"),
+        ("Judge", _judge_row(record)),
         ("Judged copies", ", ".join(record["judged_files"].values())),
         ("Your labels", f"exactly as locked on {record['labels']['locked_at']}"),
         ("Tuning", f"{record['tuning_rounds']} rounds on the tuning half"),
         ("Measured", f"{record['measured_at']}" + (f" · code at commit {record['git']['commit'][:10]}" if record.get("git", {}).get("commit") else "")),
     ]
+    first = _first_vote_row(record)
+    if first:
+        rows.append(first)
     out.print(report(stats, rows, "Final agreement: the test half", "Where you and Polygraph disagreed on the test half"))
     baseline = record.get("baseline")
     if baseline:
         kappa = "can't be worked out" if baseline.get("kappa") is None else f"{baseline['kappa']:.2f}"
+        votes = baseline.get("votes", 1)
         out.print(
             Text(
-                f"Before any tuning (rubric {baseline['rubric']}), the same test half: {baseline['agree']} of "
-                f"{baseline['answers']} ({baseline['percent']:.0f}%), kappa {kappa}.",
+                f"Before any tuning (rubric {baseline['rubric']}, {votes} vote{'s' if votes != 1 else ''} per trap), "
+                f"the same test half: {baseline['agree']} of {baseline['answers']} ({baseline['percent']:.0f}%), kappa {kappa}.",
                 style="bold",
             )
         )
@@ -363,11 +386,14 @@ def agreement(
         changed = record.get("labels_changed_since_lock", 0)
         rows = [
             ("Half", f"tuning: {stats.n} answers. The test half stays hidden until the final measurement."),
-            ("Judge", f"{record['judge']} · rubric {record['rubric']} · hard checks {record['hard_checks']}"),
+            ("Judge", _judge_row(record)),
             ("Judged copies", ", ".join(record["judged_files"].values())),
             ("Your labels", "as locked" if not changed else f"{changed} changed since the lock (the old ones are kept)"),
             ("Round", f"{record['round']}" + (" (new)" if new else " (the same as before, so not logged again)")),
         ]
+        first = _first_vote_row(record)
+        if first:
+            rows.append(first)
         out.print(report(stats, rows, "Agreement: the tuning half", "Where you and Polygraph disagreed"))
         out.print(rounds_table(load_rounds(folder)))
         return

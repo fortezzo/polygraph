@@ -12,6 +12,7 @@ from rich.table import Table
 from rich.text import Text
 
 from polygraph.judgecheck.agreement import NOT_JUDGED, VERDICTS, Pair, Stats, kappa_words, type_label
+from polygraph.report import OWN_KNOWLEDGE_MARK, OWN_KNOWLEDGE_STYLE, UNSETTLED_MARK
 from polygraph.traps.schema import TrapType
 
 SHORT = {
@@ -107,6 +108,15 @@ def breakdown(stats: Stats) -> Table:
     table.add_row("Who decided", _counts(stats.by_decider, DECIDERS))
     table.add_row("By bot", _counts(stats.by_bot))
     table.add_row("Your sureness", _counts(stats.by_sureness))
+    if stats.by_votes:
+        names = {"unanimous": "all agreed", "split": "split", "still tied": f"{UNSETTLED_MARK} still tied"}
+        table.add_row("Judge's votes", _counts(stats.by_votes, names))
+    agree, n = stats.own_knowledge
+    if n:
+        table.add_row(
+            f"{OWN_KNOWLEDGE_MARK} Own knowledge",
+            f"{agree}/{n} of the judge's verdicts that rest on its own knowledge, not the hand-checked truth",
+        )
     return table
 
 
@@ -138,26 +148,47 @@ def disagreements(pairs: Sequence[Pair], title: str) -> RenderableType:
             pair.bot,
             yours,
             Text(NAMES[pair.polygraph], style=STYLES[pair.polygraph]),
-            DECIDERS.get(pair.decided_by or "not_judged", "?"),
-            _one_line(pair.reason, 160),
+            _decider(pair),
+            _reason(pair),
         )
     return table
+
+
+def _decider(pair: Pair) -> str:
+    who = DECIDERS.get(pair.decided_by or "not_judged", "?")
+    if len(pair.votes) > 1 and pair.verdict is not None:
+        who += f" {sum(vote == pair.verdict for vote in pair.votes)}/{len(pair.votes)}"
+        if pair.unsettled:
+            who += f" {UNSETTLED_MARK}"
+    return who
+
+
+def _reason(pair: Pair) -> Text:
+    text = Text()
+    if pair.verdict is not None and pair.own_knowledge:
+        text.append(f"{OWN_KNOWLEDGE_MARK} own knowledge: ", style=OWN_KNOWLEDGE_STYLE)
+    text.append(_one_line(pair.reason, 160))
+    return text
 
 
 def rounds_table(rounds: list[dict[str, Any]]) -> Table:
     table = Table(title="Tuning rounds (tuning half only)", title_justify="left", box=box.SIMPLE)
     table.add_column("Round", justify="right")
     table.add_column("When")
+    table.add_column("Judge")
+    table.add_column("Votes", justify="right")
     table.add_column("Rubric")
     table.add_column("Checks")
     table.add_column("Agreement", justify="right")
     table.add_column("Kappa", justify="right")
-    table.add_column("Labels changed", justify="right")
+    table.add_column("Relabeled", justify="right")
     table.add_column("Note")
     for entry in rounds:
         table.add_row(
             str(entry["round"]),
             str(entry["at"])[:16].replace("T", " "),
+            str(entry.get("judge", "?")),
+            str(entry.get("votes", 1)),
             entry["rubric"],
             str(entry["hard_checks"]),
             f"{entry['agree']}/{entry['answers']} ({_pct(entry['percent'])})",

@@ -19,6 +19,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
+from polygraph.judges.judge import EXTRA_VOTES
 from polygraph.judges.numbers import format_number
 from polygraph.pricing import format_usd
 from polygraph.runfile import RunFile, TrapResult
@@ -258,6 +259,10 @@ def _top_lies(run_file: RunFile) -> RenderableType | None:
         reason = by_id[lie.trap].reason if lie.trap in by_id else None
         if reason:
             body.append(Text(reason, style="dim"))
+        if lie.trap in by_id and own_knowledge(by_id[lie.trap]):
+            body.append(Text(OWN_KNOWLEDGE_NOTE, style=OWN_KNOWLEDGE_STYLE))
+        if lie.trap in by_id and unsettled(by_id[lie.trap]):
+            body.append(Text(UNSETTLED_NOTE, style=OWN_KNOWLEDGE_STYLE))
         grid.add_row(Text(f"{format_number(lie.confidence)}% sure", style="bold red"), Group(*body))
     return Group(Text("MOST CONFIDENT LIES", style=f"bold {MANILA}"), grid)
 
@@ -297,6 +302,16 @@ def _footer(run_file: RunFile) -> Text:
         f"Judged: {counts.by_hard_check} trap{'s' if counts.by_hard_check != 1 else ''} by Polygraph's own checks "
         f"(no AI), {counts.by_ai_judge} by the AI judge"
     )
+    if judge.votes > 1:
+        text.append(f", {judge.votes} votes each, the majority wins ({counts.split_votes} not unanimous")
+        if counts.unsettled:
+            text.append(f", {counts.unsettled} still tied and marked {UNSETTLED_MARK}")
+        text.append(")")
+    if counts.own_knowledge:
+        text.append(
+            f"; {counts.own_knowledge} of its verdicts rest{'s' if counts.own_knowledge == 1 else ''} on its own "
+            f"knowledge, marked {OWN_KNOWLEDGE_MARK} in --verdicts"
+        )
     if counts.not_judged:
         text.append(f", {counts.not_judged} not judged")
     spent = judge.cost.spent_usd
@@ -376,12 +391,53 @@ def _decided_by(result: TrapResult) -> str:
     return "the AI judge"
 
 
+OWN_KNOWLEDGE_MARK = "⚑"
+OWN_KNOWLEDGE_NOTE = (
+    f"{OWN_KNOWLEDGE_MARK} From the judge's own knowledge: the hand-checked truth doesn't cover this claim, so check it."
+)
+OWN_KNOWLEDGE_STYLE = "#ffaf00"
+
+
+def own_knowledge(result: TrapResult) -> bool:
+    """Whether this verdict rests on the AI judge's own knowledge (Session 5)."""
+    return bool(result.verdict and result.judgement and result.judgement.own_knowledge)
+
+
+UNSETTLED_MARK = "⚖"
+UNSETTLED_NOTE = (
+    f"{UNSETTLED_MARK} Unsettled: the judge's votes were still tied after 2 more, so the milder verdict is shown. Check it."
+)
+
+
+def unsettled(result: TrapResult) -> bool:
+    """Whether the AI judge's votes stayed tied, so the milder verdict was used."""
+    return bool(result.verdict and result.judgement and result.judgement.unsettled)
+
+
+def votes_text(result: TrapResult) -> str | None:
+    """How the AI judge's votes went, like "2 of 3 votes", when it voted more than once."""
+    judgement = result.judgement
+    if result.verdict is None or judgement is None or len(judgement.votes) < 2:
+        return None
+    if judgement.unsettled:
+        split = " · ".join(str(vote.verdict or "no verdict") for vote in judgement.votes)
+        return f"votes still tied after 2 more: {split}"
+    same = sum(vote.verdict == result.verdict for vote in judgement.votes)
+    text = f"{same} of {len(judgement.votes)} votes"
+    if judgement.tie_broken:
+        text += f", the last {EXTRA_VOTES} asked after a tie"
+    return text
+
+
 def verdict_entry(result: TrapResult) -> Group:
     """One trap's verdict, phrase and reason, for --verdicts and --sample."""
     head = Text()
     head.append_text(verdict_text(result.verdict))
     head.append(f"  {result.id}", style="bold")
     head.append(f" · {result.label} · decided by {_decided_by(result)}", style="dim")
+    tally = votes_text(result)
+    if tally:
+        head.append(f" ({tally})", style="dim")
     confidence = _confidence(result)
     if confidence:
         head.append(f" · {confidence}", style="cyan")
@@ -392,6 +448,10 @@ def verdict_entry(result: TrapResult) -> Group:
         lines.append(_indented(Text(f"{phrase_label(result)}: “{_one_line(result.made_up_phrase, 240)}”", style="italic")))
     if result.reason:
         lines.append(_indented(Text(f"Why: {result.reason}")))
+        if own_knowledge(result):
+            lines.append(_indented(Text(OWN_KNOWLEDGE_NOTE, style=OWN_KNOWLEDGE_STYLE)))
+        if unsettled(result):
+            lines.append(_indented(Text(UNSETTLED_NOTE, style=OWN_KNOWLEDGE_STYLE)))
     elif result.judgement and result.judgement.error:
         lines.append(_indented(Text(result.judgement.error, style="yellow")))
     return Group(*lines)
@@ -475,8 +535,20 @@ def trap_detail(result: TrapResult, run_file: RunFile) -> Panel:
         parts += [Text(""), Text("Hard check (no AI)", style=f"bold {MANILA}"), Text(judgement.hard_check.summary)]
         for reference in judgement.hard_check.details.get("references", []):
             parts.append(_reference_line(reference))
+    if judgement is not None and judgement.votes:
+        parts += [Text(""), Text("The AI judge's votes", style=f"bold {MANILA}")]
+        for number, vote in enumerate(judgement.votes, start=1):
+            line = Text(f"Vote {number}: ")
+            line.append_text(verdict_text(vote.verdict))
+            if vote.own_knowledge:
+                line.append(f" {OWN_KNOWLEDGE_MARK}", style=OWN_KNOWLEDGE_STYLE)
+            if vote.reason:
+                line.append(f"  {vote.reason}", style="dim")
+            if vote.error:
+                line.append(f"  {vote.error}", style="yellow")
+            parts.append(_indented(line))
     if judgement is not None and judgement.replies:
-        parts += [Text(""), Text("The AI judge's reply", style=f"bold {MANILA}")]
+        parts += [Text(""), Text("The AI judge's replies" if len(judgement.replies) > 1 else "The AI judge's reply", style=f"bold {MANILA}")]
         for reply in judgement.replies:
             parts.append(Text(reply.text.strip(), style="dim"))
         if judgement.fix_requested:

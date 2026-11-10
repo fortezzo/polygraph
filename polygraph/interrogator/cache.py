@@ -36,9 +36,15 @@ def cache_key(
     messages: list[Message],
     options: ChatOptions,
     version_pin: str | None = None,
+    variant: int = 0,
 ) -> str:
-    """A fingerprint of everything that shapes the answer. The API key isn't part of it."""
-    payload = {
+    """A fingerprint of everything that shapes the answer. The API key isn't part of it.
+
+    `variant` asks the same thing again as a separate question with its own
+    saved reply: the AI judge's votes 2 and 3 are variants 1 and 2. Variant 0
+    is the plain question, so its key is the same as before variants existed.
+    """
+    payload: dict[str, object] = {
         "cache_format": CACHE_FORMAT,
         "provider": identity,
         "model": model,
@@ -48,6 +54,8 @@ def cache_key(
         "messages": [[m.role, m.content] for m in messages],
         "options": options.as_dict(),
     }
+    if variant:
+        payload["variant"] = variant
     canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 

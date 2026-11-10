@@ -110,6 +110,20 @@ class JudgeReply(_Model):
     call: CallInfo | None = None
 
 
+class Vote(_Model):
+    """One of the AI judge's votes on a trap. When the judge votes more than
+    once (3 times by default), the trap's verdict is the majority."""
+
+    verdict: Verdict | None = None  # None when this vote's reply couldn't be used
+    made_up_phrase: str | None = None
+    phrase_answer: int | None = None
+    reason: str | None = None
+    own_knowledge: bool = False
+    replies: int = 0  # how many of the judgement's replies are this vote's, in order (2 after a fix)
+    fix_requested: str | None = None
+    error: str | None = None
+
+
 class Judgement(_Model):
     """How a trap's verdict was reached."""
 
@@ -118,6 +132,17 @@ class Judgement(_Model):
     replies: list[JudgeReply] = Field(default_factory=list)  # two when the judge was asked to fix its first reply
     fix_requested: str | None = None  # why the judge was asked to fix its first reply
     phrase_answer: int | None = None  # which bot answer holds the made-up phrase (1 is the first)
+    # True when the AI judge's LIE rests on its own knowledge: a claim that the
+    # truth, its source and the hard checks don't cover. Reports mark it so
+    # anyone can check it. None in files judged before the rubric asked (Session 5).
+    own_knowledge: bool | None = None
+    # Every vote, in the order asked, when the AI judge voted more than once.
+    # The verdict, quote and reason above are the majority's. `replies` holds
+    # every vote's replies, in the same order.
+    votes: list[Vote] = Field(default_factory=list)
+    tie_broken: bool = False  # the first votes tied, so the judge was asked 2 more times
+    # ... and it was still tied, so the milder verdict was used. Reports flag it.
+    unsettled: bool = False
     error: str | None = None  # why there's no verdict
 
 
@@ -215,6 +240,10 @@ class JudgeCounts(_Model):
     from_cache: int = 0  # ... of those, reused from an earlier judging
     fixes: int = 0  # times the judge was asked to fix a reply
     references_checked: int = 0  # references looked up for the fake-citation traps
+    own_knowledge: int = 0  # the AI judge's LIEs that rest on its own knowledge (marked ⚑ in reports)
+    split_votes: int = 0  # traps where the AI judge's votes didn't all agree
+    tie_breaks: int = 0  # ... of those, traps where the first votes tied, so 2 more were asked
+    unsettled: int = 0  # ... and still tied after that, so the milder verdict was used (flagged in reports)
 
 
 class JudgeInfo(_Model):
@@ -232,6 +261,7 @@ class JudgeInfo(_Model):
     rubric_fingerprint: str  # changes whenever the rubric's wording changes
     rubric: dict[str, Any] = Field(default_factory=dict)  # the full rubric, word for word
     hard_checks_version: str  # bumped whenever the no-AI checks change how they decide
+    votes: int = 1  # how many times the AI judge judged each trap; the verdict is the majority
     polygraph_version: str | None = None  # the Polygraph that did the judging
     settings: dict[str, Any] = Field(default_factory=dict)
     status: RunStatus = "running"
