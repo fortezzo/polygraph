@@ -148,6 +148,9 @@ export function indexEntry(run, file, id, source = null) {
     source,
     judged_from: run.run.judge?.judged_from ?? null,
     model: run.run.target.model,
+    // A custom bot (Session 8): the name it was given, and whether it has its own instructions.
+    name: run.run.target.name ?? null,
+    custom: !!run.run.target.system_prompt,
     provider_label: run.run.target.provider_label,
     maker: run.run.judge?.bot_company ?? null,
     judge: run.run.judge?.model ?? null,
@@ -157,6 +160,9 @@ export function indexEntry(run, file, id, source = null) {
     recorded_first: times[0] ? day(times[0]) : day(run.run.started_at),
     recorded_last: times.length ? day(times[times.length - 1]) : day(run.run.started_at),
     traps: run.traps.length,
+    // How many of the 8 trap types this run tested (a live run can test just a few).
+    types: Object.keys(s.by_type ?? {}).length,
+    status: run.run.status ?? null,
     scored: s.traps_scored ?? 0,
     overall: s.overall ?? null,
     grade: s.grade ?? null,

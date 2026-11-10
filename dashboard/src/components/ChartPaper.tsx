@@ -3,7 +3,7 @@ import { motion, useAnimationControls } from "motion/react";
 import type { Timeline, TrapPlan, Tone } from "../lib/timeline";
 import type { Track } from "../lib/signal";
 import { needleAt } from "../lib/signal";
-import type { Playback } from "../lib/playback";
+import type { Clock } from "../lib/playback";
 import type { Sound } from "../lib/sound";
 import { onFrame } from "../lib/frame";
 import { VERDICT_INFO } from "../data/verdicts";
@@ -45,7 +45,7 @@ function geometry(w: number, h: number): Geometry {
 interface Props {
   timeline: Timeline;
   track: Track;
-  playback: Playback;
+  playback: Clock;
   sound: Sound;
   reduced: boolean;
   trapIndex: number;

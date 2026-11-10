@@ -79,6 +79,15 @@ export function Transcript({ plan, view, model, reduced, confidenceQuestion }: P
       }
       return;
     }
+    // Live runs: a saved answer appears whole. Show it from its label, which says
+    // it's saved, rather than jumping to its end (Christian, Session 8).
+    const shown = [...el.querySelectorAll<HTMLElement>("[data-turn]")].filter((t) => !t.classList.contains("unseen"));
+    const latest = shown[shown.length - 1];
+    if (latest && latest.dataset.saved !== undefined) {
+      const want = offsetIn(latest, el) - 8;
+      if (Math.abs(want - el.scrollTop) > 2) target.current = want;
+      return;
+    }
     const marks = el.querySelectorAll<HTMLElement>("[data-follow]");
     const caret = el.querySelector<HTMLElement>("[data-caret]") ?? marks[marks.length - 1];
     if (!caret) return;
@@ -208,11 +217,18 @@ const Answer = memo(function Answer({
   // The tag follows the piece holding the made-up phrase's last visible letter.
   // It's laid out from the start (hidden until the stamp lands), so it never moves text.
   const tagAt = useMemo(() => lastVisibleIn(blocks, hot), [blocks, hot]);
+  // A live answer still being written has nothing unshown, so its caret goes at
+  // the very end: the transcript follows it as the words arrive.
+  const lastLine = blocks[blocks.length - 1]?.lines.at(-1);
   // Collect the rendering in one pass, so the caret lands at the first unshown character.
   let caretPlaced = !tv.typing;
   let hotMarked = false;
   const markers = new Set<number>();
-  const renderLine = (line: Line) =>
+  const renderLine = (line: Line) => [
+    ...renderPieces(line),
+    ...(line === lastLine && !caretPlaced ? [<span key="caret-end" className="caret" data-caret="" />] : []),
+  ];
+  const renderPieces = (line: Line) =>
     piecesOf(line, tv.reveal, hot, turn.hidden).map((p) => {
       const out: ReactNode[] = [];
       if (!caretPlaced && !p.shown) {
@@ -259,9 +275,19 @@ const Answer = memo(function Answer({
     });
 
   return (
-    <div className={`mb-5 ${tv.started ? "" : "unseen"}`} data-turn="">
+    <div className={`mb-5 ${tv.started ? "" : "unseen"}`} data-turn="" data-saved={turn.saved ? "" : undefined}>
       <Label>
         A · <span className="normal-case tracking-[0.06em]">{model}</span> ANSWERED
+        {turn.saved && (
+          // Live runs: an answer reused from an earlier run says so, instead of
+          // streaming in as if the bot were writing it now (Christian, Session 8).
+          <span
+            className="ml-2 inline-block rounded-[2px] border border-brass/60 px-1.5 align-[1px] text-[11px] tracking-[0.12em] text-brass"
+            title="Polygraph asked this exact question before, so it reused the bot's answer instead of asking again."
+          >
+            SAVED ANSWER FROM {turn.saved.toUpperCase()}
+          </span>
+        )}
       </Label>
       <div className="text-[15px] leading-[1.62] text-soft lg:text-[16px]">
         {blocks.map((b, bi) => {

@@ -97,7 +97,7 @@ export function EvidenceCard({ run, trap }: { run: RunFile; trap: TrapResult }) 
       const label = answers.length > 1 ? `A${n}` : "A";
       blocks.push(
         <div key={`a${key}`} className="mt-2">
-          <Key>{label} · <span className="normal-case">{run.run.target.model}</span></Key>
+          <Key>{label} · <span className="normal-case">{run.run.target.name ?? run.run.target.model}</span></Key>
           <RichAnswer text={turn.content} hot={hot} hidden={hidden} excerpt />
         </div>,
       );

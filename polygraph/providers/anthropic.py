@@ -10,6 +10,9 @@ Checked against Anthropic's docs on 2026-11-08:
 
 from __future__ import annotations
 
+import json
+import time
+
 import httpx
 
 from polygraph.config import Secret
@@ -18,16 +21,31 @@ from polygraph.providers.base import (
     REFUSAL,
     STOP,
     ChatOptions,
+    ErrorKind,
     HttpProvider,
     Message,
     ModelInfo,
     ProviderError,
     Reply,
+    TextSink,
     add_counts,
     count,
     error_body,
     generic_http_error,
+    redact,
+    sse_events,
 )
+
+# Anthropic's error types, for errors that arrive in the middle of a stream.
+_STREAM_ERRORS: dict[str, ErrorKind] = {
+    "overloaded_error": "overloaded",
+    "api_error": "overloaded",
+    "rate_limit_error": "rate_limit",
+    "authentication_error": "auth",
+    "permission_error": "auth",
+    "billing_error": "quota",
+    "not_found_error": "not_found",
+}
 
 ANTHROPIC_URL = "https://api.anthropic.com/v1"
 API_VERSION = "2026-10-21"
@@ -49,8 +67,7 @@ class AnthropicProvider(HttpProvider):
     def _secrets(self) -> list[str]:
         return [self.api_key.reveal()]
 
-    async def chat(self, messages: list[Message], model: str, options: ChatOptions | None = None) -> Reply:
-        options = options or ChatOptions()
+    def _payload(self, messages: list[Message], model: str, options: ChatOptions) -> dict[str, object]:
         if options.temperature is not None:
             raise ProviderError(
                 "Anthropic's API no longer accepts a temperature setting.",
@@ -65,7 +82,86 @@ class AnthropicProvider(HttpProvider):
         }
         if system:
             payload["system"] = "\n\n".join(system)
+        return payload
+
+    async def chat(self, messages: list[Message], model: str, options: ChatOptions | None = None) -> Reply:
+        payload = self._payload(messages, model, options or ChatOptions())
         data, seconds = await self._request("POST", "/messages", model=model, json=payload)
+        return self._reply(data, model, seconds)
+
+    async def chat_stream(
+        self, messages: list[Message], model: str, options: ChatOptions | None = None, on_text: TextSink | None = None
+    ) -> Reply:
+        """Anthropic streams events: message_start, then the text a few words
+        at a time (content_block_delta), then message_delta with why it stopped
+        and the final token counts, then message_stop. They're put back
+        together into the same shape as a non-streamed answer."""
+        payload = {**self._payload(messages, model, options or ChatOptions()), "stream": True}
+        started = time.perf_counter()
+        message: dict = {}
+        usage: dict = {}
+        texts: list[str] = []
+        stop_reason: object = None
+        finished = False
+        async for event, data in sse_events(self._lines("POST", "/messages", model=model, json=payload)):
+            try:
+                body = json.loads(data)
+            except ValueError as exc:
+                raise ProviderError("Anthropic sent back an answer Polygraph couldn't read.", kind="unreadable") from exc
+            if not isinstance(body, dict):
+                continue
+            kind = body.get("type") or event
+            if kind == "message_start" and isinstance(body.get("message"), dict):
+                message = body["message"]
+                usage.update({k: v for k, v in (message.get("usage") or {}).items() if v is not None})
+            elif kind == "content_block_delta":
+                # Only the visible answer: "thinking" deltas are the model's private notes.
+                delta = body.get("delta") if isinstance(body.get("delta"), dict) else {}
+                if delta.get("type") == "text_delta" and isinstance(delta.get("text"), str):
+                    texts.append(delta["text"])
+                    if on_text is not None and delta["text"]:
+                        on_text(delta["text"])
+            elif kind == "message_delta":
+                delta = body.get("delta") if isinstance(body.get("delta"), dict) else {}
+                stop_reason = delta.get("stop_reason") or stop_reason
+                # The counts in message_delta are running totals, so the newest win.
+                usage.update({k: v for k, v in (body.get("usage") or {}).items() if v is not None})
+            elif kind == "message_stop":
+                finished = True
+            elif kind == "error":
+                raise self._stream_error(body.get("error") if isinstance(body.get("error"), dict) else {})
+        if not finished:
+            raise self._unfinished()
+        whole = {
+            "content": [{"type": "text", "text": "".join(texts)}],
+            "stop_reason": stop_reason,
+            "usage": usage,
+            "model": message.get("model"),
+        }
+        return self._reply(whole, model, time.perf_counter() - started)
+
+    def _stream_error(self, error: dict) -> ProviderError:
+        kind = _STREAM_ERRORS.get(str(error.get("type") or ""), "bad_request")
+        message = redact(str(error.get("message") or "no reason given"), self._secrets())[:300]
+        if kind == "auth":
+            return ProviderError(
+                "Anthropic didn't accept the API key.",
+                hint="Check ANTHROPIC_API_KEY in .env (notepad .env in the run tab), save the file, then try again.",
+                kind="auth",
+            )
+        if kind == "quota":
+            return ProviderError(
+                "Your Anthropic account is out of credit or has reached its spending limit.",
+                hint="Add credit or raise the limit on Anthropic's billing page, then try again.",
+                kind="quota",
+            )
+        if kind == "rate_limit":
+            return ProviderError("Anthropic says too many requests, too fast.", kind="rate_limit")
+        if kind == "overloaded":
+            return ProviderError("Anthropic is overloaded right now.", kind="overloaded")
+        return ProviderError(f"Anthropic couldn't finish the answer: {message}", kind=kind)
+
+    def _reply(self, data: object, model: str, seconds: float) -> Reply:
         if not isinstance(data, dict) or not isinstance(data.get("content"), list):
             raise ProviderError("Anthropic sent back an answer Polygraph couldn't read.", kind="unreadable")
 

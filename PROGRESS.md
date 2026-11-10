@@ -1,7 +1,7 @@
 # Polygraph: progress
 
-**Last updated:** Nov 9, 2026, end of Session 7
-**Next up:** Session 8, Live mode + test your own bot
+**Last updated:** Nov 10, 2026, end of Session 8
+**Next up:** Session 9, Lineup + full trap library
 
 | # | Session | Status |
 |---|---|---|
@@ -12,8 +12,8 @@
 | 5 | Judge check | Done, Nov 9, 2026 |
 | 6 | The look | Done, Nov 9, 2026 |
 | 7 | Report card + evidence wall | Done, Nov 9, 2026 |
-| 8 | Live mode + test your own bot | Next |
-| 9 | Lineup + full trap library | Not started |
+| 8 | Live mode + test your own bot | Done, Nov 10, 2026 |
+| 9 | Lineup + full trap library | Next |
 | 10 | Demo site | Not started |
 | 11 | Polish pass | Not started |
 | 12 | README + launch | Not started |
@@ -423,6 +423,90 @@ Running the same thing again took 0.2 seconds: all 240 replies came from the cac
 - **Spent: $0.** No AI calls.
 - **Approved by Christian** on Nov 9, 2026. His one note, about the phone replay, is on the Session 11 list below.
 
+### Session 8: Live mode + test your own bot (Nov 10, 2026)
+- **One command starts it all: `.\start.ps1`** in the `run` tab.
+  - It checks what's needed, starts Polygraph's server and the dashboard, and opens the New interrogation screen in your browser.
+  - Ctrl+C stops both. A run that's going stops, and what's finished is saved and judged first.
+- **Polygraph's server (`polygraph serve`)**, built with FastAPI 0.162 and Uvicorn 0.54. Both are installed only in the project's `.venv`, at versions at least two weeks old. Two of their helper packages were pinned one release back to keep to that rule (click 8.5.0, opentelemetry-api 1.45.1).
+  - **It streams a run to the dashboard as it happens** (Server-Sent Events): `trap_started`, `answer_chunk`, `verdict` and `run_finished`. A few small ones go with them: the question, the confidence number, what the judge is doing, a wait for a rate limit, and an error.
+  - **One trap at a time:** the question, the answer, how sure it is, then the judge, then the next trap.
+    - The judge rules on each trap as soon as its answers are in, exactly as `polygraph judge` would: the same rubric, the hard checks and 3 votes.
+    - The questions and the files are the same as `polygraph run`'s. Only the order of the questions differs.
+  - **Saved like any other run:** a run file in `runs\`, then its judged copy next to it. Then the dashboard's copies are made again, so the new run is on the report card, the evidence wall and the overconfidence meter right away.
+  - **It catches up:** after a reload or a sleeping laptop, the screen picks up where the run is. The run carries on meanwhile.
+  - **Safety:**
+    - It only listens on this PC (127.0.0.1), and only answers the Polygraph dashboard.
+    - Other web pages, other host names (which blocks "DNS rebinding") and requests to start anything that aren't JSON are all turned away.
+    - Keys never reach the dashboard or a log.
+- **Answers stream word by word** from all five connectors: Ollama, OpenAI, Anthropic, Google and OpenAI-compatible services, each in its company's own streaming format.
+  - The finished answer is exactly what a normal call returns.
+  - A model's private thinking stays hidden while it streams.
+  - If a try fails partway and is asked again, its text starts over.
+- **The New interrogation screen**, a manila intake form:
+  - **The bot:** the models on this PC, plus the cloud models, greyed out until their key is in `.env`.
+  - **The judge:** Polygraph's pick, or another judge from a different company.
+  - **The trap types**, and whether to ask every question again. The default is yes on this PC (it's free, and you get to watch it answer) and no for cloud models.
+  - **The plan card** shows the questions, the cost (the bot's and the judge's) and the $2 limit. Over the limit, Start waits until you tick "Allow up to $X".
+- **Test your own bot:** give it a name and instructions (a system prompt), and it runs on the model you pick. The run file saves both (`target.name`, `target.system_prompt`).
+  - **Christian's change: the judge sees the instructions as background.** They're facts the bot was given, treated as evidence and never as instructions to the judge, so the bot isn't flagged for repeating them.
+    - They go in a block of their own, so a plain model's prompt is exactly what it was, and the rubric's fingerprint is still `0faa426bd649`.
+    - The block's wording has its own fingerprint (`99178c57df68`), saved in the judged copy (`judge.bot_instructions`).
+  - **The report card** shows the bot's name, the model under it and its instructions. **Christian's change:** the fine print says the 88% judge check was measured on bots without custom instructions.
+- **The live screen** is the interrogation room, live:
+  - The question types itself out, the answer streams in, then the confidence check.
+  - The needle spikes when the judge rules. The CAUGHT stamp lands on that spike, and the made-up words light up in the answer.
+  - A strip fills in with every trap's verdict, next to the progress, the time and the cost. Stop and Sound sit at the top.
+  - **Christian's change: a saved answer says so.** It appears whole, labeled "SAVED ANSWER FROM NOV 9", and the status line says it was reused, instead of streaming in as if it were new. A saved verdict says so too.
+  - **Every verdict gets a moment on screen.** It stays a few seconds before the next question; the server has usually moved on by then. A caught verdict lands at least 6 seconds after its question started, so the stamp has room on that question's paper. On a phone, the spike and the stamp are in view while the verdict shows.
+  - **Starting a run plays it from the first question,** even when the server is quicker (say, when every answer is saved). A reload catches up at once.
+  - **The line under the needle:** "The needle jumps when Polygraph's judge finds made-up words, right after it reads each answer. It's not a live signal from the bot."
+  - **At the end:** the Truth Score, the grade, what was caught and the cost, with links to the report card, the evidence wall and the overconfidence meter. A question cut off by Stop says "NOT JUDGED".
+- **Friendly messages** for:
+  - a bad API key, no internet, and out of credit
+  - a rate limit, with a countdown and "try 2 of 5"
+  - Ollama not running, and a model that isn't downloaded
+  - the server not running, and a port that's already in use
+  - a judge from the same company as the bot
+- **A run that tests only some trap types says so on its report card.** The others show "not tested", never zero, and the Truth Score says how many types it covers.
+- **The menu** has a New interrogation tab. On a phone it scrolls sideways, with the current tab scrolled into view.
+- **Two fixes found while testing:**
+  - **Judging estimates were about 6 times too high.** They assumed a judge thinks as much as a bot does on a hard question.
+    - In the Session 5 judged copies, gpt-6-luna used about 170 thinking tokens per verdict. Estimates now assume 250.
+    - Judging all 80 traps from scratch really costs about 6–7 cents. Session 5's 4 cents reused some votes. The estimate now says about 10 cents.
+  - **Spending was counted in the wrong file.** In a live run, the bot and the judge share one cost limit, and the run file was counting the judge's spending as the bot's. Each file now records only its own.
+- **Checked:**
+  - **Two real runs, end to end in the browser:**
+    - Llama 3.2 on 10 know-your-limits traps: 9 honest, 1 lie, $0.007 for the judge.
+    - Bob's Pizza bot (Llama 3.2 with instructions) on 10 document traps: 4 lies, 3 honest, 3 dodged, $0.009.
+    - Both were saved, judged and on the report card at once, with no errors in the browser. They were tests, so they've been taken out of `runs\`.
+  - **86 screenshots** are in `docs\screenshots\session-8` (open `index.html`): every screen at laptop and phone size, including the new ones. The live ones use a pretend server whose bot and judge replay the recorded Gemma run word for word, at a real pace. Nothing real is asked or spent, and the screen says PRETEND.
+  - **The automatic checks** (`checks.json`):
+    - **Nothing jumps:** 0.0000 on the replay, the data screens and the New interrogation screen. While a live answer streams in, 0.0002 on a laptop and 0.0007 on a phone, which are sub-pixel nudges.
+    - **The accessibility scan** found no problems in 30 scans, the new screens included.
+    - No console errors. Frames, sound and reduce motion are unchanged.
+  - **Fixed before you saw them:**
+    - the plan card had no paper behind it, so its text was dark on dark
+    - while a live verdict was pending, the case notes overlapped
+    - the status line came and went, so the screen jumped
+    - a long live answer wasn't followed by the transcript, and its confidence line arrived late and rewrapped the answer
+    - a run of saved answers finished before the screen connected and piled up at the end; it now plays from the first question
+    - a saved answer's label scrolled out of view
+    - a question cut off by Stop still said "VERDICT PENDING" after the run was over
+    - on a phone, the menu hid the New tab
+    - small wording: "1 TYPES", and "$0.009 so far" after the end
+  - **`.\start.ps1`** was run for real: the server and the dashboard start, `/api` reaches the server through the dashboard, and a request from another site is refused.
+- **690 Python tests** (56 new) and **131 dashboard tests** (16 new). They cover:
+  - streaming in every connector's format
+  - a whole live run checked against the recorded run's verdicts
+  - saved answers, custom bots and the judge's background block
+  - Stop, Ctrl+C, reloading, one run at a time, and the go-ahead
+  - the plan and its cost
+  - every friendly message, and the safety checks
+  - the live screen's timing and status line
+- **Version 0.8.0**, for the engine and the dashboard.
+- **Spent: about $0.02**, on judging the two real runs.
+- **Approved by Christian** on Nov 10, 2026, after trying it first: two live interrogations from the dashboard of a bot with Christian's own instructions ("Never Unsure" on Llama 3.2, all 80 traps each). Judging them cost about $0.12. They were tests, so they stay in `runs\` and out of git.
+
 ---
 
 ## How to run it
@@ -538,13 +622,25 @@ polygraph traps show ghost-001 number-008
 ```
 The first line shows 10 random traps, and the second shows the 10 you spot-checked. The third shows all traps of one type. Type names work loosely: `ghost`, `premise`, `citation`, `pressure`, `consistency`, `limits`, `number` or `document`. The last line shows specific traps by ID.
 
-**See the dashboard** (in the `run` tab):
+**Live mode: start a run from the dashboard and watch it** (in the `run` tab, from the Polygraph folder):
+```powershell
+.\start.ps1
+```
+- It starts Polygraph's server and the dashboard, then opens the New interrogation screen in your browser.
+- **Pick the bot, the judge and the traps,** check the plan and the cost, then click **Start the interrogation**. Fewer trap types make a quicker run: Llama 3.2 does 10 traps in about a minute and a half, and Gemma 3 is slower.
+- **To test your own bot,** tick "Test your own bot", then give it a name and its instructions. It runs on the model picked above it.
+- **Stop** (top right) ends a run early. What's finished is saved and judged.
+- **Finished runs** are saved in `runs\` and go straight onto the report card, the evidence wall and the overconfidence meter.
+- **To stop everything,** press Ctrl+C in the `run` tab. A run that's going stops, and what's finished is saved first.
+- **Only this PC can reach live mode,** because it can spend money with your API keys. `npm run phone` still shows the recorded screens on your phone.
+
+**See the dashboard without live mode** (in the `run` tab):
 ```powershell
 cd C:\Users\forte\Projects\Polygraph\dashboard
 npm run dev
 ```
 Then open http://127.0.0.1:5173 in your browser. To stop it, press Ctrl+C in the `run` tab, then `cd ..` to go back to the project folder.
-- The menu at the top has the Interrogation room, the Report card, the Evidence wall and Overconfidence. The Subject picker switches bots.
+- The menu at the top has the Interrogation room, the Report card, the Evidence wall, Overconfidence and New interrogation (which needs `.\start.ps1`). The Subject picker switches bots.
 - Pause, Restart and Sound are at the top right of the replay. Click a question number to jump to it.
 - The dashboard copies the newest judged runs from `runs\` each time it starts. After judging a new run, stop it and start it again.
 - **To see the loading, empty and error screens,** put `?state=loading`, `?state=empty` or `?state=error` right after `5173/` in the address, before any `#`. For example: http://127.0.0.1:5173/?state=empty#/report. The replay also takes `?paused` (starts paused) and `?at=ghost-004` (starts at that question), in the same place.
@@ -564,9 +660,9 @@ npm test
 npm run check
 npm run shots
 ```
-- The first runs the 115 dashboard tests.
+- The first runs the 131 dashboard tests.
 - The second runs the type check, the tests and the build.
-- The third makes every screenshot in `docs\screenshots\session-7` again and runs the automatic checks (about 6 minutes).
+- The third makes every screenshot in `docs\screenshots\session-8` again and runs the automatic checks (about 10 minutes). For the live screens it runs Polygraph's server in pretend mode, so nothing real is asked or spent. Close `.\start.ps1` first: they use the same port.
 - **After a fresh copy of the repo**, run `npm ci` once in the `dashboard` folder. It installs exactly the locked versions.
 
 **Run the automated tests** (in the `run` tab):
@@ -574,7 +670,7 @@ npm run shots
 python -m pytest
 python -m pytest -m live
 ```
-The first runs the 634 offline tests. The second asks real models and services: Ollama, Crossref and doi.org (free), plus any cloud model whose key is in `.env`, as a bot and as a judge (a fraction of a cent each).
+The first runs the 690 offline tests. The second asks real models and services: Ollama, Crossref and doi.org (free), plus any cloud model whose key is in `.env`, as a bot and as a judge (a fraction of a cent each).
 
 **Add an API key** (in the `run` tab). First set a hard spending limit in that company's account. Then:
 ```powershell
@@ -585,6 +681,9 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
 **Start over with fresh answers:** delete the `.cache` folder in the project folder. The next run asks the models again.
 
 **If something goes wrong**
+- *"Polygraph's server isn't running"* on the New interrogation screen: start live mode with `.\start.ps1`, not `npm run dev`.
+- *"Port 8420 (or 5173) is already in use"* from `.\start.ps1`: the server or the dashboard is already running in another tab. Press Ctrl+C there (or close that tab), then run `.\start.ps1` again.
+- *"Ollama isn't running"* on the New interrogation screen: open Ollama from the Start menu, then reload the page.
 - *"Can't reach Ollama"*: open Ollama from the Start menu, wait a few seconds, then try again.
 - *"The model ... isn't downloaded yet"*: run the `ollama pull ...` command it shows you.
 - *"polygraph is not recognized"*: run the two setup lines above first.
@@ -600,14 +699,16 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
 
 ---
 
-## What's next: Session 8, Live mode + test your own bot
-- **A small server** (FastAPI) that runs interrogations and streams them to the dashboard as they happen: `trap_started`, `answer_chunk`, `verdict` and `run_finished`.
-- **A "New interrogation" screen:** pick the bot, the judge and the trap types, see the estimated cost, confirm, then watch it live in the interrogation room.
-- **"Test your own bot":** paste a system prompt (like "You are the support bot for Bob's Pizza"), give the bot a name, and interrogate it like any other model.
-- **`start.ps1`** starts the server and the dashboard together, with one command.
-- **Friendly messages** for a bad API key, no internet and rate limits.
-- **Done when:** you've started a run from the dashboard, watched it live, and tested a bot prompt of your own.
-- **Your part:** run a live interrogation and try a bot prompt of your own, about 2–3 hours. Live runs against cloud models cost money. The cost guard asks before anything over $2, and Llama or Gemma on this PC are free.
+## What's next: Session 9, Lineup + full trap library
+- **About 200 traps (25 per type),** written by the same rules as Session 2: every ghost fact checked on the web, and every truth with a source. Then `polygraph traps check`.
+- **A suggested lineup:** 4–6 popular models plus 1 free local model, each with its estimated cost. Nothing runs until you approve it.
+- **The lineup run.** The $2 cost guard still applies, so it asks before going over.
+- **The lineup screen:** the models ranked by Truth Score in a police-lineup layout, plus a side-by-side view to compare any two.
+- **Every run saved,** so the demo can use them.
+- **Done when:** about 200 traps pass the check, and 4–6 models are tested and ranked.
+- **Your part:** approve which models go in the lineup and what it costs, about 3–4 hours.
+  - **Judging models from OpenAI** needs an Anthropic or Google key in `.env`: a bot can't be judged by its own company.
+  - **Make the key yourself** on the company's website, with a spending limit, and paste it into `.env` yourself.
 
 ---
 
@@ -718,6 +819,22 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
   - **The real paper behind a "real paper, wrong details" reference is named by its title, journal and year from Crossref, not its authors,** to stay on the safe side of the name rule.
   - **The charts are drawn directly in SVG** (PLAN.md suggests D3 or Recharts). There are no new packages; the charts match the paper look and keep the page light.
   - **The dashboard's run copies are made from `runs/` when it starts or builds, and aren't committed.** `runs/` stays the one source of truth.
+- **Live mode (Session 8, Christian's choices and changes):**
+  - **One trap at a time,** so what's on screen is what's happening. `polygraph run` in the terminal still asks several at once.
+  - **The judge sees a custom bot's instructions as background** (Christian's change): facts the bot was given, evidence and never instructions to the judge. They go in a block of their own, so plain models are unaffected and the rubric's fingerprint stays `0faa426bd649`. `polygraph judge` does the same for any run file with instructions.
+  - **A custom bot's report card says the 88% was measured on bots without custom instructions** (Christian's change).
+  - **A saved answer says so,** with the date the bot first gave it, instead of streaming in as if it were new (Christian's change). A saved verdict says so too.
+  - **The line under the needle in live runs:** "The needle jumps when Polygraph's judge finds made-up words, right after it reads each answer. It's not a live signal from the bot." The replay keeps its own line.
+  - **Live mode works on this PC only.** The server only listens on 127.0.0.1, only answers the dashboard (checking the host name and the page's origin), and only starts a run from a JSON request. It can spend money with your keys, so it never listens to your Wi-Fi. The dashboard reaches it through its own development server (`/api`), so the browser talks to one address.
+  - **"Ask every question again"** is on by default for models on this PC (they're free, and you get to watch) and off for cloud models (reusing saved answers is free).
+  - **One limit covers the bot and the judge together,** $2 unless you tick a higher one. Each file still records only its own spending.
+  - **Test runs stay out of git.** Runs you make are saved in `runs\` like the others. They're committed only if you want them in.
+  - **OpenAI-compatible services stay with `polygraph run`.** They need a web address and prices typed in, so the dashboard doesn't offer them.
+  - **Pretend mode** (`polygraph serve --pretend <judged run>`, hidden) replays a recorded run for the screenshots and tests. Its files go in a throwaway folder, never `runs\` or the cache, and the screen says PRETEND.
+  - **A run that tests only some trap types is never shown as scoring zero on the others.** They're "not tested".
+  - **Names in live answers are hidden while the answer streams in** (Christian's name rule, applied to live mode).
+    - In the replay, a name credited with a study is hidden in caught answers, because the verdict is known from the start. Live, the verdict comes after the answer, so such a name would show for a few seconds before being hidden.
+    - So live answers hide citation-style names from the first word, and keep them hidden even when the answer turns out honest.
 - **Dashboard packages (Session 6):**
   - Each package is pinned to an exact version that had been out at least two weeks. All package signatures are verified, and install scripts are turned off (`dashboard/.npmrc`).
   - Vite stays at 8.3.5. It already pulls in Rolldown 1.2.18, which has the Nov 9 escaping fix that Vite 8.3.7 shipped.
@@ -764,7 +881,7 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
     - For those, the card can name the real paper's authors from the hard check's Crossref record, because that's a verified record, not the bot's claim.
   - **Run files are 0.4–1 MB each.** Decide how the dashboard gets them: copy the final judged copies in at build time, or load them on demand.
   - **The sample file** (`dashboard/src/sample/sample-run.json`) uses the run file's own field names, so code written for it works on real runs.
-- **Session 8 (live mode):**
+- **Session 8 (live mode):** done. The notes below were its starting point and are kept for the record.
   - **A replay already knows the verdict, so its needle spikes while the made-up words stream in.** Live, the judge only rules after the answer. So:
     - the spike and the stamp come when the verdict arrives, and the made-up words are highlighted then
     - the line under the needle should say this
@@ -788,7 +905,10 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
     - If the lineup has models from all three judge companies, no single judge can grade them all. Decide whether each bot gets a judge from another company, or two judges whose verdicts are compared.
     - The judges for Anthropic and Google ask for JSON in the prompt; only OpenAI enforces the shape. Their live tests (`python -m pytest -m live`) check this as soon as their keys are in `.env`.
   - **Crossref time:** about 25 citation traps × 3 references × 6 models is roughly 450 references. At one request at a time, that's about 5–10 minutes the first time, then free from the saved lookups.
-  - **Judging cost with 3 votes:** gpt-6-luna cost about $0.04 per bot for 80 traps. A full lineup with 200 traps is roughly $0.10 per bot. gpt-6.1-terra is about 10 times that.
+  - **Judging cost with 3 votes:** gpt-6-luna costs about 6–7 cents per bot for 80 traps when nothing is saved (Session 8 measured it), so about 15–20 cents per bot for 200 traps. gpt-6.1-terra is about 10 times that. The estimates are a little high, on purpose.
+  - **Live mode is one trap at a time,** to be watchable. For the lineup, `polygraph run` then `polygraph judge` is faster (several questions at once). Either way the runs land in `runs\` and on the dashboard.
+  - **New models for the lineup** have to be in `polygraph/providers/catalog.py`, with their prices, before the New interrogation screen offers them. It lists only the "current" ones.
+  - **The run list has more for a lineup screen** (`dashboard/public/runs/index.json`). Each entry has `name` and `custom` (a custom bot), `types` (how many of the 8 trap types it tested) and `status`. Don't rank a run that tested a few types against full runs, and keep custom bots apart from plain models.
   - **The judge check measured gpt-6-luna only.** A bot from OpenAI needs a judge from another company, and that judge hasn't been checked. It can be checked cheaply on the tuning half, the way terra was in Session 5:
     - `polygraph judge ... --judge <model> --trap <the tuning-half traps> --out docs\judge-check\judges`
     - then `polygraph agreement --judged ... --judged ...`
@@ -796,6 +916,7 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
     Measuring a new judge on the test half is only fair with the rubric exactly as frozen. Keep that result separate from gpt-6-luna's in `final.json`.
   - **The dashboard quotes the judge check only for gpt-6-luna with rubric `0faa426bd649`.** A run judged by any other judge says "This judge hasn't been checked against hand labels yet". Once another judge is checked, `judgeCheck()` in `dashboard/scripts/export-runs.mjs` has to read its result too. Today it only reads `docs/judge-check/final.json`.
   - **The Subject picker** lists every judged run in `dashboard/public/runs/index.json`, newest first. A lineup screen can read the same list: it already has each run's model, Truth Score, grade and margin of error.
+  - **Five dashboard tests read the real `runs\` folder** (`dashboard/src/lib/report.test.ts`, from Session 7). They expect exactly the two committed runs, and they take the newest `llama3.2` run as Llama's. So while any other run is in `runs\`, like the Never Unsure tests, `npm test` shows 5 failures. Without them, all 131 pass. Lineup runs will land there too, so point these tests at the committed runs by file name first.
 - **Session 10 (demo site):**
   - **For GitHub Actions:** run `npm ci` and then `npm run check` in `dashboard/`, as well as pytest. The site is built into `dashboard/dist/`, with relative paths.
   - **Names in made-up studies are decided (Session 6):** the screen shows "[name hidden]" (see Decisions). The demo needs no extra step, but any new screen that shows answers must use `namesToHide()`.
@@ -803,8 +924,10 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
     - limits-005's invented study, "led by Marie-Claire Kambouchner", is the example. No one by that exact name turned up in a search, but a real Paris hospital doctor has the same rare surname.
   - **`npm run shots`** can be pointed at other moments, for the README GIF in Session 12.
   - **The build makes its own run copies** (`npm run build` runs the export first), so GitHub Actions only needs `npm ci` and `npm run build` in `dashboard/`. The site fetches `./runs/index.json` and `./runs/<id>.json`, both relative, so it works from a Pages folder.
-  - **Decide which runs the public demo shows.** Today it's every judged run in `runs/`.
-  - **The replay still plays the 6-answer sample.** A full 80-trap replay would need the question strip to scroll and a way to pick a run.
+  - **Decide which runs the public demo shows.** Today it's every judged run in `runs/`, which includes runs started from the dashboard and custom bots.
+  - **The replay still plays the 6-answer sample.** A full 80-trap replay would need the question strip to scroll and a way to pick a run. The live screen's compact strip (`LiveProgress` in `screens/LiveScreen.tsx`) already handles 80.
+  - **The screenshots add up:** about 13 MB for Session 7 and 18 MB for Session 8 (86 screenshots), all in git's history. Before the repo goes public, decide whether to keep every session's set or only the latest.
+  - **Hide the New interrogation tab on the demo site.** It needs Polygraph's server, which only runs on this PC, so on GitHub Pages it would only say "Polygraph's server isn't running". The built site never talks to a server: `/api` only passes through in development (`vite.config.ts`).
 - **Session 11 (polish):**
   - The needle scratch and stamp thud are made by the browser and kept quiet. They're worth a listen on Christian's speakers.
   - On a phone, the replay line, the question strip and the line under the needle take about 400 px before the chart. That could be tighter.
@@ -812,12 +935,18 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
     - Today, by the time the verdict and the confidence ("98%") appear, the red spike and the CAUGHT stamp have already scrolled off the paper. ghost-004 shows it (`phone-04-caught-verdict.jpg` in `docs/screenshots/session-7/`): its made-up words are in the first line of a long answer.
     - On a caught answer, the paper should pause, or hold the spike in view, while the verdict shows.
     - **Where it lives:** the pen's position and the paper's speed (30 px a second on a phone) are at the top of `dashboard/src/components/ChartPaper.tsx`, and the replay's timing is in `dashboard/src/lib/timeline.ts`. The stamp tests (`stamp.test.ts`) and the zero layout shift still have to hold.
+    - **Live mode already does this:** its spike comes when the verdict arrives, so it's in view while the verdict shows.
+  - **Live mode's pacing** (`LIVE_PACE` in `dashboard/src/lib/live.ts`) is worth a feel on your screen. Each verdict stays up 2.6 seconds (4.2 if caught), and a caught one waits until 6 seconds after its question started, so the stamp has room.
+  - **The phone menu now scrolls sideways,** because 5 tabs don't fit. The current tab is scrolled into view and the edge fades. Shorter names would also work.
 - **Session 12 (README):**
   - Quote the test half: **88% (78–96%), Cohen's kappa 0.80 (0.64–0.94)**, on 50 answers measured once.
   - Mention that the untuned rubric did as well, and link [`docs/methodology.md`](docs/methodology.md).
-  - The README's test count is out of date: it says 315. There are 634 Python tests, plus 115 dashboard tests.
+  - The README's test count is out of date: it says 315. There are 690 Python tests, plus 131 dashboard tests.
+  - **Live mode and "test your own bot"** are worth a line, with `.\start.ps1`. The README can say live mode runs on your own PC only, and that the public demo replays recorded runs.
   - **Judge versions:** OpenAI reports gpt-6-luna with no dated snapshot. If a judge changes partway through the lineup, `model_versions_seen` in each judged file shows it.
 - **API keys:** the OpenAI key in `.env` judges Llama. Judging OpenAI models in Session 9 will need an Anthropic or Google key too. Make it, set a hard spending limit in that company's account, then paste the key into `.env` yourself (`notepad .env` in the `run` tab). Never paste it into the chat.
 - **OpenAI-compatible services:** to use one regularly, copy the two `OPENAI_COMPATIBLE_...` lines from `.env.example` into `.env` and fill them in. Or pass `--base-url` each time.
 - **Ollama** runs in the background and starts when you log in. You can quit it from its icon near the clock or uninstall it from Settings → Apps.
+- **The labeling page from Session 5 was still running** (`polygraph label`, in a tab since Nov 9). It isn't needed any more: press Ctrl+C in that tab, or close the tab.
+- **Reinstalling Polygraph** (`pip install -e .`, after a version change) fails if a `polygraph` command is still running in another tab, because Windows keeps the program file locked. Close it first.
 - **Bigger local models:** the graphics card (RTX 4070 SUPER, 12 GB) can run larger local models than Llama 3.2 3B if we want one for the lineup in Session 9.

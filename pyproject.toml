@@ -10,11 +10,14 @@ readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Christian Fortezzo" }]
 dependencies = [
+    # The live server (Session 8): FastAPI streams runs to the dashboard, Uvicorn serves it.
+    "fastapi>=0.162",
     "httpx>=0.27",
     "pydantic>=2.9",
     "python-dotenv>=1.0",
     "rich>=13.7",
     "typer>=0.12",
+    "uvicorn>=0.54",
 ]
 
 [project.optional-dependencies]
@@ -37,4 +40,6 @@ include = ["polygraph*"]
 testpaths = ["tests"]
 # Live tests talk to real models, so they only run when asked: python -m pytest -m live
 addopts = "-m 'not live'"
+# Starlette 1.10 suggests a newer HTTP library for its test client; httpx works fine.
+filterwarnings = ["ignore:Using `httpx` with `starlette.testclient` is deprecated"]
 markers = ["live: asks a real model (Ollama, or a cloud model if its key is in .env)"]

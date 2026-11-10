@@ -7,6 +7,9 @@ service's base URL, which usually ends in /v1.
 
 from __future__ import annotations
 
+import json
+import time
+
 import httpx
 
 from polygraph.config import Secret
@@ -21,10 +24,13 @@ from polygraph.providers.base import (
     ModelInfo,
     ProviderError,
     Reply,
+    TextSink,
+    ThinkFilter,
     count,
     error_body,
     generic_http_error,
     redact,
+    sse_events,
     strip_thinking,
 )
 
@@ -67,17 +73,89 @@ class CompatibleProvider(HttpProvider):
     def _secrets(self) -> list[str]:
         return [self.api_key.reveal()] if self.api_key else []
 
-    async def chat(self, messages: list[Message], model: str, options: ChatOptions | None = None) -> Reply:
-        options = options or ChatOptions()
+    def _payload(self, messages: list[Message], model: str, options: ChatOptions, *, stream: bool) -> dict[str, object]:
         payload: dict[str, object] = {
             "model": model,
             "messages": [{"role": m.role, "content": m.content} for m in messages],
             "max_tokens": options.max_output_tokens,
-            "stream": False,
+            "stream": stream,
         }
+        if stream:
+            # Ask for the token counts at the end of the stream, for the cost guard.
+            payload["stream_options"] = {"include_usage": True}
         if options.temperature is not None:
             payload["temperature"] = options.temperature
+        return payload
+
+    async def chat(self, messages: list[Message], model: str, options: ChatOptions | None = None) -> Reply:
+        payload = self._payload(messages, model, options or ChatOptions(), stream=False)
         data, seconds = await self._request("POST", "/chat/completions", model=model, json=payload)
+        return self._reply(data, model, seconds)
+
+    async def chat_stream(
+        self, messages: list[Message], model: str, options: ChatOptions | None = None, on_text: TextSink | None = None
+    ) -> Reply:
+        """Chat Completions streams small chunks with the next few words
+        (choices[0].delta.content), then one with the token counts, then
+        "[DONE]". A service that won't stream this way gets asked once more
+        without streaming, and the whole answer is handed over at once."""
+        options = options or ChatOptions()
+        payload = self._payload(messages, model, options, stream=True)
+        started = time.perf_counter()
+        visible = ThinkFilter(on_text)
+        texts: list[str] = []
+        finish: object = None
+        refusal = False
+        usage: object = None
+        reported: object = None
+        done = False
+        started_answering = False
+        try:
+            async for _, data in sse_events(self._lines("POST", "/chat/completions", model=model, json=payload)):
+                if data.strip() == "[DONE]":
+                    done = True
+                    continue
+                try:
+                    body = json.loads(data)
+                except ValueError as exc:
+                    raise ProviderError(f"{self.label} sent back an answer Polygraph couldn't read.", kind="unreadable") from exc
+                if not isinstance(body, dict):
+                    continue
+                if body.get("error"):
+                    error = body["error"] if isinstance(body["error"], dict) else {"message": str(body["error"])}
+                    message = redact(str(error.get("message") or "no reason given"), self._secrets())[:300]
+                    raise ProviderError(f"{self.label} couldn't finish the answer: {message}", kind="overloaded")
+                started_answering = True
+                if isinstance(body.get("model"), str):
+                    reported = body["model"]
+                if isinstance(body.get("usage"), dict):
+                    usage = body["usage"]
+                for choice in body.get("choices") or []:
+                    if not isinstance(choice, dict):
+                        continue
+                    delta = choice.get("delta") if isinstance(choice.get("delta"), dict) else {}
+                    piece = delta.get("content")
+                    if isinstance(piece, str) and piece:
+                        texts.append(piece)
+                        visible(piece)
+                    if delta.get("refusal"):
+                        refusal = True
+                    finish = choice.get("finish_reason") or finish
+        except ProviderError as problem:
+            if problem.kind == "bad_request" and not started_answering:
+                return await super().chat_stream(messages, model, options, on_text)
+            raise
+        visible.finish()
+        if not done and finish is None:
+            raise self._unfinished()
+        whole = {
+            "choices": [{"message": {"content": "".join(texts), "refusal": refusal or None}, "finish_reason": finish}],
+            "usage": usage,
+            "model": reported,
+        }
+        return self._reply(whole, model, time.perf_counter() - started)
+
+    def _reply(self, data: object, model: str, seconds: float) -> Reply:
         try:
             choice = data["choices"][0]
             message = choice.get("message") or {}

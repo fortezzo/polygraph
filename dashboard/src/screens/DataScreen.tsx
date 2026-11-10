@@ -1,10 +1,18 @@
 import type { ReactNode } from "react";
 import { isJudged, type RunFile } from "../data/runFile";
 import { hrefFor, type Route } from "../lib/route";
-import { useRunFile, useRunIndex, type RunEntry } from "../lib/runs";
+import { subjectOf, useRunFile, useRunIndex, type RunEntry } from "../lib/runs";
 import { ReplayBar } from "../components/Header";
 import { StatePanel } from "../components/States";
 import { TopBar } from "../components/TopBar";
+
+/** A run's name in the Subject picker: with its date and size when another run has the same name. */
+function pickerLabel(run: RunEntry, all: RunEntry[]): string {
+  const name = subjectOf(run);
+  if (all.filter((r) => subjectOf(r) === name).length < 2) return name;
+  const time = /T(\d{2}):(\d{2})/.exec(run.started_at);
+  return `${name} · ${run.recorded_first}${time ? ` ${time[1]}:${time[2]}` : ""} · ${run.traps} traps`;
+}
 
 /** The frame around the report card, the evidence wall and the overconfidence meter. */
 export function DataScreen({
@@ -82,7 +90,7 @@ export function DataScreen({
             >
               {runs.map((r) => (
                 <option key={r.id} value={r.id}>
-                  {r.model}
+                  {pickerLabel(r, runs)}
                 </option>
               ))}
             </select>
@@ -94,7 +102,7 @@ export function DataScreen({
           <div key="bar" className="mb-5">
             <ReplayBar
               tag="case"
-              model={entry.model}
+              model={subjectOf(entry)}
               maker={entry.maker}
               via={entry.provider_label}
               recorded={recorded}

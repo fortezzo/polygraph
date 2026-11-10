@@ -1,0 +1,123 @@
+{
+  "liveShift": {
+    "desktop": {
+      "total": 0.0001998668445644719,
+      "entries": [
+        {
+          "value": 0.0001,
+          "when": "at 4952: trap ghost-001 started 20, answer done 4945, confidence 4945, verdict -1",
+          "moved": [
+            "text \" \" y 695→695 h 18→18"
+          ]
+        }
+      ]
+    },
+    "phone": {
+      "total": 0.0007462873865631835,
+      "entries": [
+        {
+          "value": 0.0004,
+          "when": "at 4946: trap ghost-001 started 15, answer done 4939, confidence 4939, verdict -1",
+          "moved": [
+            "text \"using \" y 798→798 h 17→17"
+          ]
+        },
+        {
+          "value": 0.0003,
+          "when": "at 6202: trap ghost-002 started 10395, answer done -1, confidence -1, verdict -1",
+          "moved": [
+            "span. \"0:06 · free\" y 277→277 h 20→20"
+          ]
+        }
+      ]
+    }
+  },
+  "axe": {
+    "desktop #/live (caught)": [],
+    "phone #/live (caught)": [],
+    "desktop #/live (finished)": [],
+    "phone #/live (finished)": [],
+    "desktop #/report (custom bot)": [],
+    "phone #/report (custom bot)": [],
+    "desktop #/new": [],
+    "phone #/new": [],
+    "desktop ?paused&scan": [],
+    "desktop ?state=loading": [],
+    "desktop ?state=empty": [],
+    "desktop ?state=error": [],
+    "desktop #/report?run=2026-11-09_15-47-13_ollama_gemma3-12b": [],
+    "desktop #/evidence?run=2026-11-09_15-47-13_ollama_gemma3-12b": [],
+    "desktop #/evidence?run=2026-11-09_15-47-13_ollama_gemma3-12b&type=fake_citation": [],
+    "desktop #/confidence?run=2026-11-09_15-47-13_ollama_gemma3-12b": [],
+    "desktop #/confidence?run=2026-11-08_21-51-00_ollama_llama3.2": [],
+    "desktop #/evidence?run=2026-11-09_15-47-13_ollama_gemma3-12b&verdict=DODGED": [],
+    "desktop ?state=error#/report?run=2026-11-09_15-47-13_ollama_gemma3-12b": [],
+    "phone ?paused&scan": [],
+    "phone ?state=loading": [],
+    "phone ?state=empty": [],
+    "phone ?state=error": [],
+    "phone #/report?run=2026-11-09_15-47-13_ollama_gemma3-12b": [],
+    "phone #/evidence?run=2026-11-09_15-47-13_ollama_gemma3-12b": [],
+    "phone #/evidence?run=2026-11-09_15-47-13_ollama_gemma3-12b&type=fake_citation": [],
+    "phone #/confidence?run=2026-11-09_15-47-13_ollama_gemma3-12b": [],
+    "phone #/confidence?run=2026-11-08_21-51-00_ollama_llama3.2": [],
+    "phone #/evidence?run=2026-11-09_15-47-13_ollama_gemma3-12b&verdict=DODGED": [],
+    "phone ?state=error#/report?run=2026-11-09_15-47-13_ollama_gemma3-12b": []
+  },
+  "layoutShift_desktop_new": 0.00003420781893004115,
+  "layoutShift_phone_new": 0,
+  "layoutShift_desktop": {
+    "total": 0.000020633650414737653,
+    "entries": [],
+    "played": 113078
+  },
+  "layoutShift_phone": {
+    "total": 0,
+    "entries": [],
+    "played": 113078
+  },
+  "layoutShift_desktop_report": 0.00003420781893004115,
+  "layoutShift_desktop_evidence": 0.00003420781893004115,
+  "layoutShift_desktop_confidence": 0.00003420781893004115,
+  "layoutShift_phone_report": 0,
+  "layoutShift_phone_evidence": 0,
+  "layoutShift_phone_confidence": 0,
+  "frames": {
+    "frames": 990,
+    "fps": 165,
+    "p50": 6.1,
+    "p95": 6.2,
+    "p99": 6.2,
+    "worst": 12.1,
+    "longTasks": []
+  },
+  "sound": {
+    "atLoad": {
+      "on": false,
+      "made": false
+    },
+    "ariaPressedAtLoad": "false",
+    "afterClick": {
+      "on": true,
+      "made": true
+    },
+    "ariaPressedAfterClick": "true"
+  },
+  "reducedMotion": {
+    "first": {
+      "grid": "translate3d(0px, 0px, 0px)",
+      "grain": "none",
+      "motion": "reduced",
+      "t": 496
+    },
+    "later": {
+      "grid": "translate3d(0px, 0px, 0px)",
+      "grain": "none",
+      "motion": "reduced",
+      "t": 3000
+    },
+    "paperStill": true,
+    "normalPaperMoves": true
+  },
+  "consoleErrors": []
+}

@@ -17,7 +17,7 @@ from __future__ import annotations
 import asyncio
 import collections
 import time
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -94,7 +94,8 @@ def plan_conversations(trap: Trap, documents: dict[str, Document]) -> list[Conve
 
 
 class RunListener:
-    """Hears about a run as it happens (the progress bar, and later the dashboard)."""
+    """Hears about a run as it happens (the progress bar, and the live dashboard).
+    `chat` counts the trap's conversations from 0 (consistency traps have 4)."""
 
     def trap_started(self, trap: Trap) -> None:
         pass
@@ -107,6 +108,23 @@ class RunListener:
 
     def trap_finished(self, trap: Trap, result: TrapResult) -> None:
         pass
+
+    # For the live dashboard (Session 8).
+
+    def question_asked(self, trap: Trap, chat: int, turn: Turn, wording: int | None) -> None:
+        """Polygraph sent the bot a message: the question, a push-back or a follow-up."""
+
+    def answer_text(self, trap: Trap, chat: int, text: str) -> None:
+        """The next few words of the answer the bot is writing (streamed runs only)."""
+
+    def answer_restarted(self, trap: Trap, chat: int) -> None:
+        """A try failed partway, so the answer is being asked for again: the text so far doesn't count."""
+
+    def answer_received(self, trap: Trap, chat: int, turn: Turn, result: CallResult) -> None:
+        """The whole answer is in, from the bot or saved from an earlier run (result.from_cache)."""
+
+    def confidence_received(self, trap: Trap, chat: int, answer: Turn) -> None:
+        """The confidence question after `answer` is settled: answer.confidence is filled in."""
 
 
 @dataclass
@@ -127,6 +145,14 @@ class Interrogator:
     estimated_usd: float | None = None
     listener: RunListener = field(default_factory=RunListener)
     clock: Callable[[], str] = now_iso
+    # Live runs (the dashboard): one trap at a time, one conversation at a time,
+    # each confidence question right after its answer, so what's on screen is
+    # exactly what's happening. The questions and the run file are the same.
+    one_at_a_time: bool = False
+    stream: bool = False  # hand answers to the listener as the bot writes them
+    # Called after each trap in a one-at-a-time run, before the next starts (the judge).
+    after_trap: Callable[[Trap, TrapResult], Awaitable[None]] | None = None
+    stopped_by: str = "Ctrl+C"  # how a cancelled run was stopped, for its stop reason
 
     def __post_init__(self) -> None:
         self.run_file: RunFile | None = None
@@ -251,7 +277,7 @@ class Interrogator:
             status = "failed"
             reason = f"{aborted.why}: {aborted.problem.message}" if aborted.why else aborted.problem.message
         except (asyncio.CancelledError, KeyboardInterrupt):
-            status, reason = "cancelled", "The run was stopped with Ctrl+C."
+            status, reason = "cancelled", f"The run was stopped with {self.stopped_by}."
             raise
         except Exception as exc:
             status, reason = "failed", f"Polygraph ran into an unexpected problem ({type(exc).__name__}: {exc})"
@@ -264,6 +290,14 @@ class Interrogator:
 
     async def _run_all(self) -> None:
         assert self.run_file is not None
+        if self.one_at_a_time:
+            for trap, result in zip(self.traps, self.run_file.traps):
+                if self._stop is not None:
+                    break
+                await self._interrogate(trap, result)
+                if self.after_trap is not None:
+                    await self.after_trap(trap, result)
+            return
         slots = asyncio.Semaphore(max(1, self.concurrency))
 
         async def one(trap: Trap, result: TrapResult) -> None:
@@ -286,10 +320,21 @@ class Interrogator:
         plans = plan_conversations(trap, self.library.documents)
         result.conversations = [Conversation(wording=plan.wording) for plan in plans]
         try:
-            outcomes = await asyncio.gather(
-                *(self._converse(trap, plan, chat) for plan, chat in zip(plans, result.conversations)),
-                return_exceptions=True,
-            )
+            if self.one_at_a_time:
+                outcomes: list[object] = []
+                for index, (plan, chat) in enumerate(zip(plans, result.conversations)):
+                    try:
+                        await self._converse(trap, plan, chat, index)
+                    except (CostLimitReached, RunAborted) as problem:
+                        outcomes.append(problem)
+                        break  # no more questions go out
+                    except ProviderError as problem:
+                        outcomes.append(problem)  # the other chats still get asked, as in a normal run
+            else:
+                outcomes = await asyncio.gather(
+                    *(self._converse(trap, plan, chat, index) for index, (plan, chat) in enumerate(zip(plans, result.conversations))),
+                    return_exceptions=True,
+                )
             problems = [outcome for outcome in outcomes if isinstance(outcome, BaseException)]
             for problem in problems:
                 if isinstance(problem, RunAborted):
@@ -311,21 +356,35 @@ class Interrogator:
             result.cost_usd = round(sum(call.cost_usd for call in _calls(result)), 8)
             self.listener.trap_finished(trap, result)
 
-    async def _converse(self, trap: Trap, plan: ConversationPlan, chat: Conversation) -> None:
+    async def _converse(self, trap: Trap, plan: ConversationPlan, chat: Conversation, index: int = 0) -> None:
         history: list[Message] = []
         probes: list[asyncio.Task] = []
         try:
             for kind, text in plan.turns:
                 history.append(Message("user", text))
-                chat.turns.append(Turn(role="user", kind=kind, content=text))
-                result = await self.caller.ask(history)
+                asked = Turn(role="user", kind=kind, content=text)
+                chat.turns.append(asked)
+                self.listener.question_asked(trap, index, asked, plan.wording)
+                if self.stream:
+                    result = await self.caller.ask(
+                        history,
+                        on_text=lambda piece: self.listener.answer_text(trap, index, piece),
+                        on_restart=lambda: self.listener.answer_restarted(trap, index),
+                    )
+                else:
+                    result = await self.caller.ask(history)
                 answer = Turn(role="assistant", kind="answer", content=result.reply.text, call=call_info(result))
                 chat.turns.append(answer)
                 self.listener.reply_received(trap, "answer", result)
+                self.listener.answer_received(trap, index, answer, result)
                 history.append(Message("assistant", result.reply.text))
-                # The confidence question goes in a side copy of the conversation,
-                # and runs while the main conversation carries on.
-                probes.append(asyncio.create_task(self._ask_confidence(trap, list(history), answer)))
+                # The confidence question goes in a side copy of the conversation.
+                # Normally it runs while the main conversation carries on; in a
+                # live run it's asked right away, so the screen follows the order.
+                if self.one_at_a_time:
+                    await self._ask_confidence(trap, list(history), answer, index)
+                else:
+                    probes.append(asyncio.create_task(self._ask_confidence(trap, list(history), answer, index)))
             outcomes = await asyncio.gather(*probes, return_exceptions=True)
         except (CostLimitReached, ProviderError):
             # Let confidence questions already on their way finish: their cost
@@ -341,23 +400,31 @@ class Interrogator:
             if isinstance(outcome, BaseException):
                 raise outcome
 
-    async def _ask_confidence(self, trap: Trap, history: list[Message], answer: Turn) -> None:
+    async def _ask_confidence(self, trap: Trap, history: list[Message], answer: Turn, chat: int = 0) -> None:
         try:
-            result = await self.caller.ask([*history, Message("user", CONFIDENCE_QUESTION)])
-        except CostLimitReached as limit:
-            answer.confidence = Confidence(error="Not asked: the run reached its cost limit.")
-            self._request_stop(str(limit))
-            return
-        except RunAborted:
-            answer.confidence = Confidence(error="Not asked: the run stopped because of a problem.")
-            raise
-        except ProviderError as problem:
-            answer.confidence = Confidence(error=f"Couldn't ask: {problem.message}")
-            return
-        answer.confidence = Confidence(
-            value=parse_confidence(result.reply.text), reply=result.reply.text, call=call_info(result)
-        )
-        self.listener.reply_received(trap, "confidence", result)
+            try:
+                result = await self.caller.ask([*history, Message("user", CONFIDENCE_QUESTION)])
+            except CostLimitReached as limit:
+                answer.confidence = Confidence(error="Not asked: the run reached its cost limit.")
+                self._request_stop(str(limit))
+                return
+            except RunAborted:
+                answer.confidence = Confidence(error="Not asked: the run stopped because of a problem.")
+                raise
+            except ProviderError as problem:
+                answer.confidence = Confidence(error=f"Couldn't ask: {problem.message}")
+                return
+            answer.confidence = Confidence(
+                value=parse_confidence(result.reply.text), reply=result.reply.text, call=call_info(result)
+            )
+            self.listener.reply_received(trap, "confidence", result)
+        finally:
+            if answer.confidence is not None:
+                self.listener.confidence_received(trap, chat, answer)
+
+    def request_stop(self, reason: str) -> None:
+        """Start no more traps. The trap on its way finishes, and the run ends as "stopped"."""
+        self._request_stop(reason)
 
     def _request_stop(self, reason: str) -> None:
         if self._stop is None:
@@ -376,8 +443,10 @@ class Interrogator:
         why_unfinished = {
             "stopped": "Not asked: the run stopped at its cost limit.",
             "failed": "Not finished: the run stopped because of a problem.",
-            "cancelled": "Not finished: the run was stopped with Ctrl+C.",
+            "cancelled": f"Not finished: the run was stopped with {self.stopped_by}.",
         }.get(status, "Not finished.")
+        if status == "stopped" and reason and "cost limit" not in reason:
+            why_unfinished = "Not asked: the run stopped early."
         for result in self.run_file.traps:
             if result.status == "pending":
                 result.status, result.error = "stopped", why_unfinished
@@ -407,7 +476,9 @@ class Interrogator:
         if target.model_version is None and versions:
             target.model_version = collections.Counter(versions).most_common(1)[0][0]
 
-        run.cost.spent_usd = round(self.caller.guard.spent, 8)
+        # The bot's own spending. (A live run shares one cost guard between the
+        # bot and the judge, so the guard's total would count the judge too.)
+        run.cost.spent_usd = round(self.caller.stats.spent_usd, 8)
         run.cost.input_tokens = self.caller.stats.input_tokens
         run.cost.output_tokens = self.caller.stats.output_tokens
 

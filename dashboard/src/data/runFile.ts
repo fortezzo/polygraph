@@ -167,6 +167,9 @@ export interface RunInfo {
     model: string;
     model_version?: string;
     model_details?: Record<string, string>;
+    /** A custom bot (Session 8): its owner's instructions and the name it was given. */
+    system_prompt?: string | null;
+    name?: string | null;
   };
   judge?: {
     provider_label?: string;
@@ -177,6 +180,8 @@ export interface RunInfo {
     rubric_fingerprint?: string;
     votes?: number;
     counts?: { by_hard_check?: number; by_ai_judge?: number; split_votes?: number; unsettled?: number; own_knowledge?: number };
+    /** Set when a custom bot's instructions were shown to the judge as background. */
+    bot_instructions?: { fingerprint?: string; shown_as?: string } | null;
   };
   prompts?: { confidence_question?: string; document_template?: string };
   trap_set?: { version?: string; traps_in_run?: number };

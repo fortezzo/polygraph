@@ -12,7 +12,9 @@ Checked against Google's docs (now at aistudio.google.com/docs) on 2026-11-08:
 
 from __future__ import annotations
 
+import json
 import re
+import time
 from urllib.parse import quote
 
 import httpx
@@ -28,10 +30,13 @@ from polygraph.providers.base import (
     ModelInfo,
     ProviderError,
     Reply,
+    TextSink,
     add_counts,
     count,
     error_body,
     generic_http_error,
+    redact,
+    sse_events,
 )
 
 GOOGLE_URL = "https://generativelanguage.googleapis.com/v1beta"
@@ -63,9 +68,7 @@ class GoogleProvider(HttpProvider):
     def _secrets(self) -> list[str]:
         return [self.api_key.reveal()]
 
-    async def chat(self, messages: list[Message], model: str, options: ChatOptions | None = None) -> Reply:
-        options = options or ChatOptions()
-        model = bare_name(model)
+    def _payload(self, messages: list[Message], options: ChatOptions) -> dict[str, object]:
         system = [m.content for m in messages if m.role == "system"]
         config: dict[str, object] = {"maxOutputTokens": options.max_output_tokens}
         if options.temperature is not None:
@@ -80,9 +83,77 @@ class GoogleProvider(HttpProvider):
         }
         if system:
             payload["systemInstruction"] = {"parts": [{"text": "\n\n".join(system)}]}
+        return payload
+
+    async def chat(self, messages: list[Message], model: str, options: ChatOptions | None = None) -> Reply:
+        model = bare_name(model)
+        payload = self._payload(messages, options or ChatOptions())
         data, seconds = await self._request(
             "POST", f"/models/{quote(model, safe='-._')}:generateContent", model=model, json=payload
         )
+        return self._reply(data, model, seconds)
+
+    async def chat_stream(
+        self, messages: list[Message], model: str, options: ChatOptions | None = None, on_text: TextSink | None = None
+    ) -> Reply:
+        """streamGenerateContent sends the answer in pieces, each shaped like a
+        small generateContent answer with the next few words. The last piece
+        says why it stopped and has the token counts. The pieces are put back
+        together into one answer, read the same way as a non-streamed one."""
+        model = bare_name(model)
+        payload = self._payload(messages, options or ChatOptions())
+        started = time.perf_counter()
+        texts: list[str] = []
+        finish: object = None
+        last: dict | None = None
+        feedback: object = None
+        lines = self._lines(
+            "POST",
+            f"/models/{quote(model, safe='-._')}:streamGenerateContent",
+            model=model,
+            json=payload,
+            params={"alt": "sse"},
+        )
+        async for _, data in sse_events(lines):
+            try:
+                body = json.loads(data)
+            except ValueError as exc:
+                raise ProviderError("Google sent back an answer Polygraph couldn't read.", kind="unreadable") from exc
+            if not isinstance(body, dict):
+                continue
+            if isinstance(body.get("error"), dict):
+                error = body["error"]
+                message = redact(str(error.get("message") or "no reason given"), self._secrets())[:300]
+                busy = error.get("code") in (429, 500, 503, 504) or error.get("status") in ("UNAVAILABLE", "RESOURCE_EXHAUSTED")
+                raise ProviderError(
+                    f"Google couldn't finish the answer: {message}", kind="overloaded" if busy else "bad_request"
+                )
+            last = body
+            feedback = body.get("promptFeedback") or feedback
+            candidates = body.get("candidates")
+            if isinstance(candidates, list) and candidates and isinstance(candidates[0], dict):
+                candidate = candidates[0]
+                content = candidate.get("content") if isinstance(candidate.get("content"), dict) else {}
+                for part in content.get("parts") if isinstance(content.get("parts"), list) else []:
+                    # Parts marked "thought" are the model's private notes, not its answer.
+                    if isinstance(part, dict) and isinstance(part.get("text"), str) and not part.get("thought"):
+                        texts.append(part["text"])
+                        if on_text is not None and part["text"]:
+                            on_text(part["text"])
+                finish = candidate.get("finishReason") or finish
+        if last is None:
+            raise self._unfinished()
+        whole: dict[str, object] = {
+            "usageMetadata": last.get("usageMetadata"),
+            "modelVersion": last.get("modelVersion"),
+        }
+        if texts or finish:
+            whole["candidates"] = [{"content": {"parts": [{"text": "".join(texts)}]}, "finishReason": finish}]
+        if feedback:
+            whole["promptFeedback"] = feedback
+        return self._reply(whole, model, time.perf_counter() - started)
+
+    def _reply(self, data: object, model: str, seconds: float) -> Reply:
         if not isinstance(data, dict):
             raise ProviderError("Google sent back an answer Polygraph couldn't read.", kind="unreadable")
 

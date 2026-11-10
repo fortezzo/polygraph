@@ -73,6 +73,8 @@ export interface TurnPlan {
   hot: { start: number; end: number; tone: Tone } | null;
   /** Names to show as "[name hidden]": people credited with a study or citation in a caught answer. */
   hidden: Span[];
+  /** Live runs: a saved answer, reused from an earlier run, with the day the bot first gave it. */
+  saved?: string | null;
 }
 
 export interface Headline {
@@ -115,7 +117,7 @@ export interface Timeline {
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
-function typeChunks(text: string, start: number, dur: number): Chunk[] {
+export function typeChunks(text: string, start: number, dur: number): Chunk[] {
   if (dur <= 0 || text.length === 0) return [{ at: start, upto: text.length }];
   const out: Chunk[] = [];
   for (let i = 2; i < text.length; i += 2) out.push({ at: start + (dur * i) / text.length, upto: i });
@@ -155,7 +157,7 @@ export function timeRevealed(chunks: Chunk[], offset: number): number {
 }
 
 /** The headline confidence for the case notes, by the Session 4 calibration rule. */
-function headlineFor(trap: TrapResult, caughtAnswer: number | null): Headline | null {
+export function headlineFor(trap: TrapResult, caughtAnswer: number | null): Headline | null {
   const answers = answersOf(trap);
   if (trap.type === "consistency" && answers.length > 1) {
     const values = answers.map((a) => a.confidence?.value).filter((v): v is number => typeof v === "number");

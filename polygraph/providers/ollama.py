@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+import time
+
 import httpx
 
 from polygraph.providers.base import (
@@ -13,6 +16,8 @@ from polygraph.providers.base import (
     ModelInfo,
     ProviderError,
     Reply,
+    TextSink,
+    ThinkFilter,
     count,
     error_body,
     generic_http_error,
@@ -38,24 +43,64 @@ class OllamaProvider(HttpProvider):
     def endpoint(self) -> str:
         return self.base_url
 
-    async def chat(self, messages: list[Message], model: str, options: ChatOptions | None = None) -> Reply:
-        options = options or ChatOptions()
+    def _payload(self, messages: list[Message], model: str, options: ChatOptions, *, stream: bool) -> dict:
         settings: dict[str, object] = {"num_predict": options.max_output_tokens}
         if options.temperature is not None:
             settings["temperature"] = options.temperature
-        payload = {
+        return {
             "model": model,
             "messages": [{"role": m.role, "content": m.content} for m in messages],
-            "stream": False,
+            "stream": stream,
             "options": settings,
         }
+
+    async def chat(self, messages: list[Message], model: str, options: ChatOptions | None = None) -> Reply:
+        payload = self._payload(messages, model, options or ChatOptions(), stream=False)
         data, seconds = await self._request("POST", "/api/chat", model=model, json=payload)
+        return self._reply(data, model, seconds)
+
+    async def chat_stream(
+        self, messages: list[Message], model: str, options: ChatOptions | None = None, on_text: TextSink | None = None
+    ) -> Reply:
+        """Ollama streams one small JSON object per line, each with the next
+        few words. The last one says it's done and has the token counts."""
+        payload = self._payload(messages, model, options or ChatOptions(), stream=True)
+        started = time.perf_counter()
+        visible = ThinkFilter(on_text)
+        pieces: list[str] = []
+        final: dict | None = None
+        async for line in self._lines("POST", "/api/chat", model=model, json=payload):
+            if not line.strip():
+                continue
+            try:
+                data = json.loads(line)
+            except ValueError as exc:
+                raise ProviderError("Ollama sent back an answer Polygraph couldn't read.", kind="unreadable") from exc
+            if not isinstance(data, dict):
+                raise ProviderError("Ollama sent back an answer Polygraph couldn't read.", kind="unreadable")
+            if data.get("error"):
+                # The model stopped partway, for example because it ran out of memory.
+                raise ProviderError(f"Ollama couldn't finish the answer: {str(data['error'])[:200]}", kind="overloaded")
+            message = data.get("message")
+            piece = message.get("content") if isinstance(message, dict) else None
+            if isinstance(piece, str) and piece:
+                pieces.append(piece)
+                visible(piece)
+            if data.get("done"):
+                final = data
+        visible.finish()
+        if final is None:
+            raise self._unfinished()
+        return self._reply({**final, "message": {"content": "".join(pieces)}}, model, time.perf_counter() - started)
+
+    def _reply(self, data: object, model: str, seconds: float) -> Reply:
         try:
-            text = data["message"]["content"]
+            text = data["message"]["content"]  # type: ignore[index]
             if not isinstance(text, str):
                 raise TypeError
         except (KeyError, TypeError) as exc:
             raise ProviderError("Ollama sent back an answer Polygraph couldn't read.", kind="unreadable") from exc
+        assert isinstance(data, dict)
 
         done_reason = data.get("done_reason")
         if done_reason == "length":

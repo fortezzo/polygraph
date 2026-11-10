@@ -27,7 +27,7 @@ from polygraph.interrogator.costs import (
     worst_case_input_tokens,
 )
 from polygraph.pricing import Prices
-from polygraph.providers.base import ChatOptions, Message, Provider, ProviderError, Reply
+from polygraph.providers.base import ChatOptions, Message, Provider, ProviderError, Reply, TextSink
 
 # After this many questions fail in a row (each after its retries), something
 # is badly wrong, so the run stops instead of hammering a broken service.
@@ -165,11 +165,25 @@ class Caller:
         if isinstance(reason, RunAborted):
             raise RunAborted(reason.problem, reason.why)
 
-    async def ask(self, messages: list[Message], options: ChatOptions | None = None, *, variant: int = 0) -> CallResult:
+    async def ask(
+        self,
+        messages: list[Message],
+        options: ChatOptions | None = None,
+        *,
+        variant: int = 0,
+        on_text: TextSink | None = None,
+        on_restart: Callable[[], None] | None = None,
+    ) -> CallResult:
         """Ask once. `options` overrides the Caller's settings for this question
         only (the judge uses a different reply shape for each trap type).
         `variant` makes it a separate question with its own saved reply (the
-        judge's votes); the model is sent exactly the same thing either way."""
+        judge's votes); the model is sent exactly the same thing either way.
+
+        With `on_text`, the answer is streamed: its text goes to `on_text` as
+        the model writes it (for the live dashboard). If a try fails partway
+        and Polygraph tries again, `on_restart` is called first, because the
+        text so far no longer counts. A saved reply is never streamed: it comes
+        back whole, marked from_cache, so it can be shown as a saved answer."""
         self._raise_if_stopped()
         options = options or self.options
         conversation = self.conversation(messages)
@@ -198,7 +212,7 @@ class Caller:
                 self.stop(limit)
                 raise
             try:
-                reply, attempts = await self._send(conversation, options)
+                reply, attempts = await self._send(conversation, options, on_text, on_restart)
             except BaseException:
                 await self.guard.release(reservation)
                 raise
@@ -226,12 +240,23 @@ class Caller:
             tokens_estimated=estimated,
         )
 
-    async def _send(self, conversation: list[Message], options: ChatOptions) -> tuple[Reply, int]:
+    async def _send(
+        self,
+        conversation: list[Message],
+        options: ChatOptions,
+        on_text: TextSink | None = None,
+        on_restart: Callable[[], None] | None = None,
+    ) -> tuple[Reply, int]:
         attempt = 0
         while True:
             attempt += 1
             try:
-                reply = await self.provider.chat(conversation, self.model, options)
+                if on_text is not None:
+                    if attempt > 1 and on_restart is not None:
+                        on_restart()
+                    reply = await self.provider.chat_stream(conversation, self.model, options, on_text)
+                else:
+                    reply = await self.provider.chat(conversation, self.model, options)
             except ProviderError as problem:
                 if problem.fatal:
                     aborted = RunAborted(problem)

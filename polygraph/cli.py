@@ -91,12 +91,16 @@ app = typer.Typer(
 out = Console()  # answers and results
 err = Console(stderr=True)  # status messages and errors, kept apart from answers
 
-# Answer length limits. Models that think before answering spend part of the
-# limit on thinking, so they get much more room: too little would cut their
-# answers off (or leave them empty) and make them look evasive.
-PLAIN_LIMIT = 4_096
-THINKING_LIMIT = 32_768
-ASK_THINKING_LIMIT = 16_384  # one quick question, so a little less
+# Answer length limits and judging settings (shared with the live server).
+from polygraph.limits import (  # noqa: E402
+    ASK_THINKING_LIMIT,
+    DEFAULT_VOTES,
+    JUDGE_CONCURRENCY,
+    JUDGE_PLAIN_LIMIT,
+    JUDGE_THINKING_LIMIT,
+    PLAIN_LIMIT,
+    THINKING_LIMIT,
+)
 
 
 def _print_version(value: bool) -> None:
@@ -501,16 +505,7 @@ def _shown_path(path: Path | None) -> str | None:
 
 # --- polygraph judge -----------------------------------------------------------
 
-# The judge's reply is short, but a judge that thinks first spends part of its
-# limit thinking, so it gets room for that.
-JUDGE_THINKING_LIMIT = 16_384
-JUDGE_PLAIN_LIMIT = 2_048
-JUDGE_CONCURRENCY = 4
 CARD_WIDTH = 104
-# The AI judge can give a different verdict when asked the same thing again,
-# so by default it judges each trap 3 times and the majority wins (Session 5).
-# The judge check measured its agreement with Christian's labels this way.
-DEFAULT_VOTES = 3
 
 RunPathArgument = Annotated[
     Path,
@@ -847,6 +842,47 @@ def judge(
     out.print(Text(f"Every verdict with its reason: polygraph report {_shown_path(path)} --verdicts", style="dim"))
     if status == "cancelled":
         raise typer.Exit(code=130)
+
+
+# --- polygraph serve -----------------------------------------------------------
+
+
+@app.command()
+def serve(
+    port: Annotated[int, typer.Option("--port", min=1024, max=65535, help="Which port the server uses on this PC.")] = 8420,
+    pretend: Annotated[
+        Optional[Path],
+        typer.Option("--pretend", help="Replay this judged run instead of asking real models (screenshots and tests).", hidden=True),
+    ] = None,
+    fast: Annotated[bool, typer.Option("--fast", help="With --pretend: no pauses.", hidden=True)] = False,
+    pretend_folder: Annotated[
+        Optional[Path], typer.Option("--pretend-folder", help="With --pretend: where its throwaway files go.", hidden=True)
+    ] = None,
+) -> None:
+    """Start the live server for the dashboard. start.ps1 does this for you.
+
+    It only listens on this PC, and only answers the Polygraph dashboard.
+    Press Ctrl+C to stop it: a run that's going stops, and what's finished is saved.
+    """
+    import uvicorn
+
+    from polygraph.server import create_app, port_is_free, pretend_app
+
+    if not port_is_free(port):
+        err.print(Text(f"Port {port} is already in use on this PC.", style="bold red"))
+        err.print(Text("Polygraph's server may already be running in another tab. Close that tab (or press Ctrl+C there), then try again."))
+        raise typer.Exit(code=1)
+    if pretend is not None:
+        if not pretend.is_file():
+            err.print(Text(f"There's no run file at {pretend}.", style="bold red"))
+            raise typer.Exit(code=1)
+        application = pretend_app(pretend, port=port, fast=fast, folder=pretend_folder)
+        out.print(Text(f"Pretend mode: replaying {pretend.name}. Nothing real is asked, spent or saved.", style="bold yellow"))
+    else:
+        application = create_app(load_settings(), port=port)
+    out.print(Text(f"Polygraph's server is ready at http://127.0.0.1:{port} (only this PC can reach it).", style="bold green"))
+    out.print(Text("Press Ctrl+C to stop it.", style="dim"))
+    uvicorn.run(application, host="127.0.0.1", port=port, log_level="warning", access_log=False, timeout_graceful_shutdown=3)
 
 
 # --- polygraph report ----------------------------------------------------------

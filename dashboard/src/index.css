@@ -180,8 +180,14 @@
   background: var(--color-brass); opacity: 0.85; animation: blink 1s steps(1) infinite;
 }
 @keyframes blink { 50% { opacity: 0; } }
+/* The LIVE tag's dot (Session 8): a slow pulse, which stops under reduce motion. */
+.live-dot { animation: live-pulse 1.6s ease-in-out infinite; }
+@keyframes live-pulse { 50% { opacity: 0.25; } }
 .transcript-box {
   scrollbar-width: thin; scrollbar-color: rgba(239, 230, 213, 0.25) transparent;
+  /* The scrollbar's room is kept even before there's anything to scroll, so the
+     text never narrows (and rewraps) the moment a long answer needs one. */
+  scrollbar-gutter: stable;
   /* The edges fade, so it's clear the transcript scrolls and nothing looks cut off. */
   -webkit-mask-image: linear-gradient(to bottom, transparent, black 14px, black calc(100% - 44px), transparent);
   mask-image: linear-gradient(to bottom, transparent, black 14px, black calc(100% - 44px), transparent);
@@ -229,4 +235,5 @@
 @media (prefers-reduced-motion: reduce) {
   .grain { animation: none; }
   .caret::after { animation: none; }
+  .live-dot { animation: none; }
 }

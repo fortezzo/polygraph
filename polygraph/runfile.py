@@ -180,7 +180,10 @@ class Target(_Model):
     model_versions_seen: list[str] = Field(default_factory=list)
     model_details: dict[str, Any] = Field(default_factory=dict)  # like size and quantization for Ollama
     endpoint: str | None = None  # the service's address, for local and OpenAI-compatible models
+    # A custom bot (Session 8): its owner's instructions, sent before every
+    # conversation, and the name it was given, like "Bob's Pizza bot".
     system_prompt: str | None = None
+    name: str | None = None
     settings: dict[str, Any] = Field(default_factory=dict)  # length limit, temperature
 
 
@@ -260,6 +263,9 @@ class JudgeInfo(_Model):
     bot_company_from: str  # how Polygraph knows: "the model's name" or "--bot-maker"
     rubric_fingerprint: str  # changes whenever the rubric's wording changes
     rubric: dict[str, Any] = Field(default_factory=dict)  # the full rubric, word for word
+    # A custom bot's instructions were shown to the judge as background, with
+    # this wording and its fingerprint (Session 8). None for plain models.
+    bot_instructions: dict[str, Any] | None = None
     hard_checks_version: str  # bumped whenever the no-AI checks change how they decide
     votes: int = 1  # how many times the AI judge judged each trap; the verdict is the majority
     polygraph_version: str | None = None  # the Polygraph that did the judging

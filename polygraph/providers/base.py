@@ -15,7 +15,7 @@ import email.utils
 import re
 import time
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import Any, Literal
@@ -23,6 +23,8 @@ from typing import Any, Literal
 import httpx
 
 Role = Literal["system", "user", "assistant"]
+# Something that takes an answer's text as it arrives, a few words at a time.
+TextSink = Callable[[str], None]
 
 # How every connector reports why an answer ended.
 STOP = "stop"  # the model finished its answer
@@ -168,6 +170,18 @@ class Provider(ABC):
     async def chat(self, messages: list[Message], model: str, options: ChatOptions | None = None) -> Reply:
         """Send the conversation to `model` and return its reply."""
 
+    async def chat_stream(
+        self, messages: list[Message], model: str, options: ChatOptions | None = None, on_text: TextSink | None = None
+    ) -> Reply:
+        """Like chat(), but hands the answer's text to `on_text` as the model
+        writes it (for the live dashboard). The Reply at the end is the same
+        as chat() would give. A connector that can't stream hands over the
+        whole answer at once."""
+        reply = await self.chat(messages, model, options)
+        if on_text is not None and reply.text:
+            on_text(reply.text)
+        return reply
+
     async def list_models(self) -> list[ModelInfo]:
         """The models this provider offers right now, straight from the provider."""
         raise ProviderError(f"{self.label} can't list its models.")
@@ -301,6 +315,32 @@ class HttpProvider(Provider):
                 f"{self.label} sent back an answer Polygraph couldn't read.", kind="unreadable"
             ) from exc
 
+    async def _lines(
+        self, method: str, path: str, *, model: str | None = None, json: Any = None, params: Any = None
+    ) -> AsyncIterator[str]:
+        """Send one request and hand back the answer line by line, as it
+        arrives (for streamed answers). Problems become ProviderErrors, the
+        same as _request()."""
+        try:
+            async with self._session() as client:
+                async with client.stream(method, path, json=json, params=params) as response:
+                    if response.is_error:
+                        await response.aread()
+                        raise self._error(response, model)
+                    async for line in response.aiter_lines():
+                        yield line
+        except httpx.ConnectError as exc:
+            raise self._cant_connect() from exc
+        except httpx.TimeoutException as exc:
+            raise ProviderError(
+                f"{self.label} took too long to answer.",
+                hint="Polygraph will try again. If it keeps happening, try again later.",
+                kind="timeout",
+            ) from exc
+        except httpx.HTTPError as exc:
+            detail = redact(str(exc), self._secrets()) or type(exc).__name__
+            raise ProviderError(f"The connection to {self.label} broke ({detail}).", kind="network") from exc
+
     def _cant_connect(self) -> ProviderError:
         host = httpx.URL(self.base_url).host or self.base_url
         return ProviderError(
@@ -308,6 +348,34 @@ class HttpProvider(Provider):
             hint="Check your internet connection, then try again.",
             kind="network",
         )
+
+    def _unfinished(self) -> ProviderError:
+        """The stream ended before the model said it was done."""
+        return ProviderError(f"{self.label} stopped sending before the answer was finished.", kind="network")
+
+
+async def sse_events(lines: AsyncIterator[str]) -> AsyncIterator[tuple[str | None, str]]:
+    """Read Server-Sent Events (the streaming format OpenAI, Anthropic, Google
+    and OpenAI-compatible services use): (event name, data) for each event."""
+    event: str | None = None
+    data: list[str] = []
+    async for line in lines:
+        if line == "":
+            if data:
+                yield event, "\n".join(data)
+            event, data = None, []
+            continue
+        if line.startswith(":"):
+            continue  # a comment, often sent to keep the connection open
+        name, _, value = line.partition(":")
+        if value.startswith(" "):
+            value = value[1:]
+        if name == "event":
+            event = value
+        elif name == "data":
+            data.append(value)
+    if data:
+        yield event, "\n".join(data)
 
 
 def error_body(response: httpx.Response) -> tuple[str, str | None, str | None]:
@@ -395,3 +463,55 @@ def strip_thinking(text: str) -> str:
     """Some local models write their private reasoning inside <think>...</think>
     before the answer. Keep only the answer."""
     return _THINK_BLOCK.sub("", text, count=1)
+
+
+class ThinkFilter:
+    """Hides a <think>...</think> block at the start of a streamed answer, the
+    way strip_thinking() does for a whole answer, so the live screen only shows
+    the answer itself. (The finished answer is always taken from the whole
+    text, so nothing depends on this getting an odd stream exactly right.)"""
+
+    OPEN, CLOSE = "<think>", "</think>"
+
+    def __init__(self, sink: TextSink | None) -> None:
+        self.sink = sink
+        self.buffer = ""
+        self.state = "start"  # start: not sure yet; thinking: inside the block; after: just past it; answer
+
+    def _send(self, text: str) -> None:
+        if text and self.sink is not None:
+            self.sink(text)
+
+    def __call__(self, text: str) -> None:
+        if self.state == "answer":
+            self._send(text)
+            return
+        self.buffer += text
+        if self.state == "start":
+            head = self.buffer.lstrip()
+            if len(head) < len(self.OPEN) and self.OPEN.startswith(head):
+                return  # could still turn into <think>
+            if not head.startswith(self.OPEN):
+                self.state = "answer"
+                text, self.buffer = self.buffer, ""
+                self._send(text)
+                return
+            self.state, self.buffer = "thinking", head[len(self.OPEN) :]
+        if self.state == "thinking":
+            end = self.buffer.find(self.CLOSE)
+            if end == -1:
+                self.buffer = self.buffer[-(len(self.CLOSE) - 1) :]  # enough to spot "</think>" split in two
+                return
+            self.state, self.buffer = "after", self.buffer[end + len(self.CLOSE) :]
+        if self.state == "after":
+            rest = self.buffer.lstrip()
+            self.buffer = ""
+            if rest:
+                self.state = "answer"
+                self._send(rest)
+
+    def finish(self) -> None:
+        """The stream is over: hand over an answer too short to tell apart from "<think>"."""
+        if self.state == "start" and self.buffer:
+            text, self.buffer, self.state = self.buffer, "", "answer"
+            self._send(text)

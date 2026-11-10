@@ -190,17 +190,31 @@ class AIJudge:
             json_schema=schema_text(trap_type) if self.structured else None,
         )
 
-    def messages(self, result: TrapResult, documents: dict[str, DocumentCopy], findings: str | None) -> list[Message]:
-        return [Message("user", build_prompt(result, documents, findings))]
+    def messages(
+        self,
+        result: TrapResult,
+        documents: dict[str, DocumentCopy],
+        findings: str | None,
+        bot_instructions: str | None = None,
+    ) -> list[Message]:
+        """`bot_instructions`: a custom bot's own instructions (its system
+        prompt), shown to the judge as background. None for a plain model."""
+        return [Message("user", build_prompt(result, documents, findings, bot_instructions))]
 
     async def judge(
-        self, result: TrapResult, documents: dict[str, DocumentCopy], findings: str | None, *, vote: int = 1
+        self,
+        result: TrapResult,
+        documents: dict[str, DocumentCopy],
+        findings: str | None,
+        *,
+        vote: int = 1,
+        bot_instructions: str | None = None,
     ) -> Outcome:
         """One vote on one trap. Each vote is asked separately, with its own
         saved reply, so votes 2 and 3 are fresh opinions, not copies of vote 1."""
         allowed = ALLOWED[result.type]
         options = self.options(result.type)
-        messages = self.messages(result, documents, findings)
+        messages = self.messages(result, documents, findings, bot_instructions)
         answers = [turn.content for turn in answers_of(result)]
         outcome = Outcome()
         variant = vote - 1

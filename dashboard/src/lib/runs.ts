@@ -20,6 +20,10 @@ export interface RunEntry {
   file: string;
   source: string | null;
   model: string;
+  /** A custom bot's name, like "Bob's Pizza bot" (Session 8). */
+  name?: string | null;
+  /** The bot had its own instructions (a system prompt). */
+  custom?: boolean;
   provider_label: string;
   maker: string | null;
   judge: string | null;
@@ -29,11 +33,24 @@ export interface RunEntry {
   recorded_first: string;
   recorded_last: string;
   traps: number;
+  /** How many of the 8 trap types the run tested. */
+  types?: number;
+  status?: string | null;
   scored: number;
   overall: number | null;
   grade: string | null;
   margin_of_error: number | null;
   judge_check: JudgeCheck | null;
+}
+
+/** What to call the bot on screen: a custom bot's name with its model, or just the model. */
+export function subjectOf(entry: Pick<RunEntry, "model" | "name">): string {
+  return entry.name ? `${entry.name} (${entry.model})` : entry.model;
+}
+
+/** Forget the runs loaded so far, so a run that just finished shows up (Session 8). */
+export function forgetRuns(): void {
+  cache.clear();
 }
 
 export type Load<T> =

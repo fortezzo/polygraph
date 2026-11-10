@@ -1,6 +1,6 @@
 import type { VerdictIcon } from "../data/verdicts";
 
-export type IconName = VerdictIcon | "pause" | "play" | "restart" | "sound-off" | "sound-on" | "document" | "pending";
+export type IconName = VerdictIcon | "pause" | "play" | "restart" | "sound-off" | "sound-on" | "document" | "pending" | "stop" | "saved";
 
 const PATHS: Record<IconName, string> = {
   check: "M4.5 12.5l5 5.5L19.5 6.5",
@@ -15,6 +15,8 @@ const PATHS: Record<IconName, string> = {
   "sound-on": "M4 9.5h3.5L12 5.5v13l-4.5-4H4zM15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11",
   document: "M7 3.5h7l4 4v13H7zM14 3.5v4h4M9.5 12h6M9.5 15h6M9.5 18h4",
   pending: "M7 4h10M7 20h10M8 4c0 5 8 5 8 8s-8 3-8 8M16 4c0 5-8 5-8 8",
+  stop: "M7 7h10v10H7z",
+  saved: "M6 4h12v16l-6-4-6 4z",
 };
 
 /** A stroke icon. Decorative: whatever it sits next to carries the words. */

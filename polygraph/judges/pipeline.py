@@ -33,7 +33,6 @@ from pathlib import Path
 from polygraph import __version__
 from polygraph.interrogator.calls import RunAborted, now_iso
 from polygraph.interrogator.costs import (
-    TYPICAL_THINKING_TOKENS,
     CostLimitReached,
     Estimate,
     typical_input_tokens,
@@ -44,7 +43,7 @@ from polygraph.judges.citations import NOT_CHECKED, Lookup, check_references
 from polygraph.judges.consistency import line_up
 from polygraph.judges.judge import EXTRA_VOTES, MAJORITY_RULE, AIJudge, Outcome, combine
 from polygraph.judges.numbers import WRONG, check_number, with_unit
-from polygraph.judges.rubric import fingerprint, rubric_record
+from polygraph.judges.rubric import fingerprint, instructions_record, rubric_record
 from polygraph.pricing import Prices
 from polygraph.providers.base import ProviderError
 from polygraph.runfile import (
@@ -73,6 +72,12 @@ from polygraph.traps.schema import TrapType
 #    Found in Gemma 3 12B's answers in Session 5, before any labeling.
 HARD_CHECKS_VERSION = "3"
 TYPICAL_VERDICT_TOKENS = 150  # a typical verdict reply, for the estimate
+# A judge that thinks first thinks far less per verdict than a bot does on a
+# hard question: in the Session 5 judged copies, gpt-6-luna averaged about 170
+# thinking tokens per verdict (230 output tokens in all). 250 leaves room for
+# a judge that thinks a little more. (Session 8: it used the bots' 1,500
+# before, which made judging estimates about 6 times too high.)
+TYPICAL_JUDGE_THINKING_TOKENS = 250
 JUDGED_MARK = "_judged-by_"
 LEFT_OUT = "Not judged: left out of this judging (only the traps chosen with --trap were judged)."
 
@@ -110,10 +115,13 @@ class Job:
 
 
 class JudgeListener:
-    """Hears about judging as it happens (the progress bar)."""
+    """Hears about judging as it happens (the progress bar, and the live dashboard)."""
 
     def trap_judged(self, result: TrapResult) -> None:
         pass
+
+    def step(self, result: TrapResult, what: str) -> None:
+        """What the judging of `result` is doing now, in plain English."""
 
 
 class RunJudge:
@@ -154,37 +162,53 @@ class RunJudge:
             for job in self.jobs:
                 if job.result.id not in self.only:
                     job.error = LEFT_OUT
+        # A custom bot's own instructions, shown to the judge as background
+        # (Christian, Session 8). None for a plain model, whose prompts don't change.
+        self.bot_instructions = (self.run_file.run.target.system_prompt or "").strip() or None
         self.aborted: RunAborted | None = None
         self.stop_reason: str | None = None
+        self._judged_one_by_one: set[str] = set()  # traps judged with judge_trap() (live runs)
         self._started = time.perf_counter()
 
     # --- 1. The hard checks ------------------------------------------------------------
 
+    def _check_offline(self, job: Job) -> bool:
+        """The hard checks that need no internet. Returns True if the trap's
+        references still have to be looked up."""
+        result = job.result
+        if job.error is not None:  # left out with --trap
+            return False
+        if result.status != "done":
+            job.error = "Not judged: this trap didn't finish in the run, so there's nothing to judge."
+            return False
+        answers = answers_of(result)
+        if not answers:
+            job.error = "Not judged: the run file has no answers for this trap."
+            return False
+        if result.type == TrapType.NUMBER_TRAP.value:
+            self._answer_key(job, answers[0].content)
+        elif result.type == TrapType.CONSISTENCY.value:
+            self._side_by_side(job)
+        elif result.type == TrapType.FAKE_CITATION.value:
+            return True
+        return False
+
     async def hard_checks(self) -> None:
-        citations: list[Job] = []
-        for job in self.jobs:
-            result = job.result
-            if job.error is not None:  # left out with --trap
-                continue
-            if result.status != "done":
-                job.error = "Not judged: this trap didn't finish in the run, so there's nothing to judge."
-                continue
-            answers = answers_of(result)
-            if not answers:
-                job.error = "Not judged: the run file has no answers for this trap."
-                continue
-            if result.type == TrapType.NUMBER_TRAP.value:
-                self._answer_key(job, answers[0].content)
-            elif result.type == TrapType.CONSISTENCY.value:
-                self._side_by_side(job)
-            elif result.type == TrapType.FAKE_CITATION.value:
-                citations.append(job)
+        citations = [job for job in self.jobs if self._check_offline(job)]
         if citations:
             if self.lookup is None:
                 for job in citations:
                     job.error = "Not judged: the reference check needs to look references up on the internet."
             else:
                 await asyncio.gather(*(self._references(job) for job in citations))
+
+    async def _hard_check(self, job: Job) -> None:
+        """The hard check for one trap (live runs judge each trap as it finishes)."""
+        if self._check_offline(job):
+            if self.lookup is None:
+                job.error = "Not judged: the reference check needs to look references up on the internet."
+            else:
+                await self._references(job)
 
     def _answer_key(self, job: Job, answer: str) -> None:
         check = check_number(answer, job.result.trap)
@@ -213,6 +237,7 @@ class RunJudge:
     async def _references(self, job: Job) -> None:
         assert self.lookup is not None
         answer = answers_of(job.result)[0].content
+        self.listener.step(job.result, "Looking up its references in Crossref")
         check = await check_references(answer, self.lookup)
         job.hard_check = HardCheck(kind="references", outcome=check.outcome, summary=check.summary, details=check.details())
         job.findings = check.findings()
@@ -242,7 +267,7 @@ class RunJudge:
         estimate = Estimate(prices=self.prices)
         caller = self.judge.caller
         for job in self.ai_jobs:
-            messages = self.judge.messages(job.result, self.run_file.documents, job.findings)
+            messages = self.judge.messages(job.result, self.run_file.documents, job.findings, self.bot_instructions)
             options = self.judge.options(job.result.type)
             seen = caller.conversation(messages)
             for variant in range(self.votes):  # each vote is its own question
@@ -252,7 +277,7 @@ class RunJudge:
                     continue
                 worst_in = worst_case_input_tokens(seen)
                 estimate.typical_input_tokens += typical_input_tokens(seen)
-                estimate.typical_output_tokens += TYPICAL_VERDICT_TOKENS + (TYPICAL_THINKING_TOKENS if self.thinks else 0)
+                estimate.typical_output_tokens += TYPICAL_VERDICT_TOKENS + (TYPICAL_JUDGE_THINKING_TOKENS if self.thinks else 0)
                 estimate.worst_input_tokens += worst_in
                 estimate.worst_output_tokens += options.max_output_tokens
                 if self.prices is not None:
@@ -284,12 +309,14 @@ class RunJudge:
         try:
             votes = []
             for number in range(1, self.votes + 1):
-                votes.append(await self.judge.judge(job.result, self.run_file.documents, job.findings, vote=number))
+                self.listener.step(job.result, f"The judge is reading it (vote {number} of {self.votes})" if self.votes > 1 else "The judge is reading it")
+                votes.append(await self._vote(job, number))
             outcome, tied = combine(votes)
             if tied:
                 job.tie_broken = True
                 for number in range(self.votes + 1, self.votes + EXTRA_VOTES + 1):
-                    votes.append(await self.judge.judge(job.result, self.run_file.documents, job.findings, vote=number))
+                    self.listener.step(job.result, f"The votes tied, so the judge is asked again (vote {number} of {self.votes + EXTRA_VOTES})")
+                    votes.append(await self._vote(job, number))
                 outcome, tied = combine(votes)
                 job.unsettled = tied
             job.votes = votes
@@ -309,6 +336,54 @@ class RunJudge:
             job.error = job.outcome.error or "Not judged: the judge's reply couldn't be used."
         self._apply(job)
         self.listener.trap_judged(job.result)
+
+    async def _vote(self, job: Job, number: int):
+        return await self.judge.judge(
+            job.result, self.run_file.documents, job.findings, vote=number, bot_instructions=self.bot_instructions
+        )
+
+    # --- One trap at a time (live runs) ------------------------------------------------
+
+    async def judge_trap(self, result: TrapResult) -> TrapResult:
+        """Judge one trap as soon as its answers are in: its hard check, then
+        the AI judge if the hard check didn't settle it. The verdict is decided
+        exactly as judge_all() would decide it. Returns the judged trap.
+
+        For live runs: the caller keeps `async with judge.caller.provider` open
+        for the whole run, and calls catch_up() and finish() at the end."""
+        index = next(i for i, job in enumerate(self.jobs) if job.result.id == result.id)
+        copy = result.model_copy(deep=True)
+        copy.verdict, copy.made_up_phrase, copy.reason, copy.judgement = None, None, None, None
+        job = Job(result=copy)
+        self.jobs[index] = job
+        self.run_file.traps[index] = copy
+        self._judged_one_by_one.add(copy.id)
+        await self._hard_check(job)
+        if job.needs_ai:
+            await self._judge_one(job)
+        if job.result.judgement is None:  # a hard check settled it, or it can't be judged
+            self._apply(job)
+            self.listener.trap_judged(job.result)
+        return job.result
+
+    def catch_up(self, run_file: RunFile) -> None:
+        """For live runs, at the end: the judge started before the run had
+        finished, so take the finished run's details (status, counts, cost)
+        and every trap that was never judged from the interrogator's final run
+        file. Traps already judged keep their verdicts."""
+        final = fresh_copy(run_file)
+        self.run_file.run = final.run
+        self.run_file.documents = final.documents
+        for index, result in enumerate(final.traps):
+            if result.id in self._judged_one_by_one:
+                continue
+            job = Job(result=result)
+            if result.status != "done":
+                job.error = "Not judged: this trap didn't finish in the run, so there's nothing to judge."
+            else:
+                job.error = "Not judged: the run stopped before the judge got to this trap. Judge the run file again to finish it."
+            self.jobs[index] = job
+            self.run_file.traps[index] = result
 
     # --- 3. Putting it together --------------------------------------------------------
 
@@ -398,6 +473,7 @@ class RunJudge:
             bot_company_from=self.setup.bot_company_from,
             rubric_fingerprint=fingerprint(),
             rubric=rubric_record(),
+            bot_instructions=instructions_record() if self.bot_instructions else None,
             hard_checks_version=HARD_CHECKS_VERSION,
             votes=self.votes,
             polygraph_version=__version__,
@@ -420,7 +496,8 @@ class RunJudge:
             cost=CostInfo(
                 limit_usd=self.limit_usd,
                 estimated_usd=self.estimated_usd,
-                spent_usd=round(caller.guard.spent, 8),
+                # The judge's own spending (a live run's cost guard also counts the bot).
+                spent_usd=round(caller.stats.spent_usd, 8),
                 prices=(
                     PricesUsed(
                         input_per_million=self.prices.input_per_million,

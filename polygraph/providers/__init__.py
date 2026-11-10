@@ -12,6 +12,7 @@ from polygraph.providers.base import (
     Provider,
     ProviderError,
     Reply,
+    TextSink,
 )
 from polygraph.providers.catalog import CHEAPEST, KNOWN_MODELS, PRICES_CHECKED_ON, KnownModel, find_known
 from polygraph.providers.compatible import CompatibleProvider
@@ -51,6 +52,7 @@ __all__ = [
     "ProviderError",
     "Reply",
     "SetupError",
+    "TextSink",
     "choose",
     "find_known",
     "guess_provider",

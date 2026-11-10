@@ -34,7 +34,8 @@ const Key = ({ children }: { children: ReactNode }) => (
   <div className="mb-0.5 font-label text-[11px] tracking-[0.16em] text-manila-label">{children}</div>
 );
 
-export function CaseSummary({ plan, view }: { plan: TrapPlan; view: View }) {
+/** `notJudged`: a live run ended before this question got a verdict (Session 8). */
+export function CaseSummary({ plan, view, notJudged = false }: { plan: TrapPlan; view: View; notJudged?: boolean }) {
   const v = plan.verdict;
   const info = v ? VERDICT_INFO[v] : null;
   const votes = plan.result.judgement?.votes ?? [];
@@ -55,11 +56,11 @@ export function CaseSummary({ plan, view }: { plan: TrapPlan; view: View }) {
           pending={
             <div className="flex items-center gap-2.5 text-manila-label">
               <Icon name="pending" className="h-8 w-8 rounded-full border-2 border-current p-1.5 lg:h-10 lg:w-10" strokeWidth={2.2} />
-              <span className="font-label text-[13px] leading-tight tracking-[0.12em]">VERDICT<br />PENDING</span>
+              <span className="font-label text-[13px] leading-tight tracking-[0.12em]">{notJudged ? <>NOT<br />JUDGED</> : <>VERDICT<br />PENDING</>}</span>
             </div>
           }
         >
-          {info && v && (
+          {info && v ? (
             <div className="flex items-center gap-2.5 lg:gap-3">
               <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border-[3px] p-1 lg:h-11 lg:w-11 lg:p-1.5 ${INK[v]}`}>
                 <Icon name={info.icon} className="h-full w-full" strokeWidth={2.8} />
@@ -72,6 +73,12 @@ export function CaseSummary({ plan, view }: { plan: TrapPlan; view: View }) {
                   judge votes
                 </span>
               )}
+            </div>
+          ) : (
+            // A live run doesn't know the verdict yet: hold its place at the same size, so nothing moves when it lands.
+            <div className="flex items-center gap-2.5 lg:gap-3" aria-hidden="true">
+              <span className="h-9 w-9 shrink-0 rounded-full border-[3px] lg:h-11 lg:w-11" />
+              <span className="font-display text-[30px] leading-none font-bold tracking-[0.05em] lg:text-[40px]">LIE</span>
             </div>
           )}
         </Reveal>
@@ -107,7 +114,7 @@ export function CaseSummary({ plan, view }: { plan: TrapPlan; view: View }) {
   );
 }
 
-export function CaseDetails({ plan, view }: { plan: TrapPlan; view: View }) {
+export function CaseDetails({ plan, view, notJudged = false }: { plan: TrapPlan; view: View; notJudged?: boolean }) {
   const v = plan.verdict;
   const info = v ? VERDICT_INFO[v] : null;
   const t = plan.result.trap;
@@ -115,11 +122,19 @@ export function CaseDetails({ plan, view }: { plan: TrapPlan; view: View }) {
   return (
     <section
       aria-label={`Case notes for question ${plan.index + 1}`}
+      // On a laptop the notes scroll inside the folder, so they can be reached with the keyboard.
+      tabIndex={0}
       className="area-details manila rounded-[6px] px-4 py-4 text-[14px] leading-[1.45] lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:rounded-[0_0_6px_6px] lg:border-t lg:border-dashed lg:border-[#3c2f1a]/40 lg:px-6"
     >
       <Reveal
         shown={view.finalShown}
-        pending={<p className="m-0 self-start pt-1 text-manila-label">The judge&rsquo;s notes and the truth come in after the answer.</p>}
+        pending={
+          <p className="m-0 self-start pt-1 text-manila-label">
+            {notJudged
+              ? "The run ended before this question was finished, so it wasn't judged."
+              : <>The judge&rsquo;s notes and the truth come in after the answer.</>}
+          </p>
+        }
       >
         <div className="flex flex-col gap-3">
           {info && plan.result.reason && (

@@ -3,6 +3,12 @@
 
 export type Status = "playing" | "paused" | "ended";
 
+/** What the chart paper needs from a clock: the replay's, or the live screen's (Session 8). */
+export interface Clock {
+  now(): number;
+  readonly status: Status;
+}
+
 export class Playback {
   private origin = 0;
   private pausedAt: number | null;

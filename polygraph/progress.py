@@ -169,6 +169,9 @@ class JudgeDisplay:
             Text(f"  {problem.message} Trying again in {wait:.0f}s (try {attempt + 1}).", style="yellow")
         )
 
+    def step(self, result: TrapResult, what: str) -> None:
+        """What the judging is doing now: the progress bar already shows enough."""
+
     def trap_judged(self, result: TrapResult) -> None:
         from polygraph.report import verdict_text  # here, to keep the imports one-way
 

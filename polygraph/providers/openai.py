@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 
 import httpx
 
@@ -26,10 +27,12 @@ from polygraph.providers.base import (
     ModelInfo,
     ProviderError,
     Reply,
+    TextSink,
     count,
     error_body,
     generic_http_error,
     redact,
+    sse_events,
 )
 
 OPENAI_URL = "https://api.openai.com/v1"
@@ -66,7 +69,42 @@ class OpenAIProvider(HttpProvider):
         return [self.api_key.reveal()]
 
     async def chat(self, messages: list[Message], model: str, options: ChatOptions | None = None) -> Reply:
-        options = options or ChatOptions()
+        payload = self._payload(messages, model, options or ChatOptions())
+        data, seconds = await self._request("POST", "/responses", model=model, json=payload)
+        return self._reply(data, model, seconds)
+
+    async def chat_stream(
+        self, messages: list[Message], model: str, options: ChatOptions | None = None, on_text: TextSink | None = None
+    ) -> Reply:
+        """OpenAI streams events: the answer's text a few words at a time
+        (response.output_text.delta), then the whole finished response, which
+        is read exactly like a non-streamed one."""
+        payload = {**self._payload(messages, model, options or ChatOptions()), "stream": True}
+        started = time.perf_counter()
+        final: object = None
+        async for event, data in sse_events(self._lines("POST", "/responses", model=model, json=payload)):
+            if data.strip() == "[DONE]":
+                continue
+            try:
+                body = json.loads(data)
+            except ValueError as exc:
+                raise ProviderError("OpenAI sent back an answer Polygraph couldn't read.", kind="unreadable") from exc
+            if not isinstance(body, dict):
+                continue
+            kind = body.get("type") or event
+            if kind == "response.output_text.delta":
+                delta = body.get("delta")
+                if isinstance(delta, str) and delta and on_text is not None:
+                    on_text(delta)
+            elif kind in ("response.completed", "response.incomplete", "response.failed"):
+                final = body.get("response")
+            elif kind == "error":
+                raise self._stream_error(body)
+        if not isinstance(final, dict):
+            raise self._unfinished()
+        return self._reply(final, model, time.perf_counter() - started)
+
+    def _payload(self, messages: list[Message], model: str, options: ChatOptions) -> dict[str, object]:
         system = [m.content for m in messages if m.role == "system"]
         payload: dict[str, object] = {
             "model": model,
@@ -89,7 +127,9 @@ class OpenAIProvider(HttpProvider):
                     "strict": True,
                 }
             }
-        data, seconds = await self._request("POST", "/responses", model=model, json=payload)
+        return payload
+
+    def _reply(self, data: object, model: str, seconds: float) -> Reply:
         if not isinstance(data, dict):
             raise ProviderError("OpenAI sent back an answer Polygraph couldn't read.", kind="unreadable")
         if data.get("status") == "failed":
@@ -168,6 +208,23 @@ class OpenAIProvider(HttpProvider):
             f"OpenAI couldn't finish the answer: {message}",
             kind="overloaded" if retryable else "bad_request",
         )
+
+    def _stream_error(self, body: dict) -> ProviderError:
+        """An error event in the middle of a stream: {"type": "error", "code": ..., "message": ...}."""
+        error = body.get("error") if isinstance(body.get("error"), dict) else body
+        code = str(error.get("code") or error.get("type") or "")
+        message = redact(str(error.get("message") or "no reason given"), self._secrets())[:300]
+        if code in _OUT_OF_CREDIT:
+            return ProviderError(
+                "Your OpenAI account is out of credit or has reached its spending limit.",
+                hint="Add credit or raise the limit on OpenAI's billing page, then try again.",
+                kind="quota",
+            )
+        if code == "rate_limit_exceeded":
+            return ProviderError("OpenAI says too many requests, too fast.", kind="rate_limit")
+        if code in {"server_error", "internal_error"} or "overload" in code:
+            return ProviderError(f"OpenAI is having trouble right now: {message}", kind="overloaded")
+        return ProviderError(f"OpenAI couldn't finish the answer: {message}", kind="bad_request")
 
     def _error(self, response: httpx.Response, model: str | None) -> ProviderError:
         message, kind, code = error_body(response)

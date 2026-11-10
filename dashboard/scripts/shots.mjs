@@ -1,11 +1,12 @@
-// Screenshots of the interrogation screen at laptop and phone sizes, plus the
-// automatic checks: nothing jumps while answers stream in, the frame rate, an
-// accessibility scan, sound off by default, and reduced motion.
+// Screenshots of every screen at laptop and phone sizes, plus the automatic
+// checks: nothing jumps while answers stream in, the frame rate, an
+// accessibility scan, sound off by default, and reduced motion. Live mode
+// (Session 8) is in live-shots.mjs: it runs Polygraph's server in pretend mode.
 //
 // Uses the built app (npm run shots builds it first) and the Microsoft Edge
 // already installed on this PC, running invisibly.
 //
-//   npm run shots                                   everything, into docs/screenshots/session-6
+//   npm run shots                                   everything, into docs/screenshots/session-8
 //   node scripts/shots.mjs --only 03 --size desktop --out <folder> --no-checks
 
 import { preview } from "vite";
@@ -14,6 +15,7 @@ import { AxeBuilder } from "@axe-core/playwright";
 import { mkdirSync, writeFileSync, statSync, readdirSync, rmSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { LIVE_MOMENTS, LIVE_PORT, liveShots, startLiveServers } from "./live-shots.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const dashboard = resolve(here, "..");
@@ -22,7 +24,7 @@ const opt = (name, fallback) => {
   const i = args.indexOf(name);
   return i >= 0 ? args[i + 1] : fallback;
 };
-const out = resolve(opt("--out", resolve(dashboard, "..", "docs", "screenshots", "session-7")));
+const out = resolve(opt("--out", resolve(dashboard, "..", "docs", "screenshots", "session-8")));
 const only = opt("--only", null);
 const onlySize = opt("--size", null);
 const checks = !args.includes("--no-checks");
@@ -86,7 +88,14 @@ const MOMENTS = [
   { name: "27-evidence-no-matches", note: "Filters that match nothing (Gemma has no dodges).", url: `#/evidence?run=${GEMMA}&verdict=DODGED`, ready: true },
 ];
 
-const server = await preview({ root: dashboard, logLevel: "silent", preview: { port: 4173, strictPort: false, host: "127.0.0.1" } });
+// Live mode needs Polygraph's server (in pretend mode), reached through the preview at /api.
+const wantLive = !only || LIVE_MOMENTS.some((m) => m.name.startsWith(only));
+const live = wantLive ? await startLiveServers() : null;
+const server = await preview({
+  root: dashboard,
+  logLevel: "silent",
+  preview: { port: 4173, strictPort: false, host: "127.0.0.1", proxy: { "/api": { target: `http://127.0.0.1:${LIVE_PORT}`, changeOrigin: true } } },
+});
 const base = server.resolvedUrls.local[0];
 const browser = await chromium.launch({ channel: "msedge", headless: true });
 const consoleErrors = [];
@@ -102,6 +111,7 @@ async function openAt(size, url, reducedMotion) {
 }
 
 const frames = (page, n = 3) => page.evaluate((k) => new Promise((r) => { let i = 0; const f = () => (++i >= k ? r() : requestAnimationFrame(f)); requestAnimationFrame(f); }), n);
+const results = {};
 
 try {
   for (const moment of MOMENTS) {
@@ -136,7 +146,9 @@ try {
     }
   }
 
-  const results = {};
+  // Session 8: live mode, with the server in pretend mode.
+  if (live) await liveShots({ browser, base, out, SIZES, shots, results, consoleErrors, only, onlySize, checks, scratch: live.scratch });
+
   if (checks) {
     // 1. Nothing jumps: add up every layout shift over the whole replay, played 4 times as fast.
     for (const size of Object.keys(SIZES)) {
@@ -219,7 +231,7 @@ try {
 
     // 3. Accessibility scan (WCAG 2.1 AA rules) on the caught moment, both sizes, the
     //    three states, and every Session 7 screen.
-    results.axe = {};
+    results.axe ??= {};
     const DATA = [
       `#/report?run=${GEMMA}`, `#/evidence?run=${GEMMA}`, `#/evidence?run=${GEMMA}&type=fake_citation`,
       `#/confidence?run=${GEMMA}`, `#/confidence?run=${LLAMA}`, `#/evidence?run=${GEMMA}&verdict=DODGED`,
@@ -299,10 +311,11 @@ try {
       resolve(out, "index.html"),
       `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Dashboard screenshots</title>
 <style>body{margin:0;background:#0d0c0b;color:#ece6da;font:16px/1.5 "Segoe UI",system-ui,sans-serif}.page{max-width:1300px;margin:0 auto;padding:32px 20px 80px}h1{font-size:28px;margin:0 0 6px}h2{font-size:20px;margin:0;text-transform:capitalize}section{margin:0 0 44px}p{color:#bdb5a8;margin:4px 0 12px}.row{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}figure{margin:0}.row figure:first-child{flex:1 1 640px}.row figure:not(:first-child){flex:0 0 220px}img{display:block;width:100%;border:1px solid rgba(255,255,255,.1);border-radius:6px}figcaption{font-size:13px;color:#a39b8d;margin-top:4px}</style></head>
-<body><div class="page"><h1>The Polygraph dashboard: screenshots</h1><p>The interrogation room replays 6 real recorded answers from Gemma 3 12B. The report card, the evidence wall and the overconfidence meter show the real judged runs of Gemma 3 12B and Llama 3.2 3B. Every screen at laptop and phone size. Click any screenshot to see it full size.</p>${rows.join("\n")}</div></body></html>\n`,
+<body><div class="page"><h1>The Polygraph dashboard: screenshots</h1><p>The interrogation room replays 6 real recorded answers from Gemma 3 12B. The report card, the evidence wall and the overconfidence meter show the real judged runs of Gemma 3 12B and Llama 3.2 3B. Live mode (from 28 on) runs Polygraph's server in pretend mode: its bot and judge replay the recorded Gemma 3 12B run at a realistic pace, so nothing real is asked or spent, and the screen says PRETEND. Every screen at laptop and phone size. Click any screenshot to see it full size.</p>${rows.join("\n")}</div></body></html>\n`,
     );
   }
 } finally {
   await browser.close();
   await new Promise((r) => server.httpServer.close(r));
+  live?.stop();
 }
