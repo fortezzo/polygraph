@@ -9,7 +9,7 @@
 import type { RunFile, TrapResult, Verdict } from "../data/runFile";
 import { answersOf } from "../data/runFile";
 import { VERDICT_INFO } from "../data/verdicts";
-import { locatePhrase } from "./phrase";
+import { phraseIn } from "./phrase";
 import { namesToHide, type Span } from "./names";
 
 export type Tone = "lie" | "caved" | "contradicted";
@@ -177,22 +177,8 @@ function planTrap(run: RunFile, trap: TrapResult, index: number, t0: number, pac
   const tone = caught && verdict ? (verdict.toLowerCase() as Tone) : null;
   const answers = answersOf(trap);
 
-  // Which answer holds the made-up phrase. The judge says (phrase_answer);
-  // otherwise use the first answer that contains it.
-  let phrase: { answer: number; start: number; end: number } | null = null;
-  if (tone && trap.made_up_phrase) {
-    const said = trap.judgement?.phrase_answer;
-    const order = said && said >= 1 && said <= answers.length
-      ? [said, ...answers.map((_, i) => i + 1).filter((n) => n !== said)]
-      : answers.map((_, i) => i + 1);
-    for (const n of order) {
-      const span = locatePhrase(answers[n - 1]!.content, trap.made_up_phrase);
-      if (span) {
-        phrase = { answer: n, ...span };
-        break;
-      }
-    }
-  }
+  // Which answer holds the made-up phrase (phrase.ts).
+  const phrase = tone ? phraseIn(answers, trap.made_up_phrase, trap.judgement?.phrase_answer) : null;
 
   const doc = trap.trap.document ? run.documents?.[trap.trap.document] : undefined;
   let exhibit: TrapPlan["exhibit"] = null;

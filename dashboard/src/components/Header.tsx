@@ -19,7 +19,8 @@ function ControlButton({ icon, children, onClick, pressed, dim, wide }: { icon: 
   );
 }
 
-export function Header(props: {
+/** The replay's buttons: Play/Pause, Restart and Sound. They sit in the top bar. */
+export function ReplayControls(props: {
   status: Status;
   soundOn: boolean;
   onPlayPause: () => void;
@@ -28,12 +29,7 @@ export function Header(props: {
 }) {
   const { status } = props;
   return (
-    <header className="flex items-center justify-between gap-4">
-      <div className="flex items-baseline gap-3.5">
-        <h1 className="m-0 font-display text-[20px] font-semibold tracking-[0.22em] text-[#f3e8d2] sm:text-[24px] sm:tracking-[0.24em]">POLYGRAPH</h1>
-        <span className="hidden font-label text-[13px] tracking-[0.06em] text-muted sm:inline">INTERROGATION ROOM</span>
-      </div>
-      <div className="flex gap-2">
+    <div className="flex gap-2">
         {/* Fixed widths, so changing labels never nudge the buttons next to them. */}
         <ControlButton icon={status === "playing" ? "pause" : status === "ended" ? "restart" : "play"} onClick={props.onPlayPause} wide="sm:w-[146px]">
           {status === "playing" ? "Pause" : status === "ended" ? "Play again" : "Play"}
@@ -42,17 +38,19 @@ export function Header(props: {
         <ControlButton icon={props.soundOn ? "sound-on" : "sound-off"} onClick={props.onSound} pressed={props.soundOn} dim={!props.soundOn} wide="sm:w-[128px]">
           {props.soundOn ? "Sound on" : "Sound off"}
         </ControlButton>
-      </div>
-    </header>
+    </div>
   );
 }
 
-export function ReplayBar({ model, maker, via, recorded, judge }: { model: string; maker?: string; via: string; recorded: string | null; judge?: string }) {
+/** Which bot, when it was recorded, who judged it. "REPLAY" on the replay, "CASE FILE" elsewhere. */
+export function ReplayBar({
+  model, maker, via, recorded, judge, tag = "replay",
+}: { model: string; maker?: string | null; via: string; recorded: string | null; judge?: string; tag?: "replay" | "case" }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[13px] text-[#d8cdb8] sm:text-[14px]">
       <span className="inline-flex items-center gap-1.5 rounded-[2px] bg-brass px-2 pt-[3px] pb-[2px] font-label text-[12px] tracking-[0.12em] text-room">
-        <Icon name="play" className="h-[11px] w-[11px]" strokeWidth={2.6} />
-        REPLAY
+        <Icon name={tag === "replay" ? "play" : "document"} className="h-[11px] w-[11px]" strokeWidth={2.6} />
+        {tag === "replay" ? "REPLAY" : "CASE FILE"}
       </span>
       <span>
         Subject: <b className="font-bold text-[#f3e8d2]">{model}</b>{" "}

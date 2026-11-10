@@ -1,0 +1,80 @@
+{
+  "layoutShift_desktop": {
+    "total": 0.000020633650414737653,
+    "entries": [],
+    "played": 113078
+  },
+  "layoutShift_phone": {
+    "total": 0,
+    "entries": [],
+    "played": 113078
+  },
+  "layoutShift_desktop_report": 0.00003420781893004115,
+  "layoutShift_desktop_evidence": 0.00003420781893004115,
+  "layoutShift_desktop_confidence": 0.00003420781893004115,
+  "layoutShift_phone_report": 0,
+  "layoutShift_phone_evidence": 0,
+  "layoutShift_phone_confidence": 0,
+  "frames": {
+    "frames": 1440,
+    "fps": 240,
+    "p50": 4.2,
+    "p95": 4.3,
+    "p99": 4.3,
+    "worst": 8.4,
+    "longTasks": []
+  },
+  "axe": {
+    "desktop ?paused&scan": [],
+    "desktop ?state=loading": [],
+    "desktop ?state=empty": [],
+    "desktop ?state=error": [],
+    "desktop #/report?run=2026-11-09_15-47-13_ollama_gemma3-12b": [],
+    "desktop #/evidence?run=2026-11-09_15-47-13_ollama_gemma3-12b": [],
+    "desktop #/evidence?run=2026-11-09_15-47-13_ollama_gemma3-12b&type=fake_citation": [],
+    "desktop #/confidence?run=2026-11-09_15-47-13_ollama_gemma3-12b": [],
+    "desktop #/confidence?run=2026-11-08_21-51-00_ollama_llama3.2": [],
+    "desktop #/evidence?run=2026-11-09_15-47-13_ollama_gemma3-12b&verdict=DODGED": [],
+    "desktop ?state=error#/report?run=2026-11-09_15-47-13_ollama_gemma3-12b": [],
+    "phone ?paused&scan": [],
+    "phone ?state=loading": [],
+    "phone ?state=empty": [],
+    "phone ?state=error": [],
+    "phone #/report?run=2026-11-09_15-47-13_ollama_gemma3-12b": [],
+    "phone #/evidence?run=2026-11-09_15-47-13_ollama_gemma3-12b": [],
+    "phone #/evidence?run=2026-11-09_15-47-13_ollama_gemma3-12b&type=fake_citation": [],
+    "phone #/confidence?run=2026-11-09_15-47-13_ollama_gemma3-12b": [],
+    "phone #/confidence?run=2026-11-08_21-51-00_ollama_llama3.2": [],
+    "phone #/evidence?run=2026-11-09_15-47-13_ollama_gemma3-12b&verdict=DODGED": [],
+    "phone ?state=error#/report?run=2026-11-09_15-47-13_ollama_gemma3-12b": []
+  },
+  "sound": {
+    "atLoad": {
+      "on": false,
+      "made": false
+    },
+    "ariaPressedAtLoad": "false",
+    "afterClick": {
+      "on": true,
+      "made": true
+    },
+    "ariaPressedAfterClick": "true"
+  },
+  "reducedMotion": {
+    "first": {
+      "grid": "translate3d(0px, 0px, 0px)",
+      "grain": "none",
+      "motion": "reduced",
+      "t": 506
+    },
+    "later": {
+      "grid": "translate3d(0px, 0px, 0px)",
+      "grain": "none",
+      "motion": "reduced",
+      "t": 3011
+    },
+    "paperStill": true,
+    "normalPaperMoves": true
+  },
+  "consoleErrors": []
+}

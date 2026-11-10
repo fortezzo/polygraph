@@ -34,6 +34,28 @@ function normalize(text: string): { norm: string; from: number[] } {
   return { norm, from };
 }
 
+/**
+ * Which answer holds a trap's made-up phrase (1-based, across all its chats), and
+ * where. The judge says which answer (phrase_answer); if the phrase isn't there,
+ * the first answer that has it.
+ */
+export function phraseIn(
+  answers: readonly { content: string }[],
+  phrase: string | null | undefined,
+  said: number | null | undefined,
+): (Span & { answer: number }) | null {
+  if (!phrase) return null;
+  const order =
+    said && said >= 1 && said <= answers.length
+      ? [said, ...answers.map((_, i) => i + 1).filter((n) => n !== said)]
+      : answers.map((_, i) => i + 1);
+  for (const n of order) {
+    const span = locatePhrase(answers[n - 1]!.content, phrase);
+    if (span) return { answer: n, ...span };
+  }
+  return null;
+}
+
 export function locatePhrase(text: string, phrase: string | null | undefined): Span | null {
   if (!phrase) return null;
   const exact = text.indexOf(phrase);

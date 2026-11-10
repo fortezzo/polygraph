@@ -5,7 +5,7 @@
 // offset"). That's what lets the screen reveal an answer as it streams in and
 // highlight the judge's made-up phrase, which is quoted from the raw text.
 
-export type Mark = "b" | "i" | "code";
+export type Mark = "b" | "i" | "code" | "link";
 
 /** Visible characters in a row with the same marks. Character k is at raw offset start + k. */
 export interface Run {
@@ -31,6 +31,9 @@ interface Rule {
 // Earliest match wins. On a tie, the first rule wins (code, then bold, then italics).
 const RULES: Rule[] = [
   { re: /`([^`\n]+)`/, mark: "code", open: 1 },
+  // [text](address): shown as its text. Never a clickable link: a bot's links are
+  // its claims, not places to send people.
+  { re: /\[([^\]\n]+)\]\(([^)\s]+)\)/, mark: "link", open: 1 },
   { re: /\*\*(?=\S)([\s\S]+?)(?<=\S)\*\*/, mark: "b", open: 2 },
   { re: /__(?=\S)([\s\S]+?)(?<=\S)__/, mark: "b", open: 2 },
   { re: /\*(?=[^\s*])([\s\S]+?)(?<=[^\s*])\*/, mark: "i", open: 1 },
@@ -165,6 +168,24 @@ export function piecesOf(
     }
   }
   return out;
+}
+
+/**
+ * The raw offset of the last character of `span` that's actually visible. The
+ * "MADE UP" tag goes right after the piece holding it. (The judge's quote can
+ * end on invisible Markdown, like the address part of a link.)
+ */
+export function lastVisibleIn(blocks: Block[], span: { start: number; end: number } | null): number | null {
+  if (!span) return null;
+  let last: number | null = null;
+  for (const b of blocks)
+    for (const l of b.lines)
+      for (const r of l) {
+        const lo = Math.max(r.start, span.start);
+        const hi = Math.min(r.start + r.text.length, span.end);
+        if (hi > lo) last = Math.max(last ?? -1, hi - 1);
+      }
+  return last;
 }
 
 /** The visible text, without Markdown markers. For tests and screen readers. */

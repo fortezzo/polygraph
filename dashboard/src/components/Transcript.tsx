@@ -1,6 +1,6 @@
 import { Fragment, memo, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
 import type { TrapPlan, TurnPlan, TurnView, View } from "../lib/timeline";
-import { parseAnswer, piecesOf, type Line } from "../lib/markdown";
+import { lastVisibleIn, parseAnswer, piecesOf, type Line } from "../lib/markdown";
 import { NAME_HIDDEN } from "../lib/names";
 import { onFrame } from "../lib/frame";
 import { VERDICT_INFO } from "../data/verdicts";
@@ -205,6 +205,9 @@ const Answer = memo(function Answer({
 }: { turn: TurnPlan; tv: TurnView; model: string; stamped: boolean; confidenceQuestion?: string }) {
   const blocks = useMemo(() => parseAnswer(turn.text), [turn.text]);
   const hot = turn.hot;
+  // The tag follows the piece holding the made-up phrase's last visible letter.
+  // It's laid out from the start (hidden until the stamp lands), so it never moves text.
+  const tagAt = useMemo(() => lastVisibleIn(blocks, hot), [blocks, hot]);
   // Collect the rendering in one pass, so the caret lands at the first unshown character.
   let caretPlaced = !tv.typing;
   let hotMarked = false;
@@ -230,6 +233,9 @@ const Answer = memo(function Answer({
             </span>,
           );
         }
+        if (hot && tagAt !== null && tagAt >= p.start && tagAt < p.start + p.text.length) {
+          out.push(<CaughtTag key={`tag${p.start}`} tone={hot.tone} shown={stamped && p.shown} />);
+        }
         return out;
       }
       const cls = [
@@ -246,7 +252,7 @@ const Answer = memo(function Answer({
           {p.text}
         </span>,
       );
-      if (hot && p.start + p.text.length === hot.end) {
+      if (hot && tagAt !== null && tagAt >= p.start && tagAt < p.start + p.text.length) {
         out.push(<CaughtTag key={`tag${p.start}`} tone={hot.tone} shown={stamped && p.shown} />);
       }
       return out;

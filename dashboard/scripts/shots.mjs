@@ -22,7 +22,7 @@ const opt = (name, fallback) => {
   const i = args.indexOf(name);
   return i >= 0 ? args[i + 1] : fallback;
 };
-const out = resolve(opt("--out", resolve(dashboard, "..", "docs", "screenshots", "session-6")));
+const out = resolve(opt("--out", resolve(dashboard, "..", "docs", "screenshots", "session-7")));
 const only = opt("--only", null);
 const onlySize = opt("--size", null);
 const checks = !args.includes("--no-checks");
@@ -34,6 +34,9 @@ const SIZES = {
   desktop: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1.5 },
   phone: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
 };
+
+const GEMMA = "2026-11-09_15-47-13_ollama_gemma3-12b";
+const LLAMA = "2026-11-08_21-51-00_ollama_llama3.2";
 
 const mark = (marks, trap, name) => {
   const m = marks.find((x) => x.trap === trap && x.name === name);
@@ -67,6 +70,20 @@ const MOMENTS = [
   { name: "12-loading", note: "Loading.", url: "?state=loading" },
   { name: "13-empty", note: "Empty: a recording with no questions in it.", url: "?state=empty" },
   { name: "14-error", note: "Error: a file that isn't a Polygraph run file.", url: "?state=error" },
+  // Session 7: the report card, the evidence wall and the overconfidence meter, with real runs.
+  { name: "15-report", note: "Report card, Gemma 3 12B: Truth Score, grade, verdicts, the short verdict, the radar and the fine print.", url: `#/report?run=${GEMMA}`, ready: true, fullPhone: true },
+  { name: "16-report-llama", note: "Report card, Llama 3.2 3B.", url: `#/report?run=${LLAMA}`, ready: true },
+  { name: "17-evidence", note: "Evidence wall, Gemma 3 12B: every caught answer, with filters.", url: `#/evidence?run=${GEMMA}`, ready: true },
+  { name: "18-evidence-citations", note: "Fake citations only: each reference marked made up or real paper, wrong details, with names hidden.", url: `#/evidence?run=${GEMMA}&type=fake_citation`, ready: true },
+  { name: "19-evidence-consistency", note: "Llama's contradictions: four chats per card, the contradicting answer marked.", url: `#/evidence?run=${LLAMA}&type=consistency`, ready: true },
+  { name: "20-evidence-disagree", note: "A card where Christian's hand label disagrees with Polygraph (Llama, document-009).", url: `#/evidence?run=${LLAMA}&trap=document-009`, ready: true, fullPhone: true },
+  { name: "21-confidence", note: "Overconfidence meter, Gemma 3 12B, with the most confident lie checked by hand.", url: `#/confidence?run=${GEMMA}`, ready: true, fullPhone: true },
+  { name: "22-confidence-llama", note: "Llama 3.2 3B, with its 27 misread-looking readings flagged.", url: `#/confidence?run=${LLAMA}`, ready: true },
+  { name: "23-confidence-llama-clean", note: "The same, with the misread-looking readings left out.", url: `#/confidence?run=${LLAMA}&readings=clean`, ready: true },
+  { name: "24-data-loading", note: "Loading a case file.", url: `?state=loading#/report?run=${GEMMA}` },
+  { name: "25-data-empty", note: "No judged runs yet.", url: `?state=empty#/report?run=${GEMMA}` },
+  { name: "26-data-error", note: "A run file that couldn't be loaded, with Try again.", url: `?state=error#/report?run=${GEMMA}` },
+  { name: "27-evidence-no-matches", note: "Filters that match nothing (Gemma has no dodges).", url: `#/evidence?run=${GEMMA}&verdict=DODGED`, ready: true },
 ];
 
 const server = await preview({ root: dashboard, logLevel: "silent", preview: { port: 4173, strictPort: false, host: "127.0.0.1" } });
@@ -92,6 +109,7 @@ try {
     for (const size of Object.keys(SIZES)) {
       if (onlySize && size !== onlySize) continue;
       const { context, page } = await openAt(size, moment.url ?? "?paused", moment.reducedMotion);
+      if (moment.ready) await page.waitForSelector("main[data-ready]");
       if (!moment.url) {
         await page.waitForFunction(() => window.polygraph?.ready);
         const { marks, duration } = await page.evaluate(() => ({ marks: window.polygraph.marks, duration: window.polygraph.duration }));
@@ -108,7 +126,7 @@ try {
       const file = `${size}-${moment.name}.jpg`;
       await page.screenshot({ path: resolve(out, file), type: "jpeg", quality: 86 });
       shots.push({ file, size, name: moment.name, note: moment.note });
-      if (size === "phone" && (moment.name === "04-caught-verdict" || moment.name === "07-caved")) {
+      if (size === "phone" && (moment.fullPhone || moment.name === "04-caught-verdict" || moment.name === "07-caved")) {
         const full = `${size}-${moment.name}-full-page.jpg`;
         await page.screenshot({ path: resolve(out, full), type: "jpeg", quality: 82, fullPage: true });
         shots.push({ file: full, size, name: `${moment.name} (whole page)`, note: `${moment.note} The whole phone page, scrolled.` });
@@ -149,6 +167,25 @@ try {
       await context.close();
     }
 
+    // 1b. Nothing jumps on the Session 7 screens either: from opening until a second after they're ready.
+    for (const size of Object.keys(SIZES)) {
+      for (const url of [`#/report?run=${GEMMA}`, `#/evidence?run=${GEMMA}`, `#/confidence?run=${LLAMA}`]) {
+        const context = await browser.newContext({ ...SIZES[size] });
+        const page = await context.newPage();
+        await page.addInitScript(() => {
+          window.__shift = 0;
+          new PerformanceObserver((l) => l.getEntries().forEach((e) => { if (!e.hadRecentInput) window.__shift += e.value; })).observe({ type: "layout-shift", buffered: true });
+        });
+        await page.goto(base + url, { waitUntil: "networkidle" });
+        await page.waitForSelector("main[data-ready]");
+        await page.waitForTimeout(1000);
+        const shift = await page.evaluate(() => window.__shift);
+        results[`layoutShift_${size}_${url.split("?")[0].slice(2)}`] = shift;
+        console.log(`layout shift (${size}, ${url.split("?")[0]}): ${shift.toFixed(4)} while it opened`);
+        await context.close();
+      }
+    }
+
     // 2. Frame rate: 6 seconds while the longest answer streams and the needle scrolls.
     //    The browser here has no 60 Hz cap, so this measures how much work each frame takes.
     {
@@ -180,11 +217,18 @@ try {
       await context.close();
     }
 
-    // 3. Accessibility scan (WCAG 2.1 AA rules) on the caught moment, both sizes, plus the three states.
+    // 3. Accessibility scan (WCAG 2.1 AA rules) on the caught moment, both sizes, the
+    //    three states, and every Session 7 screen.
     results.axe = {};
+    const DATA = [
+      `#/report?run=${GEMMA}`, `#/evidence?run=${GEMMA}`, `#/evidence?run=${GEMMA}&type=fake_citation`,
+      `#/confidence?run=${GEMMA}`, `#/confidence?run=${LLAMA}`, `#/evidence?run=${GEMMA}&verdict=DODGED`,
+      `?state=error#/report?run=${GEMMA}`,
+    ];
     for (const size of Object.keys(SIZES)) {
-      for (const url of ["?paused&scan", "?state=loading", "?state=empty", "?state=error"]) {
+      for (const url of ["?paused&scan", "?state=loading", "?state=empty", "?state=error", ...DATA]) {
         const { context, page } = await openAt(size, url);
+        if (url.includes("#/") && !url.includes("state=")) await page.waitForSelector("main[data-ready]");
         if (url.startsWith("?paused")) {
           await page.waitForFunction(() => window.polygraph?.ready);
           await page.evaluate(() => window.polygraph.seek(window.polygraph.marks.find((m) => m.trap === "ghost-004" && m.name === "final").t + 1500));
@@ -253,9 +297,9 @@ try {
     });
     writeFileSync(
       resolve(out, "index.html"),
-      `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Session 6 screenshots</title>
+      `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Dashboard screenshots</title>
 <style>body{margin:0;background:#0d0c0b;color:#ece6da;font:16px/1.5 "Segoe UI",system-ui,sans-serif}.page{max-width:1300px;margin:0 auto;padding:32px 20px 80px}h1{font-size:28px;margin:0 0 6px}h2{font-size:20px;margin:0;text-transform:capitalize}section{margin:0 0 44px}p{color:#bdb5a8;margin:4px 0 12px}.row{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}figure{margin:0}.row figure:first-child{flex:1 1 640px}.row figure:not(:first-child){flex:0 0 220px}img{display:block;width:100%;border:1px solid rgba(255,255,255,.1);border-radius:6px}figcaption{font-size:13px;color:#a39b8d;margin-top:4px}</style></head>
-<body><div class="page"><h1>The interrogation screen: Session 6 screenshots</h1><p>Direction A (chart paper), with C's giant confidence number and, on a phone, the verdict right under the chart. Real recorded answers from Gemma 3 12B. Click any screenshot to see it full size.</p>${rows.join("\n")}</div></body></html>\n`,
+<body><div class="page"><h1>The Polygraph dashboard: screenshots</h1><p>The interrogation room replays 6 real recorded answers from Gemma 3 12B. The report card, the evidence wall and the overconfidence meter show the real judged runs of Gemma 3 12B and Llama 3.2 3B. Every screen at laptop and phone size. Click any screenshot to see it full size.</p>${rows.join("\n")}</div></body></html>\n`,
     );
   }
 } finally {

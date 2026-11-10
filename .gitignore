@@ -33,3 +33,7 @@ node_modules/
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# The dashboard's copies of the judged runs. They're made from runs/ every time
+# the dashboard starts or builds (dashboard/scripts/export-runs.mjs).
+dashboard/public/runs/

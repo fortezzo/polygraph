@@ -43,12 +43,40 @@ export interface TrapSpec {
   rewordings?: string[];
 }
 
+/** One reference a bot gave, as the hard check looked it up (fake-citation traps). */
+export interface CheckedReference {
+  number: number;
+  label: "made up" | "real paper, wrong details" | "can't tell" | string;
+  quote?: string | null;
+  doi?: string | null;
+  url?: string | null;
+  title?: string | null;
+  status?: string | null;
+  wrong?: string[];
+  real_paper?: { doi?: string | null; title?: string | null; years?: number[]; journal?: string | null } | null;
+}
+
+export interface HardCheck {
+  kind?: string; // "answer_key", "references" or "side_by_side"
+  outcome?: string;
+  summary?: string | null;
+  details?: { references?: CheckedReference[] } | null;
+}
+
 export interface Judgement {
   decided_by?: string;
   phrase_answer?: number | null;
   own_knowledge?: boolean;
   unsettled?: boolean;
   votes?: { verdict: Verdict | null }[];
+  hard_check?: HardCheck | null;
+}
+
+/** Christian's label from the Session 5 judge check (added by export-runs.mjs). */
+export interface HandLabel {
+  verdict: Verdict;
+  unsure: boolean;
+  item: string;
 }
 
 export interface TrapResult {
@@ -62,6 +90,70 @@ export interface TrapResult {
   made_up_phrase: string | null;
   reason: string | null;
   judgement: Judgement | null;
+  hand_label?: HandLabel;
+}
+
+export interface CalibrationPoint {
+  trap: string;
+  type: string;
+  answer: string | null;
+  confidence: number | null;
+  verdict: Verdict | null;
+  points: number | null;
+  reply: string | null;
+  suspect: "zero" | "echo" | null;
+}
+
+export interface CalibrationBucket {
+  low: number;
+  high: number;
+  answers: number;
+  mean_confidence: number | null;
+  honest_rate: number | null;
+}
+
+export interface CalibrationSummary {
+  rated: number;
+  mean_confidence: number | null;
+  mean_confidence_honest: number | null;
+  mean_confidence_caught: number | null;
+  honest_rate: number | null;
+  overconfidence: number | null;
+  calibration_error: number | null;
+  confident_and_caught: number;
+}
+
+export interface Calibration extends CalibrationSummary {
+  points: CalibrationPoint[];
+  buckets: CalibrationBucket[];
+  unknown: number;
+  suspect: number;
+  suspect_zero: number;
+  suspect_echo: number;
+  without_suspect: CalibrationSummary;
+  most_confident_lies: { trap: string; label: string; confidence: number; verdict: Verdict; made_up_phrase: string | null; reply: string | null }[];
+}
+
+export interface TypeScore {
+  label: string;
+  score: number | null;
+  margin_of_error: number | null;
+  interval: [number, number] | null;
+  traps: number;
+  verdicts: Partial<Record<Verdict, number>>;
+}
+
+export interface Scores {
+  overall: number | null;
+  grade: string | null;
+  margin_of_error: number | null;
+  interval: [number, number] | null;
+  by_type: Record<string, number | null>;
+  types: Record<string, TypeScore>;
+  verdicts: Partial<Record<Verdict, number>>;
+  traps_scored: number;
+  traps_not_scored: number;
+  calibration: Calibration | null;
 }
 
 export interface RunInfo {
@@ -84,8 +176,10 @@ export interface RunInfo {
     bot_company?: string;
     rubric_fingerprint?: string;
     votes?: number;
+    counts?: { by_hard_check?: number; by_ai_judge?: number; split_votes?: number; unsettled?: number; own_knowledge?: number };
   };
   prompts?: { confidence_question?: string; document_template?: string };
+  trap_set?: { version?: string; traps_in_run?: number };
 }
 
 export interface RunFile {
@@ -94,7 +188,13 @@ export interface RunFile {
   run: RunInfo;
   documents?: Record<string, { title: string; text: string }>;
   traps: TrapResult[];
+  scores?: Scores | null;
   sample?: { made_from: string; rule: string };
+}
+
+/** A run the report card can show: judged, with scores. */
+export function isJudged(run: RunFile): boolean {
+  return !!run.run.judge && !!run.scores && run.scores.traps_scored > 0;
 }
 
 export const SUPPORTED_FORMAT_VERSION = 1;

@@ -12,7 +12,8 @@ import { recordedRange } from "../lib/format";
 import { ChartPaper } from "../components/ChartPaper";
 import { Transcript } from "../components/Transcript";
 import { CaseDetails, CaseSummary } from "../components/CaseNotes";
-import { Header, Rail, ReplayBar } from "../components/Header";
+import { ReplayControls, Rail, ReplayBar } from "../components/Header";
+import { TopBar } from "../components/TopBar";
 
 export interface StartOptions {
   paused?: boolean;
@@ -158,7 +159,9 @@ export function InterrogationScreen({ run, start = {} }: { run: RunFile; start?:
         data-motion={reduced ? "reduced" : "full"}
         className="mx-auto flex max-w-[1680px] flex-col gap-3 px-4 pt-3 pb-6 sm:px-6 lg:h-dvh lg:min-h-[720px] lg:px-8 lg:pt-[18px] lg:pb-[20px]"
       >
-        <Header status={status} soundOn={soundOn} onPlayPause={playPause} onRestart={() => playback.restart()} onSound={toggleSound} />
+        <TopBar active="replay">
+          <ReplayControls status={status} soundOn={soundOn} onPlayPause={playPause} onRestart={() => playback.restart()} onSound={toggleSound} />
+        </TopBar>
         <ReplayBar
           model={target.model}
           maker={judge?.bot_company}

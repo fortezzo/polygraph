@@ -1,7 +1,7 @@
 # Polygraph: progress
 
-**Last updated:** Nov 9, 2026, end of Session 6
-**Next up:** Session 7, Report card + evidence wall
+**Last updated:** Nov 9, 2026, end of Session 7
+**Next up:** Session 8, Live mode + test your own bot
 
 | # | Session | Status |
 |---|---|---|
@@ -11,8 +11,8 @@
 | 4 | Judges + scoring | Done, Nov 8, 2026 |
 | 5 | Judge check | Done, Nov 9, 2026 |
 | 6 | The look | Done, Nov 9, 2026 |
-| 7 | Report card + evidence wall | Next |
-| 8 | Live mode + test your own bot | Not started |
+| 7 | Report card + evidence wall | Done, Nov 9, 2026 |
+| 8 | Live mode + test your own bot | Next |
 | 9 | Lineup + full trap library | Not started |
 | 10 | Demo site | Not started |
 | 11 | Polish pass | Not started |
@@ -364,6 +364,65 @@ Running the same thing again took 0.2 seconds: all 240 replies came from the cac
   There's also a type check and a build check (`npm run check`). The 634 Python tests still pass.
 - **Spent: $0.** No AI calls.
 
+### Session 7: Report card + evidence wall (Nov 9, 2026)
+- **Real runs in the dashboard.** `dashboard/scripts/export-runs.mjs` copies the newest judged copy of each run from `runs/` into the dashboard, trimmed to what the screens use: Gemma 3 12B (~4, 408 KB) and Llama 3.2 3B (~5, 298 KB).
+  - It keeps every word the bots said, every verdict and every score, and drops the judge's raw replies and the rubric's full text.
+  - It adds Christian's hand label to the 50 answers per bot that he labeled.
+  - It adds the Session 5 judge check, but only for runs judged by the same judge with the same rubric.
+  - It runs by itself before `npm run dev` and `npm run build`. Its output isn't committed, because it's made from `runs/` every time. The files in `runs/` never change.
+- **A menu on every screen:** Interrogation room (Session 6), Report card, Evidence wall and Overconfidence.
+  - A Subject picker switches between the bots.
+  - Every screen and filter has its own address (after the `#`), so a view can be bookmarked or shared.
+- **The report card**, a manila case file:
+  - The Truth Score with its margin of error and 95% range (Gemma 50 ± 9, range 41–59), with the grade as a red rubber stamp.
+  - The verdict totals with icons, and the short verdict, word for word as `polygraph report` prints it.
+  - A radar of the 8 trap types, with each score also written out in a table, along with its range.
+  - Links to the evidence and the overconfidence meter.
+  - **The fine print** says how it was judged: by Polygraph's own checks or by the AI judge, the votes, splits and ⚑ marks. It also says how far to trust the judge: 44 of 50 (88%, range 78–96%) against Christian's labels. The judge never called an honest answer a lie but missed 5 he caught, so scores lean generous.
+- **The evidence wall:** one card per caught answer. Filters by trap type and verdict show counts, and it opens on Lie, Caved and Contradicted. The order can be "As asked" or "Most confident first".
+  - **Each card shows:**
+    - the verdict as an icon and a word, the votes ("2 of 3 judge votes: a split decision"), or "Decided by Polygraph's own check, no AI"
+    - how sure it said it was, with its exact reply and which answer that was
+    - the question, and the answer with the made-up words highlighted and tagged. Long answers show the part around them, with "Show the whole answer".
+    - the judge's note, the truth, and the source link
+  - **Push-backs** show both answers, consistency traps show all 4 chats, and documents show as exhibits.
+  - **Citation cards** list every reference as "✗ made up", "≈ real paper, wrong details" (with the real paper's title, journal and year from Crossref) or "? can't tell".
+  - **When Christian labeled the answer, the card says whether he agreed:** "✓ Checked by hand" or "✋ … Polygraph and he disagree on this one". Llama's document-009 is one.
+  - A link to a single card shows just that card.
+- **The overconfidence meter:**
+  - How sure it said it was against how honest it was: Gemma said 91% and was honest 50% of the time, 41 points overconfident, and caught 37 times while saying at least 80%.
+  - **A chart on chart paper:** a bar for how often it was honest in each confidence band, a red line for how sure it said it was, the gap hatched, and a dashed "perfectly calibrated" line. The same numbers are also in a table.
+  - **Llama's 27 misread-looking readings** (26 zeros right after answering, 1 echo) are explained, and a "Leave them out" switch redraws everything without them.
+  - **"Most confident lie, checked by hand"** (Christian's option A and his title): the highest-confidence Lie that Christian also labeled a lie, with no ⚑ or ⚖. For Gemma that's the invented Christie murderer (ghost-004, 98%). For Llama it's the tomato answer (pressure-007, 100%).
+  - Polygraph's most confident lies overall are listed underneath, with whether each was checked by hand. None of Gemma's were.
+- **The name rule now covers the judge's notes too** (Christian). Anywhere the dashboard shows a judge's reason or note, or a quote from a caught answer (reference lists, the top-lies list), a name credited with a study or citation shows as "[name hidden]". That includes the Session 6 case folder. None of the judge's reasons in these two runs credit a person with a study, so nothing there is hidden today. A test proves the rule catches it.
+- **Markdown links** in answers show as their text and are never clickable: a bot's links are its claims, not places to send people.
+- **Loading, empty and error states on every screen:** "Opening the case file…", "No judged interrogations yet", "This run hasn't been judged yet", "Nothing matches these filters" (with Reset), "This bot never gave a usable confidence number", and "The recording couldn't be loaded" (with Try again).
+- **Phone:** every screen is one column, the menu shows short names, the chart redraws at the phone's width, and long URLs and code wrap instead of running off the screen.
+- **Checked:**
+  - **59 screenshots** of every screen for both bots, at laptop and phone size, in `docs/screenshots/session-7/` (open `index.html`). Each one was looked at first.
+  - **Fixed before Christian saw them:**
+    - cut-off radar labels
+    - a card running off a phone screen
+    - the "MADE UP" tag going missing when a quote ended inside a link
+    - filter buttons whose screen-reader names didn't match their words
+    - a one-frame jump while a screen opened
+  - **Layout shift:** 0.0000 on every screen as it opens, at both sizes (measured 4 times each), and still 0.0000 over the whole replay.
+  - **The accessibility scan** (WCAG 2.1 AA) found no problems on any screen at either size, including the states.
+  - No console errors. Frames, sound and reduce motion are unchanged.
+- **115 dashboard tests** (24 new), covering:
+  - the export: the newest judged copy, nothing lost, hand labels
+  - the short verdict, word for word against the Python report
+  - the confidence bands and summary, matching the engine's with and without the misread-looking readings
+  - the checked-by-hand pick, and the radar geometry
+  - the filters, the counts and the addresses
+  - the name rule in the judge's notes
+  - Markdown links, and finding a quote's last visible letter
+
+  The 634 Python tests still pass.
+- **Spent: $0.** No AI calls.
+- **Approved by Christian** on Nov 9, 2026. His one note, about the phone replay, is on the Session 11 list below.
+
 ---
 
 ## How to run it
@@ -485,9 +544,19 @@ cd C:\Users\forte\Projects\Polygraph\dashboard
 npm run dev
 ```
 Then open http://127.0.0.1:5173 in your browser. To stop it, press Ctrl+C in the `run` tab, then `cd ..` to go back to the project folder.
-- Pause, Restart and Sound are at the top right. Click a question number to jump to it.
-- Add `?state=loading`, `?state=empty` or `?state=error` to the end of the address to see those screens. `?paused` starts paused, and `?at=ghost-004` starts at that question.
+- The menu at the top has the Interrogation room, the Report card, the Evidence wall and Overconfidence. The Subject picker switches bots.
+- Pause, Restart and Sound are at the top right of the replay. Click a question number to jump to it.
+- The dashboard copies the newest judged runs from `runs\` each time it starts. After judging a new run, stop it and start it again.
+- **To see the loading, empty and error screens,** put `?state=loading`, `?state=empty` or `?state=error` right after `5173/` in the address, before any `#`. For example: http://127.0.0.1:5173/?state=empty#/report. The replay also takes `?paused` (starts paused) and `?at=ghost-004` (starts at that question), in the same place.
 - **To see reduce motion:** in Windows Settings, go to Accessibility, then Visual effects, and turn off Animation effects. Reload the page.
+
+**See the dashboard on your phone** (in the `run` tab, in the `dashboard` folder, with your phone on the same Wi-Fi as the PC):
+```powershell
+npm run phone
+```
+- It builds the dashboard, then prints a `Network:` address like `http://192.168.1.23:4173/`. Type that address into your phone's browser.
+- The first time, Windows asks whether to allow Node.js. Allow it on **private networks only**.
+- It's reachable from your home network only while it runs. Press Ctrl+C to stop it.
 
 **Check the dashboard** (in the `run` tab, in the `dashboard` folder):
 ```powershell
@@ -495,9 +564,9 @@ npm test
 npm run check
 npm run shots
 ```
-- The first runs the 91 dashboard tests.
+- The first runs the 115 dashboard tests.
 - The second runs the type check, the tests and the build.
-- The third makes the screenshots in `docs\screenshots\session-6` again and runs the automatic checks (about 4 minutes).
+- The third makes every screenshot in `docs\screenshots\session-7` again and runs the automatic checks (about 6 minutes).
 - **After a fresh copy of the repo**, run `npm ci` once in the `dashboard` folder. It installs exactly the locked versions.
 
 **Run the automated tests** (in the `run` tab):
@@ -531,16 +600,14 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
 
 ---
 
-## What's next: Session 7, Report card + evidence wall
-- **Real run data in the dashboard:** the final judged copies from `runs/`, not just the 6-answer sample.
-- **The report card:** a manila case-file folder with the Truth Score, the letter grade, the margin of error, a radar chart across the 8 trap types and a short verdict.
-- **The evidence wall:** one card per lie, with the trap question, the bot's answer with the made-up part highlighted, and the truth with a source link. Filters by trap type and verdict.
-- **The overconfidence meter:** a chart of how sure the bot said it was against how often it was right, plus a "most confident lie" card.
-- **Loading, empty and error states** on every screen, and everything has to look right on a phone.
-- **Screenshots** at laptop and phone sizes, checked before you see them.
-- **Done when:** real run data shows on all three screens and you've reviewed them on your laptop and phone.
-- **Your part:** review the screens on your laptop and phone, about 2–3 hours.
-- **Worth knowing:** the look, the manila folder, the verdict labels, the highlighting of made-up words and the run-file reader from Session 6 are all ready to reuse.
+## What's next: Session 8, Live mode + test your own bot
+- **A small server** (FastAPI) that runs interrogations and streams them to the dashboard as they happen: `trap_started`, `answer_chunk`, `verdict` and `run_finished`.
+- **A "New interrogation" screen:** pick the bot, the judge and the trap types, see the estimated cost, confirm, then watch it live in the interrogation room.
+- **"Test your own bot":** paste a system prompt (like "You are the support bot for Bob's Pizza"), give the bot a name, and interrogate it like any other model.
+- **`start.ps1`** starts the server and the dashboard together, with one command.
+- **Friendly messages** for a bad API key, no internet and rate limits.
+- **Done when:** you've started a run from the dashboard, watched it live, and tested a bot prompt of your own.
+- **Your part:** run a live interrogation and try a bot prompt of your own, about 2–3 hours. Live runs against cloud models cost money. The cost guard asks before anything over $2, and Llama or Gemma on this PC are free.
 
 ---
 
@@ -640,6 +707,17 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
   - **Sound is off every time the page opens.** It isn't remembered.
   - **The replay stops at the end** instead of looping, because moving content has to be able to stop.
   - **On a laptop the screen fits without scrolling** at 1440 × 900, and the transcript scrolls inside its box. On a phone the page scrolls, and the transcript box has its own scroll. Either way, it follows the stream, then scrolls back to the made-up words once the verdict is in.
+- **The report screens (Session 7, Christian's choices):**
+  - **"Most confident lie, checked by hand"** (option A, with his title, so it doesn't claim to be the overall top). The card shows the highest-confidence Lie that Christian also labeled a lie, with no ⚑ or ⚖. Polygraph's overall top lies are listed under it, with whether each was checked by hand.
+  - **The name rule covers the judge's notes and reasons too,** everywhere on the dashboard. That includes quotes from caught answers in lists (`NameSafe`).
+  - **Hand labels are shown on the evidence cards**, agreeing or not, so the judge check is visible where it matters.
+  - **The judge check is quoted only for a run judged by the same judge and rubric** that were measured (gpt-6-luna, `0faa426bd649`). Any other judge says it hasn't been checked yet.
+  - **The short verdict is the engine's own sentence**, ported word for word and tested against `polygraph report`.
+  - **The evidence wall opens on the caught verdicts.** Honest and Dodged are one click away, and the caught verdicts come first on the buttons.
+  - **A bot's links are never clickable.** They show as text.
+  - **The real paper behind a "real paper, wrong details" reference is named by its title, journal and year from Crossref, not its authors,** to stay on the safe side of the name rule.
+  - **The charts are drawn directly in SVG** (PLAN.md suggests D3 or Recharts). There are no new packages; the charts match the paper look and keep the page light.
+  - **The dashboard's run copies are made from `runs/` when it starts or builds, and aren't committed.** `runs/` stays the one source of truth.
 - **Dashboard packages (Session 6):**
   - Each package is pinned to an exact version that had been out at least two weeks. All package signatures are verified, and install scripts are turned off (`dashboard/.npmrc`).
   - Vite stays at 8.3.5. It already pulls in Rolldown 1.2.18, which has the Nov 9 escaping fix that Vite 8.3.7 shipped.
@@ -664,7 +742,7 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
   - It misses small factual errors in material the bot added when the trap's truth doesn't cover the fact, especially dates and history.
   - It never called an honest answer a lie on the test half, so Truth Scores lean generous.
   - Worth saying plainly in the README and on the report card.
-- **Session 7 (evidence wall):**
+- **Session 7 (evidence wall):** done. The notes below were its starting point and are kept for the record.
   - **Use the final judged copies:** `runs\2026-11-09_15-47-13_ollama_gemma3-12b_judged-by_gpt-6-luna~4.json` and `runs\2026-11-08_21-51-00_ollama_llama3.2_judged-by_gpt-6-luna~5.json`.
   - **⚑ on cards:** a card whose Lie rests on the judge's own knowledge needs the mark, with the correct fact from the reason, so viewers know to check it. Unsettled verdicts need their ⚖ mark too.
   - **Votes on cards:** "2 of 3 votes" is worth showing on split decisions.
@@ -695,6 +773,8 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
   - The interrogator already reports events as it goes (`RunListener`: trap started, reply received, trap finished), ready to become the server's live events.
   - A system prompt can already be passed to the interrogator (`Caller(system_prompt=...)`), and the run file has a `system_prompt` field.
   - Answers aren't streamed word by word yet, so `answer_chunk` needs streaming added to the connectors.
+  - **The menu has room for a "New interrogation" screen** (`TopBar.tsx`, `lib/route.ts`). A finished live run should show up on the report card and the evidence wall too: either run the export again, or have the server send run files in the same trimmed shape (`trim()` in `scripts/export-runs.mjs`).
+  - **The dashboard loads run files with `useRunFile()`** (`lib/runs.ts`), which checks them with `readRun()` and turns problems into plain-English messages. The server's errors can use the same panels (`StatePanel` in `components/States.tsx`).
 - **Session 9 (lineup and 200 traps):**
   - Follow the same rules as Session 2 (see `traps/README.md`). The check and the tests only require at least 10 traps per type, so growing to 25 needs no code changes.
   - **Check models and prices again first** (`polygraph models <provider>` once keys exist, and the pricing pages in `polygraph/providers/catalog.py`):
@@ -714,19 +794,28 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
     - then `polygraph agreement --judged ... --judged ...`
 
     Measuring a new judge on the test half is only fair with the rubric exactly as frozen. Keep that result separate from gpt-6-luna's in `final.json`.
+  - **The dashboard quotes the judge check only for gpt-6-luna with rubric `0faa426bd649`.** A run judged by any other judge says "This judge hasn't been checked against hand labels yet". Once another judge is checked, `judgeCheck()` in `dashboard/scripts/export-runs.mjs` has to read its result too. Today it only reads `docs/judge-check/final.json`.
+  - **The Subject picker** lists every judged run in `dashboard/public/runs/index.json`, newest first. A lineup screen can read the same list: it already has each run's model, Truth Score, grade and margin of error.
 - **Session 10 (demo site):**
   - **For GitHub Actions:** run `npm ci` and then `npm run check` in `dashboard/`, as well as pytest. The site is built into `dashboard/dist/`, with relative paths.
   - **Names in made-up studies are decided (Session 6):** the screen shows "[name hidden]" (see Decisions). The demo needs no extra step, but any new screen that shows answers must use `namesToHide()`.
     - The names are still in the run files and in the sample data the page loads, as Christian asked: the recording keeps the original.
     - limits-005's invented study, "led by Marie-Claire Kambouchner", is the example. No one by that exact name turned up in a search, but a real Paris hospital doctor has the same rare surname.
   - **`npm run shots`** can be pointed at other moments, for the README GIF in Session 12.
+  - **The build makes its own run copies** (`npm run build` runs the export first), so GitHub Actions only needs `npm ci` and `npm run build` in `dashboard/`. The site fetches `./runs/index.json` and `./runs/<id>.json`, both relative, so it works from a Pages folder.
+  - **Decide which runs the public demo shows.** Today it's every judged run in `runs/`.
+  - **The replay still plays the 6-answer sample.** A full 80-trap replay would need the question strip to scroll and a way to pick a run.
 - **Session 11 (polish):**
   - The needle scratch and stamp thud are made by the browser and kept quiet. They're worth a listen on Christian's speakers.
   - On a phone, the replay line, the question strip and the line under the needle take about 400 px before the chart. That could be tighter.
+  - **On a phone, keep the spike in view while the verdict shows** (Christian, after reviewing Session 7). Recruiters will mostly open the demo on their phones.
+    - Today, by the time the verdict and the confidence ("98%") appear, the red spike and the CAUGHT stamp have already scrolled off the paper. ghost-004 shows it (`phone-04-caught-verdict.jpg` in `docs/screenshots/session-7/`): its made-up words are in the first line of a long answer.
+    - On a caught answer, the paper should pause, or hold the spike in view, while the verdict shows.
+    - **Where it lives:** the pen's position and the paper's speed (30 px a second on a phone) are at the top of `dashboard/src/components/ChartPaper.tsx`, and the replay's timing is in `dashboard/src/lib/timeline.ts`. The stamp tests (`stamp.test.ts`) and the zero layout shift still have to hold.
 - **Session 12 (README):**
   - Quote the test half: **88% (78–96%), Cohen's kappa 0.80 (0.64–0.94)**, on 50 answers measured once.
   - Mention that the untuned rubric did as well, and link [`docs/methodology.md`](docs/methodology.md).
-  - The README's test count is out of date: it says 315. There are 634 Python tests, plus 91 dashboard tests.
+  - The README's test count is out of date: it says 315. There are 634 Python tests, plus 115 dashboard tests.
   - **Judge versions:** OpenAI reports gpt-6-luna with no dated snapshot. If a judge changes partway through the lineup, `model_versions_seen` in each judged file shows it.
 - **API keys:** the OpenAI key in `.env` judges Llama. Judging OpenAI models in Session 9 will need an Anthropic or Google key too. Make it, set a hard spending limit in that company's account, then paste the key into `.env` yourself (`notepad .env` in the `run` tab). Never paste it into the chat.
 - **OpenAI-compatible services:** to use one regularly, copy the two `OPENAI_COMPATIBLE_...` lines from `.env.example` into `.env` and fill them in. Or pass `--base-url` each time.

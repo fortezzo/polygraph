@@ -36,6 +36,9 @@
 
 @layer base {
   html, body, #root { min-height: 100%; }
+  /* Keep room for the scrollbar from the start, so the page doesn't shift
+     sideways when a long screen finishes loading. */
+  html { scrollbar-gutter: stable; }
   body {
     margin: 0;
     background: var(--color-room);
@@ -191,6 +194,35 @@
     radial-gradient(ellipse at 30% 0%, rgba(255, 240, 200, 0.35), transparent 60%),
     linear-gradient(180deg, var(--color-manila), var(--color-manila-2));
   box-shadow: 0 16px 34px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(80, 55, 20, 0.25);
+}
+
+/* ---- On paper: evidence cards and the case folder ---------------------------------- */
+.card-paper {
+  color: var(--color-manila-ink);
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(255, 250, 235, 0.6), transparent 55%),
+    var(--color-paper);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(80, 55, 20, 0.18);
+}
+/* A strip of tape holding each card to the wall. */
+.card-paper::before {
+  content: ""; position: absolute; top: -9px; left: 50%; width: 84px; height: 20px; margin-left: -42px;
+  background: rgba(233, 224, 196, 0.72); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); transform: rotate(-2deg);
+}
+.on-paper .hot-lie { color: inherit; background: rgba(194, 36, 27, 0.16); box-shadow: inset 0 -2px 0 var(--color-lie-ink); }
+.on-paper .hot-caved { color: inherit; background: rgba(176, 106, 0, 0.18); box-shadow: inset 0 -2px 0 var(--color-caved-ink); }
+.on-paper .hot-contradicted { color: inherit; background: rgba(148, 38, 143, 0.14); box-shadow: inset 0 -2px 0 var(--color-contradicted-ink); }
+.on-paper .name-hidden, .manila .name-hidden { color: var(--color-manila-label); border-color: rgba(78, 59, 31, 0.55); }
+/* Chart paper as a panel (the overconfidence chart). */
+.chart-panel {
+  background-color: var(--color-paper);
+  background-image:
+    linear-gradient(rgba(150, 62, 44, 0.22) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(150, 62, 44, 0.22) 1px, transparent 1px),
+    linear-gradient(rgba(150, 62, 44, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(150, 62, 44, 0.09) 1px, transparent 1px);
+  background-size: 48px 48px, 48px 48px, 9.6px 9.6px, 9.6px 9.6px;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.5), inset 0 0 50px rgba(120, 80, 30, 0.18);
 }
 
 /* ---- Reduce motion: no grain flicker, no blinking caret ---------------------------- */

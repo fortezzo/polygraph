@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseAnswer, parseInline, piecesOf, plainText } from "./markdown";
+import { lastVisibleIn, parseAnswer, parseInline, piecesOf, plainText } from "./markdown";
 
 describe("parseInline", () => {
   it("strips bold and italic markers but keeps each letter's place in the raw text", () => {
@@ -19,6 +19,24 @@ describe("parseInline", () => {
   it("leaves lone asterisks and snake_case alone", () => {
     expect(parseInline("2 * 3 * 4", 0).map((r) => r.text).join("")).toBe("2 * 3 * 4");
     expect(parseInline("call flatten_deep_list() now", 0).map((r) => r.text).join("")).toBe("call flatten_deep_list() now");
+  });
+
+  it("shows a Markdown link as its text, and keeps its place in the raw text", () => {
+    const raw = "More here: [https://doi.org/10.1/x](https://doi.org/10.1/x) and **[a paper](https://a.example)**.";
+    const runs = parseInline(raw, 0);
+    expect(runs.map((r) => r.text).join("")).toBe("More here: https://doi.org/10.1/x and a paper.");
+    expect(runs.find((r) => r.text === "a paper")?.marks).toEqual(["b", "link"]);
+    for (const r of runs) expect(raw.slice(r.start, r.start + r.text.length)).toBe(r.text);
+  });
+
+  it("finds the made-up phrase's last visible letter, even when the quote ends inside a link's address", () => {
+    const raw = "**DOI:** [https://doi.org/10.1/x](https://doi.org/10.1/x) is it.";
+    const blocks = parseAnswer(raw);
+    // The judge quoted up to part-way through the hidden address.
+    const quote = { start: 0, end: raw.indexOf("](") + 6 };
+    const last = lastVisibleIn(blocks, quote)!;
+    expect(raw[last]).toBe("x"); // the end of the link's visible text
+    expect(lastVisibleIn(blocks, null)).toBeNull();
   });
 
   it("keeps code spans literal", () => {

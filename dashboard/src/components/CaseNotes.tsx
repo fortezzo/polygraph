@@ -3,6 +3,7 @@ import type { TrapPlan, View } from "../lib/timeline";
 import { VERDICT_INFO } from "../data/verdicts";
 import type { Verdict } from "../data/runFile";
 import { Icon } from "./Icon";
+import { NameSafe } from "./NameSafe";
 
 // The manila case folder. Its two halves are separate grid items: on a laptop
 // they stack in the right-hand folder; on a phone the verdict and confidence sit
@@ -124,7 +125,8 @@ export function CaseDetails({ plan, view }: { plan: TrapPlan; view: View }) {
           {info && plan.result.reason && (
             <div>
               <Key>{info.reasonHeading}</Key>
-              {plan.result.reason}
+              {/* The judge's notes follow the name rule too (Christian, Session 7). */}
+              <NameSafe text={plan.result.reason} />
               {j?.own_knowledge && (
                 <p className="mt-1 mb-0 text-[13px] text-manila-label">⚑ This rests on the judge&rsquo;s own knowledge, not the hand-checked truth. Worth checking.</p>
               )}

@@ -7,14 +7,16 @@
     "node": ">=20.19"
   },
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "node scripts/export-runs.mjs && vite",
+    "build": "node scripts/export-runs.mjs && vite build",
+    "runs": "node scripts/export-runs.mjs",
     "preview": "vite preview",
+    "phone": "npm run build && vite preview --host 0.0.0.0 --port 4173 --strictPort",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "check": "npm run typecheck && npm run test && npm run build",
     "sample": "node scripts/make-sample.mjs",
-    "shots": "vite build && node scripts/shots.mjs",
+    "shots": "npm run build && node scripts/shots.mjs",
     "shots:directions": "node scripts/shoot-directions.mjs"
   },
   "devDependencies": {
