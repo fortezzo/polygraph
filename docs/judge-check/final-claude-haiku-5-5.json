@@ -31,7 +31,7 @@
   "tuning_rounds": 0,
   "tuned": "no: the rubric, hard checks and votes exactly as frozen for the first judge",
   "git": {
-    "commit": "a84a210e5a62781c30b624f4ae9482eb9fb54b36",
+    "commit": "f6e577a08dfeeda0d3df6cdd11cb3984c6e5648b",
     "code_committed": true
   },
   "answers": 50,

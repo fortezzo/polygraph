@@ -3,6 +3,7 @@
   "format_version": 1,
   "written_at": "2026-11-10T12:02:10-06:00",
   "what": "The second judge's setup, fixed and committed before it judges a single test-half answer (Session 9). Christian asked for a free local judge from a company other than OpenAI, Meta or Google, measured on his locked test-half labels from Session 5 with no tuning, the same way gpt-6-luna was measured.",
+  "ids_updated": "Nov 11, 2026, after the lock: the commit IDs in this file were updated when the history was rewritten to keep Christian's email private, before anything was pushed. The old IDs, and the proof that nothing else changed, are in docs/commit-ids.md. Nothing else in this file changed.",
   "judge": {
     "model": "qwen3.6:35b",
     "maker": "Alibaba",
@@ -17,8 +18,8 @@
     "requests_at_once": 1
   },
   "measured_like_gpt_6_luna": {
-    "labels": "Christian's 50 test-half labels, exactly as locked on 2026-11-09 (lock commit 61f4f5d)",
-    "rubric": "0faa426bd649 (frozen in lock commit 08a6888, unchanged)",
+    "labels": "Christian's 50 test-half labels, exactly as locked on 2026-11-09 (lock commit b5c3169)",
+    "rubric": "0faa426bd649 (frozen in lock commit 700ef8b, unchanged)",
     "hard_checks": "3",
     "votes": 3,
     "tie_rule": "on a tie, 2 more votes; still tied, the milder verdict, flagged",

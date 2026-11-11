@@ -3,7 +3,8 @@
   "format_version": 1,
   "written_at": "2026-11-10T17:20:00-06:00",
   "what": "Claude Haiku 5.5's setup as the judge, fixed and committed before it judges a single test-half answer (Session 9). Christian picked it on Nov 10, after he had another Claude chat review all 59 verdicts Qwen3.6 35B marked as caught on the OpenAI bots (it found about two in three wrong, such as true facts called lies) and the reference-checker fix (hard checks 4). It's measured on his locked test-half labels exactly the way gpt-6-luna and Qwen were, with no tuning.",
-  "corrected": "Nov 11, 2026, after the lock: the sentence above first said Christian reviewed Qwen's 59 caught verdicts himself. Another Claude chat did, and he passed on its findings. Only that sentence changed; every setting below is as locked in commit a84a210.",
+  "corrected": "Nov 11, 2026, after the lock: the sentence above first said Christian reviewed Qwen's 59 caught verdicts himself. Another Claude chat did, and he passed on its findings. Only that sentence changed; every setting below is as locked in commit f6e577a.",
+  "ids_updated": "Nov 11, 2026, after the lock: the commit IDs in this file were updated when the history was rewritten to keep Christian's email private, before anything was pushed. The old IDs, and the proof that nothing else changed, are in docs/commit-ids.md. Nothing else in this file changed.",
   "judge": {
     "model": "claude-haiku-5-5",
     "maker": "Anthropic",
@@ -17,8 +18,8 @@
     "requests_at_once": 4
   },
   "measured_like_the_others": {
-    "labels": "Christian's 50 test-half labels, exactly as locked on 2026-11-09 (lock commit 61f4f5d)",
-    "rubric": "0faa426bd649 (frozen in lock commit 08a6888, unchanged)",
+    "labels": "Christian's 50 test-half labels, exactly as locked on 2026-11-09 (lock commit b5c3169)",
+    "rubric": "0faa426bd649 (frozen in lock commit 700ef8b, unchanged)",
     "hard_checks": "4. gpt-6-luna and Qwen were measured with hard checks 3; hard checks 4 find exactly the same on every one of the 50 test-half answers (polygraph agreement checks this answer by answer before it measures, and refuses otherwise), so the AI judge is asked word for word the same questions.",
     "votes": 3,
     "tie_rule": "on a tie, 2 more votes; still tied, the milder verdict, flagged",

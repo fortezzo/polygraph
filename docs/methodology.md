@@ -40,6 +40,8 @@ What this means:
 
 ## How it was done
 
+The commit IDs below are the ones after Nov 11, 2026, when the history was rewritten to keep Christian's email private, before anything was pushed. Only the email on each commit changed, not the files. The old IDs are in [commit-ids.md](commit-ids.md).
+
 ### 1. The pick, before any labeling
 
 - **100 answers** from the two runs:
@@ -50,7 +52,7 @@ What this means:
 - **Split at random into a tuning half and a test half,** 50 answers each:
   - Each half has the same mix of trap types and bots.
   - Both answers to the same trap always sit in the same half.
-- **Committed before labeling** in lock commit #1 (`c3e85a7`). The pick's fingerprint is `38fe6fad2276`.
+- **Committed before labeling** in lock commit #1 (`a369ab9`). The pick's fingerprint is `38fe6fad2276`.
 
 ### 2. The labels
 
@@ -69,7 +71,7 @@ What this means:
 
   > "I used an AI assistant only to explain unfamiliar terms, never to choose labels." (Christian)
 
-- **Locked before anything was compared,** in lock commit #2 (`61f4f5d`).
+- **Locked before anything was compared,** in lock commit #2 (`b5c3169`).
   - The labels' fingerprints: all 100 `85387874707e`, tuning half `cbf8ef5fc6e8`, test half `64d47d316606`.
   - The final measurement refuses to run if any test-half label has changed since the lock.
 
@@ -120,7 +122,7 @@ The full record of every decision is in [`judge-check/walkthrough.md`](judge-che
 
 ### 4. Freezing, then the final measurement
 
-- **Lock commit #3 (`08a6888`)** froze the final rubric, the judging code and the judged copies before the test half was opened.
+- **Lock commit #3 (`700ef8b`)** froze the final rubric, the judging code and the judged copies before the test half was opened.
 - **The final measurement ran once:** `polygraph agreement --final --yes`, at 19:08 on Nov 9, 2026, on code at that commit.
   - It refuses to run if the code has uncommitted changes, if a test-half label changed since the lock, or if the judged copies don't match the current rubric.
 - **The ranges are bootstrap ranges.** The 50 answers are drawn again at random, with repeats, 10,000 times (seed 2026), and the middle 95% is kept.
@@ -196,7 +198,7 @@ A bot can't be judged by its own company (PLAN.md section 5), so gpt-6-luna can'
 
 ### Set up and committed before it saw a test-half answer
 
-- **The setup** was committed in `6ccbe06`, with `docs/judge-check/second-judge-plan.json`:
+- **The setup** was committed in `3b9b0ab`, with `docs/judge-check/second-judge-plan.json`:
   - thinking off, a 16,384-token window and the reply shape enforced
   - 3 votes and Christian's tie rule
   - the frozen rubric `0faa426bd649` and hard checks 3
@@ -333,7 +335,7 @@ Each case is a test in `tests/test_hard_checks.py`, built from the bots' real an
 
 ### Set up and committed before it saw a test-half answer
 
-- **The setup** was committed in `a84a210`, with `docs/judge-check/third-judge-plan.json`:
+- **The setup** was committed in `f6e577a`, with `docs/judge-check/third-judge-plan.json`:
   - adaptive thinking (the model's default) at effort **high**
   - the reply shape enforced
   - 3 votes and Christian's tie rule
