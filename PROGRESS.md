@@ -821,6 +821,11 @@ Running the same thing again took 0.2 seconds: all 240 replies came from the cac
   - **PLAN.md and PROMPTS.md,** checked sentence by sentence (257 sentences): the only one in a public file is the README's pitch, which Christian said can stay.
   - **Links:** every link in the README opens. Two publishers block automated checks, and their DOIs resolve at doi.org. Every evidence link opens the right card on the demo build.
 - **Also committed:** the end of Session 11 (the hunt, the IPv6 preview fix and the live site's Lighthouse scores), in `443db8c`.
+- **Pushed with Christian's OK** (`a4ebea3`):
+  - **On GitHub:** the tests passed, and the demo republished within about two minutes. The description and the 14 topics are set, and GitHub shows the MIT License.
+  - **The README on github.com,** checked logged out at laptop width (light and dark) and on a phone: all 11 pictures load, and the GIF plays. On a phone the table scrolls sideways, as GitHub tables do.
+  - **The live demo:** the first page loads, and every evidence link in the README opens its card (LIE, with the right confidence), with no browser errors.
+  - **One fix from the check,** in the last commit: GitHub's README column is a little narrower than the preview's, so `gpt-6.1-terra` broke at a hyphen. Its tag now has its own line, like `ministral-3:14b`'s.
 - **Spent: $0.** No AI calls.
 
 ---
