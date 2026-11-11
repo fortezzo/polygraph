@@ -120,6 +120,23 @@ export interface PickerOption {
   group?: string | null;
 }
 
+/**
+ * Session 12 (Christian): the open list is drawn by the browser, not the page. On
+ * Windows, Chrome and Edge draw it as a small white page of their own, with the
+ * select's background under the options and each option in its own colors. The
+ * options inherited the invisible select's see-through text, so the list was blank
+ * white, apart from the browser's highlight on the option under the mouse. Now each
+ * option and group heading has its own colors, on the dark of the picker's box: the
+ * page's text for a choice, brass for a heading, the small print's color for a line
+ * that can't be picked. The select gets that dark too, as the list's background.
+ * Closed, it stays invisible: opacity 0, and see-through text.
+ * src/components/dropdowns.test.ts checks these colors in a real browser.
+ */
+const LIST = "bg-[#17130f]";
+const LIST_OPTION = `${LIST} text-text`;
+const LIST_GROUP = `${LIST} text-brass`;
+const LIST_NOTE = `${LIST} text-muted`;
+
 export function Picker({
   label, value, options, main, sub, note, onPick,
 }: {
@@ -152,27 +169,27 @@ export function Picker({
       <select
         value={value}
         onChange={(e) => onPick(e.target.value)}
-        className="absolute inset-0 h-full w-full cursor-pointer appearance-none bg-transparent text-[16px] text-transparent opacity-0"
+        className={`absolute inset-0 h-full w-full cursor-pointer appearance-none ${LIST} text-[16px] text-transparent opacity-0`}
       >
         {groups.map((g, i) =>
           g.group ? (
-            <optgroup key={`${g.group}-${i}`} label={g.group}>
+            <optgroup key={`${g.group}-${i}`} label={g.group} className={LIST_GROUP}>
               {g.options.map((o) => (
-                <option key={o.id} value={o.id}>
+                <option key={o.id} value={o.id} className={LIST_OPTION}>
                   {o.label}
                 </option>
               ))}
             </optgroup>
           ) : (
             g.options.map((o) => (
-              <option key={o.id} value={o.id}>
+              <option key={o.id} value={o.id} className={LIST_OPTION}>
                 {o.label}
               </option>
             ))
           ),
         )}
         {note && (
-          <option disabled value="">
+          <option disabled value="" className={LIST_NOTE}>
             {note}
           </option>
         )}

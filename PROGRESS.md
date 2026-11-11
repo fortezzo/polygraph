@@ -1,6 +1,6 @@
 # Polygraph: progress
 
-**Last updated:** Nov 11, 2026, end of Session 12
+**Last updated:** Nov 11, 2026, after Session 12: the fix for the bot picker's open list
 **Next up:** nothing scheduled. **Polygraph is finished.** Optional follow-ups are under What's next.
 **The demo:** https://fortezzo.github.io/polygraph/ · **The repo:** https://github.com/fortezzo/polygraph
 
@@ -828,6 +828,33 @@ Running the same thing again took 0.2 seconds: all 240 replies came from the cac
   - **One fix from the check,** in the last commit: GitHub's README column is a little narrower than the preview's, so `gpt-6.1-terra` broke at a hyphen. Its tag now has its own line, like `ministral-3:14b`'s.
 - **Spent: $0.** No AI calls.
 
+### After Session 12: the bot picker's open list (Nov 11, 2026)
+- **The bug, found by Christian before his LinkedIn post:** on Windows, in Chrome and Edge, the bot picker's open list was all white on every tab. Only the option under the mouse could be read.
+- **The cause, as Christian guessed it,** confirmed in Chromium's source:
+  - The picker is a real `<select>`, laid invisibly over its two-line label, with see-through text and background.
+  - On Windows, Chrome and Edge draw the open list as a small white page of their own. They put the select's background under the options, and paint each option in its own computed colors.
+  - The options inherited the see-through text, so the list was white with invisible words. The option under the mouse showed because the browser forces its own highlight colors on it.
+- **The fix** (`dashboard/src/components/Header.tsx`): every option and group heading now has its own colors, on the dark of the picker's box (`#17130f`):
+  - a choice in the page's text color (14.9 to 1)
+  - a group heading in brass (8.5 to 1)
+  - a line that can't be picked, like "Loading the other recordings…", in the small print's color (6.9 to 1)
+  - The select gets the same dark, as the list's background. Closed, it's still invisible: opacity 0, and see-through text.
+  - It's one component, so the fix covers the Recording picker on the Replay tab, and the Subject picker on the Report card, Evidence and Confidence tabs.
+- **The other dropdowns:** the only others are the bot and judge lists on the New interrogation screen, which is on Christian's PC only (the demo doesn't have it).
+  - They're dark ink on cream (13 to 1), so they read fine.
+  - The exception was a bot that can't be picked (its API key isn't in `.env`). Left to inherit its color, Chrome and Edge paint it light gray in the open list, 1.9 to 1 on the cream. It now has its own color, the form's label brown (8.7 to 1).
+- **New test: `dashboard/src/components/dropdowns.test.ts`** (7 tests). Playwright can't take a screenshot of a native list, so the test reads the colors the browser draws the open list from:
+  - **How it runs:** it starts the dashboard from its source (Vite, with its own cache folder) and opens it in Edge, or Chrome, without a window. The committed runs come from memory, and Polygraph's server is faked.
+  - **What it opens:** the Replay tab (also with the recordings failing to load, for the line that can't be picked), the Report card, Evidence and Confidence tabs, and the New interrogation screen.
+  - **What it checks:**
+    - Every option and group heading has solid text, on a solid background (its own, its group's or its select's), at 4.5 to 1 or more.
+    - An option that can't be picked has a color of its own.
+    - The closed pickers stay invisible.
+  - **On the old code,** all 6 screen checks fail, naming every unreadable line.
+  - It takes about 3 seconds. It runs with `npm test` here and on GitHub, whose Linux machines have Edge and Chrome.
+- **Checked:** 757 Python tests and 269 dashboard tests pass, with the type check and both builds.
+- **Spent: $0.** No AI calls.
+
 ---
 
 ## How to run it
@@ -999,7 +1026,7 @@ npm test
 npm run check
 npm run shots
 ```
-- The first runs the 262 dashboard tests.
+- The first runs the 269 dashboard tests. One file of them (`src/components/dropdowns.test.ts`) opens the dashboard in Microsoft Edge, or else Google Chrome, without a window, so one of the two has to be installed.
 - The second runs the type check, the tests and the build.
 - The third makes every screenshot in `docs\screenshots\session-9` again and runs the automatic checks (about 10 minutes). For the live screens it runs Polygraph's server in pretend mode, so nothing real is asked or spent. Close `.\start.ps1` first: they use the same port.
 - **After a fresh copy of the repo**, run `npm ci` once in the `dashboard` folder. It installs exactly the locked versions.
@@ -1277,6 +1304,10 @@ All 12 sessions are done. These are optional follow-ups, in order of importance:
   - **README pictures come from the demo build** (`--committed`), so they show what the public demo shows.
   - **The README is checked with GitHub's own renderer** (its Markdown API, which publishes nothing) in "markdown" mode, the one READMEs use. "gfm" mode, for comments, turns every line break into a new line.
   - **No floating pictures in the README.** A README can't change its layout for a phone, and a picture floated beside text leaves too little room there.
+- **The dropdowns' open lists (after Session 12):**
+  - **Each option and group heading has its own colors that match the page, dark background and light text** (Christian). Brass for the headings, like the page's labels, was Claude's pick.
+  - **The closed picker stays invisible,** as before: opacity 0, and see-through text.
+  - **The check is a test in `npm test`, not a separate script,** so it runs on every push.
 - **Dashboard packages (Session 6):**
   - Each package is pinned to an exact version that had been out at least two weeks. All package signatures are verified, and install scripts are turned off (`dashboard/.npmrc`).
   - Vite stays at 8.3.5. It already pulls in Rolldown 1.2.18, which has the Nov 9 escaping fix that Vite 8.3.7 shipped.

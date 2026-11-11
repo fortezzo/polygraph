@@ -185,8 +185,11 @@ function IntakeForm({ setup }: { setup: Setup }) {
               {cloud.map((g) =>
                 g.bots.length ? (
                   <optgroup key={g.provider} label={g.bots[0]!.provider_label ?? g.provider}>
+                    {/* Session 12: a bot that can't be picked gets its own color. Left to inherit,
+                        Chrome and Edge paint it light gray in the open list, about 1.9 to 1 on the
+                        cream (src/components/dropdowns.test.ts). */}
                     {g.bots.map((b) => (
-                      <option key={keyOf(b)} value={keyOf(b)} disabled={!b.available}>{botLabel(b)}</option>
+                      <option key={keyOf(b)} value={keyOf(b)} disabled={!b.available} className="disabled:text-manila-label">{botLabel(b)}</option>
                     ))}
                   </optgroup>
                 ) : null,
