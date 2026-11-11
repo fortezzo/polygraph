@@ -4,6 +4,8 @@
 
 **A lie detector for AI chatbots.** Polygraph hits any AI chatbot with 200 trap questions. It catches the bot when it makes things up, caves under pressure or contradicts itself, then gives it a report card.
 
+**[Watch the demo](https://fortezzo.github.io/polygraph/):** recorded interrogations of 8 chatbots, replayed in your browser. No API key needed.
+
 > **Work in progress.** The trap library, the interrogator, the AI judge, the report card and the dashboard work. This README gets its full write-up in a later session.
 
 ## What it found

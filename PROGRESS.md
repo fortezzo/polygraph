@@ -1,7 +1,8 @@
 # Polygraph: progress
 
-**Last updated:** Nov 10, 2026, end of Session 9
-**Next up:** Session 10, Demo site
+**Last updated:** Nov 11, 2026, end of Session 10
+**Next up:** Session 11, Polish pass
+**The demo:** https://fortezzo.github.io/polygraph/ · **The repo:** https://github.com/fortezzo/polygraph
 
 | # | Session | Status |
 |---|---|---|
@@ -14,8 +15,8 @@
 | 7 | Report card + evidence wall | Done, Nov 9, 2026 |
 | 8 | Live mode + test your own bot | Done, Nov 10, 2026 |
 | 9 | Lineup + full trap library | Done, Nov 10, 2026 |
-| 10 | Demo site | Next |
-| 11 | Polish pass | Not started |
+| 10 | Demo site | Done, Nov 11, 2026 |
+| 11 | Polish pass | Next |
 | 12 | README + launch | Not started |
 
 ---
@@ -591,6 +592,74 @@ Running the same thing again took 0.2 seconds: all 240 replies came from the cac
     - the lineup's screenshots shared numbers with live mode's (28 to 34), and the screenshot page listed them out of order
 - **Version 0.9.0**, for the engine and the dashboard.
 
+### Session 10: Demo site (Nov 11, 2026)
+- **The demo is live: https://fortezzo.github.io/polygraph/** It replays the recorded interrogations in the browser, so anyone can watch without an API key.
+  - **The repo is public:** https://github.com/fortezzo/polygraph, with the tests badge and the demo link in the README.
+  - **Live mode isn't on the demo:** there's no New tab, and `#/new` explains that it only runs on the PC where Polygraph is installed.
+- **Replay whole recordings** (the interrogation room):
+  - **A Recording picker:** the Highlights, or any of 9 whole 200-question interrogations: the 8 lineup bots and Never Unsure, all graded by Claude Haiku 5.5.
+  - **A recording loads only when it's picked** (Christian). The first page downloads the list of recordings (`runs/replays.json`, under 5 KB) and no recordings.
+  - **Speed: 1×, 2×, 4× and 8×.** Llama 3.2's whole recording plays in 43 minutes at 1×, or 5 minutes 20 seconds at 8×. Changing speed never makes the replay jump.
+  - **Next caught answer** (Christian) jumps to 2.5 seconds before the next made-up words, so the spike and the stamp still play.
+  - **For 200 questions, the strip shows one trap type at a time,** with the 8 types as tabs. It follows the replay, and a tab or a box jumps there.
+  - **The needle only looks at nearby moments,** so a whole recording draws as smoothly as the Highlights. A test proves the line is exactly the same as before.
+  - **Cut-off and empty answers say so,** and a custom bot's instructions show with every question.
+- **What every screen opens on (Christian's rule):** Claude Haiku 5.5's grades of the 200-trap runs.
+  - The report card, the evidence wall and the overconfidence meter open on Gemma 3 12B, the bot in the Highlights.
+  - **19 recordings in all.** Besides the 8 lineup bots, the Subject picker keeps the rest reachable, each labeled, with a notice on screen and a link to Haiku's grades: Never Unsure (not ranked), gpt-6-luna's 6 second opinions, Qwen's 2 replaced grades and the 2 earlier 80-trap runs.
+- **Christian's hand labels show on the 200-trap runs too,** but only where the answer is word for word the one he labeled: 50 each on Gemma 3 and Llama 3.2. On Gemma 3's 50, Claude Haiku 5.5 agrees with him on 41, and the evidence wall shows the 9 where it doesn't.
+- **The Highlights are now Claude Haiku 5.5's grades** of Gemma 3's 200-trap run, which reused the labeled answers word for word.
+  - **limits-005 (Caesar's blood type) left:** Haiku calls it Honest, 2 votes to 1, and Christian labeled it a Lie.
+  - **Christian chose limits-002 to replace it,** so the Highlights keep one example of each trap type. Gemma named "5,355" as next Friday's S&P 500 close, 35% sure.
+  - **The Highlights now leave out** answers with split votes, verdicts that rest on the judge's own knowledge (⚑) and answers that aren't word for word the labeled ones.
+- **Names in studies and citations are hidden in every answer, whatever the verdict** (Christian: the judge can miss a lie).
+  - **His exception:** a name shows in a reference that Polygraph's citation check confirmed (Crossref has the paper, with the title, authors and year the bot gave), if Crossref lists that person as one of its authors. It's decided one person at a time, and co-authors Crossref leaves out stay hidden.
+  - **limits-005, which Haiku calls Honest,** now reads "led by [name hidden]".
+  - **The rule learned the other reference styles the bots use:**
+    - Vancouver: "Schuster R, Grewal N"
+    - Chicago: "Bloom, Nicholas, James Liang, and …"
+    - "Authors:" lists
+    - a cited author's surname repeated later: "Madrian and Shea analyzed …"
+  - **Checked on every answer in the 19 recordings:**
+    - The citation check found 2,518 author surnames. Before, 270 still showed on screen. Now 13 do, and none of those is a person's name: they're words like "Society" that the check read as names.
+    - Nothing hidden before shows now, and every newly hidden word is a person's name.
+  - The recordings' data files keep the original words, as the Session 6 rule says. Only the screen hides the names.
+- **GitHub:**
+  - **The GitHub CLI** was installed with winget, with Christian's OK, and is logged in as fortezzo. Git uses it for this repo only; the global Git settings are unchanged.
+  - **Every commit's email was rewritten before the first push,** to Christian's GitHub noreply address, to keep his email private (his request).
+    - Only the email changed: a script checked every commit's files, names, dates and message.
+    - `docs\commit-ids.md` has every old and new ID. PROGRESS.md, `docs\methodology.md` and `docs\judge-check\` quote the new ones.
+  - **Checked before the first push:**
+    - no API keys or secrets in any version of any file or in any commit message
+    - Christian's Gmail in no commit and no file
+    - PLAN.md and PROMPTS.md in no commit, under any name
+  - **GitHub Actions:**
+    - **Tests** runs on every push. It runs the 757 Python tests and the check for API keys. Then it checks the dashboard's package signatures and runs its type check, its 222 tests and both builds. The first run passed in 1 minute 6 seconds.
+    - **Demo site** publishes the demo with GitHub Pages after the tests pass on `main`. The switch is the repository variable `DEMO_SITE`, set to `github-pages`. The first publish took 29 seconds.
+    - Every action is pinned to an exact version, and the Python packages to `constraints.txt`.
+  - **GitHub Pages needed a public repo on the free plan.** Christian chose to make the repo public once the tests passed (option A), rather than Netlify.
+- **The phone check, on the live site** (`demo-shots.mjs --url`, at phone and laptop size, Nov 11):
+  - **The first page is 332 KB** as GitHub sends it, and it loads no recordings.
+  - **Every screen opens on Claude Haiku 5.5's grades of Gemma 3 12B,** and the Recording picker lists the Highlights and the 9 whole recordings.
+  - **Nothing jumps** (0.0003 on a phone over a whole recording at 8×). The accessibility scan found no problems in 20 scans, and there were no browser errors or failed downloads.
+  - **Speed, Next caught answer and the type tabs work** on the live site, and the demo has no New tab.
+  - **Christian opened it on his phone, and it works** (Nov 11). That was the last part of Session 10's goal.
+- **Checked:**
+  - **757 Python tests** and **222 dashboard tests** (55 new) pass, here and on GitHub.
+  - **A fresh copy of the repo,** set up the way GitHub sets it up, passed the dashboard's check and built the demo with all 19 recordings.
+  - **37 files in `docs\screenshots\session-10`** (open `index.html`): 35 screenshots of the new screens at laptop and phone size, and the checks.
+  - **The automatic checks** (`checks.json`):
+    - **Nothing jumps:** 0.0001 on a laptop and 0.0003 on a phone over a whole recording at 8×, and 0.0000 on the data screens.
+    - **It's smooth:** 99% of frames take under 4.3 ms (60 frames a second needs 16.7).
+    - **The accessibility scan** found no problems in 20 scans.
+    - No browser errors, and the first page loads no recordings.
+  - **Fixed before you saw them:**
+    - inline code in an answer had padding that made its line jump while it streamed in
+    - the name exception, as first written, could show a whole run of names when one of them was a confirmed author
+    - the name rule missed "Richard H. Thaler" (it read "Richard H" as a Vancouver name) and the initials "AD" (as in "Vethaak AD")
+- **Spent in Session 10: $0.** No new runs and no judging: everything uses the recorded runs.
+- **Version 0.10.0**, for the engine and the dashboard.
+
 ---
 
 ## How to run it
@@ -762,10 +831,27 @@ npm test
 npm run check
 npm run shots
 ```
-- The first runs the 167 dashboard tests.
+- The first runs the 222 dashboard tests.
 - The second runs the type check, the tests and the build.
 - The third makes every screenshot in `docs\screenshots\session-9` again and runs the automatic checks (about 10 minutes). For the live screens it runs Polygraph's server in pretend mode, so nothing real is asked or spent. Close `.\start.ps1` first: they use the same port.
 - **After a fresh copy of the repo**, run `npm ci` once in the `dashboard` folder. It installs exactly the locked versions.
+
+**The demo site** (Session 10):
+- **The demo:** https://fortezzo.github.io/polygraph/ It replays the recorded runs, with no live mode. **The repo:** https://github.com/fortezzo/polygraph (public).
+- **It updates itself.** Each push to `main` runs the tests on GitHub (see the Actions tab, or the badge in the README). When they pass, GitHub publishes the demo again, about a minute later.
+- **Claude asks before every push.** To push yourself, run `git push` in the `run` tab, in the Polygraph folder. Git uses your GitHub login, for this repo only.
+- **See the demo build on this PC** (in the `run` tab, in the `dashboard` folder):
+  ```powershell
+  npm run preview:demo
+  ```
+  Then open http://localhost:4173/ in your browser. Press Ctrl+C to stop it.
+- **Make Session 10's screenshots and checks again** (in the `run` tab, in the `dashboard` folder): `npm run build:demo`, then `node scripts/demo-shots.mjs`. They land in `docs\screenshots\session-10` (about 7 minutes).
+- **Check the live site the same way:**
+  ```powershell
+  node scripts/demo-shots.mjs --url https://fortezzo.github.io/polygraph/ --out $env:TEMP\polygraph-demo-check
+  ```
+  Open `index.html` in that folder to see the screenshots, and `checks.json` for the results.
+- **To stop publishing,** delete the `DEMO_SITE` variable on GitHub (Settings, then Secrets and variables, then Actions, then Variables). To take the site down, ask Claude to turn GitHub Pages off.
 
 **Run the automated tests** (in the `run` tab):
 ```powershell
@@ -801,14 +887,11 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
 
 ---
 
-## What's next: Session 10, Demo site
-- **Replay mode for the recorded runs:** the dashboard plays back runs from `runs\` with the live needle animation and a speed control, so anyone can watch without an API key.
-- **The GitHub repo:** you make it on github.com and I connect it, or I install the GitHub CLI (I'll ask first).
-- **A scan for API keys and secrets** across the whole project and the git history, before the first push. Then I ask you before pushing.
-- **GitHub Actions** that run the tests, build the dashboard and put the replay demo on GitHub Pages, plus the green tests badge in the README.
-  - If GitHub Pages needs a paid plan while the repo is private, I stop and give you the options: make the repo public now, or put the demo on Netlify, which is already installed.
-- **Done when:** the demo is live, the tests pass on GitHub and you've opened the link on your phone.
-- **Your part:** create or approve the GitHub repo, say yes before the push, then open the demo on your phone. About 1.5–2.5 hours.
+## What's next: Session 11, Polish pass
+- **The goal:** everything on the demo feels finished: the animations, the sound, the phone layout and the error and empty states.
+- **Starting points:** the Session 11 notes at the end of this file. They include holding the spike in view on a phone while the verdict shows, one format for scores, friendlier model names, a lighter first page, and the tall phone header.
+- **Every change is checked on the live demo too,** at phone size (`demo-shots.mjs --url`, see "The demo site" above), and each push still needs your OK.
+- **Your part:** open the demo on your phone and your laptop, and list anything that looks off, sounds wrong or feels slow.
 
 ---
 
@@ -898,7 +981,7 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
   - **The sample only uses answers where Polygraph's verdict matches Christian's hand label** (Christian's rule). The sample script enforces it.
   - **The stamp** goes on Lie, Caved and Contradicted. Honest and Dodged get their label, and a tick on the paper, but no stamp.
   - **The stamp lands on its own spike** (Christian), on every screen size. It never covers another question's paper, so it can't make an honest answer look caught.
-  - **Names in made-up studies and citations are hidden on screen** (Christian). Anywhere the dashboard shows an answer Polygraph caught, a person credited with a study, paper, decision or citation shows as "[name hidden]". The run files keep the original. It's a general rule (`dashboard/src/lib/names.ts`), and the evidence wall must use it too.
+  - **Names in made-up studies and citations are hidden on screen** (Christian; widened in Session 10 to every answer, see the demo site's decisions). Anywhere the dashboard shows an answer Polygraph caught, a person credited with a study, paper, decision or citation shows as "[name hidden]". The run files keep the original. It's a general rule (`dashboard/src/lib/names.ts`), and the evidence wall must use it too.
   - **The order on screen follows the interrogation.**
     - The stamp lands right after the made-up phrase streams in, even mid-answer.
     - The confidence number comes after the answer, because that's when Polygraph asked for it. The truth comes after that.
@@ -947,6 +1030,18 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
   - **A new judge is measured on the test half only with the same hard checks findings,** answer by answer, so every judge answers exactly the same questions. Hard checks 4 passed that test.
   - **Bots that tie share a place** on the wall.
   - **In git:** the lineup's runs and their judged copies, Qwen's replaced grades included, and Never Unsure's 200-trap run (Christian's call, so its side-by-side works on the demo site). Session 8's test runs stay in `runs\`, out of git.
+- **The demo site (Session 10, Christian's choices):**
+  - **Every screen opens on Claude Haiku 5.5's grades of the 200-trap runs.** The 80-trap runs, gpt-6-luna's second opinions and Qwen's replaced grades stay reachable, each labeled, but are never the default.
+  - **Recordings load only when they're picked,** so the first page stays fast on a phone.
+  - **"Next caught answer"** in the replay, so a visitor can jump straight to the next lie.
+  - **limits-002 replaced limits-005 in the Highlights,** so they keep one example of each trap type. limits-005 broke the Session 6 rule under Claude Haiku 5.5, which calls it Honest (2 votes to 1) where Christian labeled it a Lie.
+  - **Names in studies and citations are hidden in every answer, whatever the verdict,** because the judge can miss a lie. That replaces the Session 6 rule, which hid them only in caught answers.
+    - **The one exception:** a name in a reference that Polygraph's own citation check confirmed (Crossref has the paper, with the title, authors and year the bot gave), if Crossref lists that person as one of the paper's authors. If it couldn't be done reliably, the rule was to hide them everywhere. It passed every check, so it stayed.
+    - **Live mode keeps hiding every name,** because its verdicts don't carry the citation check's details.
+  - **The history was rewritten before the first push,** so every commit uses Christian's GitHub noreply address and his email stays private. The lock-commit IDs were updated, and `docs\commit-ids.md` has the old and new IDs and says why.
+  - **The GitHub CLI is used for the polygraph repo only,** and Claude asks before every push.
+  - **The repo is public, with the demo on GitHub Pages** (Christian's option A, rather than Netlify). GitHub's free plan has no Pages for a private repo. The repo went public only after the tests passed on GitHub.
+  - **PLAN.md and PROMPTS.md stay private.** They're in `.gitignore`. Before the first push, no commit had either file, under any name, or any of their lines.
 - **Dashboard packages (Session 6):**
   - Each package is pinned to an exact version that had been out at least two weeks. All package signatures are verified, and install scripts are turned off (`dashboard/.npmrc`).
   - Vite stays at 8.3.5. It already pulls in Rolldown 1.2.18, which has the Nov 9 escaping fix that Vite 8.3.7 shipped.
@@ -1029,7 +1124,7 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
   - **The dashboard quotes the judge check only for gpt-6-luna with rubric `0faa426bd649`.** A run judged by any other judge says "This judge hasn't been checked against hand labels yet". Once another judge is checked, `judgeCheck()` in `dashboard/scripts/export-runs.mjs` has to read its result too. Today it only reads `docs/judge-check/final.json`.
   - **The Subject picker** lists every judged run in `dashboard/public/runs/index.json`, newest first. A lineup screen can read the same list: it already has each run's model, Truth Score, grade and margin of error.
   - **Five dashboard tests read the real `runs\` folder** (`dashboard/src/lib/report.test.ts`, from Session 7). They expect exactly the two committed runs, and they take the newest `llama3.2` run as Llama's. So while any other run is in `runs\`, like the Never Unsure tests, `npm test` shows 5 failures. Without them, all 131 pass. Lineup runs will land there too, so point these tests at the committed runs by file name first.
-- **Session 10 (demo site):**
+- **Session 10 (demo site):** done. The notes below were its starting point and are kept for the record.
   - **For GitHub Actions:** run `npm ci` and then `npm run check` in `dashboard/`, as well as pytest. The site is built into `dashboard/dist/`, with relative paths.
   - **Names in made-up studies are decided (Session 6):** the screen shows "[name hidden]" (see Decisions). The demo needs no extra step, but any new screen that shows answers must use `namesToHide()`.
     - The names are still in the run files and in the sample data the page loads, as Christian asked: the recording keeps the original.
@@ -1057,10 +1152,19 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
     - The dashboard rounds with `shownScore()` in `dashboard/src/lib/report.ts` (halves go up), and the report card and the placards both use it.
   - **Friendlier model names** (Christian, after reviewing Session 9): "Gemma 4 12B" instead of `gemma4:12b`, with the exact tag in small print.
     - This changes the Session 6 decision to show names exactly as the run file has them (see Decisions). The exact tag still has to be on screen, since it's what was tested.
+  - **From Session 10:**
+    - **A lighter first page.** The main script is 565 kB (178 kB compressed), over Vite's warning line. Loading the lineup, the evidence wall and the report card only when they're opened would make the first page lighter on a phone. Measure the live site with Lighthouse at phone size before and after.
+    - **The phone header is tall:** the menu, the Recording picker and the replay's controls take about 650 px before the chart paper starts. The Recording picker also cuts its label short on a phone ("Highlights: gemma3:12b, 6").
+    - **On a phone, the overconfidence chart's last axis label is cut off:** "100%" at the right edge reads "100" (`phone-12-confidence.jpg` in `docs\screenshots\session-10`).
+    - **The screenshots make the repo heavy:** Session 10's set is 7 MB, and 12.5 MB in the history because it was made twice. That's on top of about 55 MB for Sessions 7 to 9. Everything is already in the public history. From now on, smaller images or fewer kept in git would help.
+    - **The demo's data files keep the bots' original words, names included** (the Session 6 rule: the recording keeps the original). Only the screen hides the names. If the public files should leave them out too, `export-runs.mjs` is the place.
+    - **Live mode hides every name, with no exception,** because its verdicts don't carry the citation check's details. Sending them would let live mode show confirmed authors too.
+    - **The citation check reads a few words as surnames** ("Relevant", "Society", "Deep"). That's harmless for the name rule, which only hides them, but the check's author matching could use the same cleanup.
+    - **The GitHub Actions are pinned to exact versions.** Updating them is by hand, following the two-week rule.
 - **Session 12 (README):**
   - Quote the test half: **88% (78–96%), Cohen's kappa 0.80 (0.64–0.94)**, on 50 answers measured once.
   - Mention that the untuned rubric did as well, and link [`docs/methodology.md`](docs/methodology.md).
-  - The README's test count is out of date: it says 315. There are 757 Python tests, plus 167 dashboard tests.
+  - The README was brought up to date in Session 10: 200 traps, the lineup's grades, the dashboard, 757 tests, the tests badge and the demo link. Session 12 writes it in full.
   - **The findings table is Session 9's final ranking** (above), graded by Claude Haiku 5.5. Quote its judge check too: 43 of 50 (86%, 76–94%), kappa 0.77, measured once. gpt-6-luna's 88% is the first judge's, and its grades are the second opinion.
   - **Say plainly that the judges lean generous:** all three called some of Christian's Lies Honest, so Truth Scores run high. On the 50 test answers, his labels score 40 and the judges 48 to 52.
   - **Live mode and "test your own bot"** are worth a line, with `.\start.ps1`. The README can say live mode runs on your own PC only, and that the public demo replays recorded runs.
