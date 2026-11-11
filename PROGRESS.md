@@ -1,7 +1,7 @@
 # Polygraph: progress
 
-**Last updated:** Nov 11, 2026, Session 11 (waiting for Christian's hunt)
-**Next up:** Session 11's hunt, then Session 12, README + launch
+**Last updated:** Nov 11, 2026, end of Session 11
+**Next up:** Session 12, README + launch
 **The demo:** https://fortezzo.github.io/polygraph/ · **The repo:** https://github.com/fortezzo/polygraph
 
 | # | Session | Status |
@@ -16,8 +16,8 @@
 | 8 | Live mode + test your own bot | Done, Nov 10, 2026 |
 | 9 | Lineup + full trap library | Done, Nov 10, 2026 |
 | 10 | Demo site | Done, Nov 11, 2026 |
-| 11 | Polish pass | Fixes done; Christian's hunt next |
-| 12 | README + launch | Not started |
+| 11 | Polish pass | Done, Nov 11, 2026 |
+| 12 | README + launch | Next |
 
 ---
 
@@ -745,6 +745,14 @@ Running the same thing again took 0.2 seconds: all 240 replies came from the cac
     | The lineup | 94 → 95 | 100 → 100 | 98 → **100** | 100 | 100 |
 
     The replay's 97 to 96 is within one run's variation. The evidence wall's page used to freeze for 1.7 seconds on a phone while its cards were laid out; it's 0.14 seconds now.
+- **Christian's choices at the end:** the social preview is design A, "the machine" (chart paper caught mid-lie, with the CAUGHT stamp), not B, the lineup's ranking. The new sounds "sound good".
+- **Pushed with Christian's OK** (`e9406ff`). The tests passed on GitHub, and the demo republished within about two minutes. The live site serves the new code, the social preview picture and the favicon set.
+- **Lighthouse on the live site after the push** (`docs/screenshots/session-11/lighthouse-live-after.json`, 3 runs each, the middle one kept): performance on a phone 97 (the replay), 97 (the report card), 90 (the evidence wall), 96 (the overconfidence meter) and 95 (the lineup), and 100 on a laptop. Accessibility, Best Practices and SEO are 100 on every screen.
+- **Christian's hunt, on the live demo on his laptop and his phone: nothing looks off.** That was the last part of Session 11's goal.
+- **The local preview (`npm run phone:demo`) didn't open for Christian** ("This site can't be reached"), so his hunt used the live site.
+  - Looked into afterwards: his preview had started and was answering two seconds after the command began. `http://localhost:4173/` opened in Chrome and Edge, so the likeliest cause is opening the page before the server was up, when nothing answers yet.
+  - One fragile part was found and fixed: the preview answered only on IPv4 (`--host 0.0.0.0`), while Windows looks up `localhost` as IPv6 first, so every visit depended on the browser falling back. The `phone` and `phone:demo` previews now answer on both (`--host ::`). Tested: `localhost` (over IPv6), `127.0.0.1` and the home-network address all open.
+  - "How to run it" now says to wait for the `Local:` and `Network:` lines, and that http://127.0.0.1:4173/ is the same page.
 - **The dashboard is version 0.11.0.** The engine didn't change and stays 0.10.0.
 - **Spent: $0.** No AI calls.
 
@@ -945,7 +953,8 @@ npm run shots
 ```powershell
 npm run phone:demo
 ```
-- It builds the demo exactly as GitHub builds it (only the runs that are in git), then prints a `Network:` address like `http://192.168.1.23:4173/`. Type that into your phone's browser. On this PC, open http://localhost:4173/.
+- It builds the demo exactly as GitHub builds it (only the runs that are in git). **Wait until it prints the `Local:` and `Network:` lines:** the page only opens once they're there. Then type the `Network:` address (like `http://192.168.1.23:4173/`) into your phone's browser, and on this PC open http://localhost:4173/ (or http://127.0.0.1:4173/, the same page).
+- Since Session 11 the preview answers on IPv6 as well as IPv4 (`--host ::`), because Windows looks up `localhost` as IPv6 first.
 - The first time, Windows asks whether to allow Node.js. Allow it on **private networks only**. Press Ctrl+C in the `run` tab to stop.
 
 **The polish checks** (Session 11; in the `run` tab, in the `dashboard` folder, after `npm run build:demo`):
@@ -1159,6 +1168,7 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
   - **Friendly model names,** written as each maker writes them, with the exact tag in small print wherever a bot is named in full. This replaces the Session 6 choice on purpose. The names are in one place (`dashboard/src/lib/models.ts`).
   - **On an iPhone, Sound plays even when the phone is on silent,** since the viewer asked for sound. Turning it off gives the setting back. Sound is still off every time the page opens.
   - **The favicon and the social preview follow the site's rules:** no company logos, and no names from the bots' answers.
+  - **The social preview is design A, "the machine"** (Christian): the strip of chart paper caught mid-lie, not B, the lineup's ranking. It shows no scores, so it doesn't go stale when the lineup changes.
   - **Lighthouse is installed for this project only,** in `.tools\lighthouse` (git ignores it), not globally.
 - **The polish pass (Session 11, how it was built):**
   - **On a phone, the paper slows after a stamp** so the stamp stays fully on the paper until 2.5 seconds after the confidence shows, for 14 seconds at most. It speeds back up before the next question. It never slows where there's room (a laptop), and live mode keeps one speed.
@@ -1276,7 +1286,7 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
 - **After Session 11 (things to know):**
   - **New screens or names:** a model tag that isn't in `dashboard/src/lib/models.ts` shows as it is. Add its friendly name there, written the way its maker writes it.
   - **New runs:** `export-runs.mjs` makes each run's light and caught copies by itself. `polish.test.ts` checks they match the whole run.
-  - **The social preview shows the lineup's numbers only in design B.** If the lineup changes, run `node scripts/make-images.mjs` again (it reads the current grades).
+  - **The social preview (design A) says "8 chatbots · the same 200 trap questions".** If the lineup's size or the trap count changes, run `node scripts/make-images.mjs` again in the `dashboard` folder (it reads both from the runs), then check the picture.
   - **LinkedIn keeps a link's preview for about a week.** After changing the picture, paste the link into LinkedIn's Post Inspector to refresh it.
 - **Session 12 (README):**
   - **Numbers and names as the site shows them** (Christian, Session 11): whole numbers with halves rounded up, and friendly names with the exact tag beside them. The README's table already follows it.

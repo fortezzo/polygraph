@@ -13,14 +13,14 @@
     "runs": "node scripts/export-runs.mjs",
     "preview": "vite preview",
     "preview:demo": "npm run build:demo && vite preview --strictPort",
-    "phone": "npm run build && vite preview --host 0.0.0.0 --port 4173 --strictPort",
+    "phone": "npm run build && vite preview --host :: --port 4173 --strictPort",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "check": "npm run typecheck && npm run test && npm run build",
     "sample": "node scripts/make-sample.mjs",
     "shots": "npm run build && node scripts/shots.mjs",
     "shots:directions": "node scripts/shoot-directions.mjs",
-    "phone:demo": "npm run build:demo && vite preview --host 0.0.0.0 --port 4173 --strictPort"
+    "phone:demo": "npm run build:demo && vite preview --host :: --port 4173 --strictPort"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",
