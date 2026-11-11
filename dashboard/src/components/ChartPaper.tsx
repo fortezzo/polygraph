@@ -113,11 +113,12 @@ export function ChartPaper({ timeline, track, playback, sound, reduced, trapInde
       const t = playback.now();
       const playing = playback.status === "playing";
 
-      // The scratch follows the pen.
+      // The scratch follows the pen. At 2× or more (Session 10) the pen moves faster,
+      // so the scratch is scaled back to stay as quiet as at normal speed.
       const y = needleAt(track, t).y;
       if (playing && sound.enabled) {
         const dt = Math.max(1, now - prevNow);
-        sound.scratch((Math.abs(y - prevY) / dt) * 250);
+        sound.scratch((Math.abs(y - prevY) / dt) * (250 / Math.max(1, playback.rate ?? 1)));
       } else if (sound.enabled) sound.quiet();
       prevY = y;
       prevNow = now;

@@ -16,12 +16,14 @@ interface Props {
   model: string;
   reduced: boolean;
   confidenceQuestion?: string;
+  /** A custom bot's own instructions (Session 10): shown with every question, since it got them every time. */
+  instructions?: string | null;
 }
 
 const offsetIn = (el: HTMLElement, box: HTMLElement) =>
   el.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop;
 
-export function Transcript({ plan, view, model, reduced, confidenceQuestion }: Props) {
+export function Transcript({ plan, view, model, reduced, confidenceQuestion, instructions }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const follow = useRef(true);
   const target = useRef<number | null>(null);
@@ -122,6 +124,12 @@ export function Transcript({ plan, view, model, reduced, confidenceQuestion }: P
       role="region"
       aria-label="Transcript of this question"
     >
+      {instructions && (
+        <div className="mb-4" data-turn="">
+          <Label>ITS OWN INSTRUCTIONS · SENT BEFORE EVERY CONVERSATION</Label>
+          <p className="m-0 text-[14px] leading-relaxed text-muted italic">&ldquo;{instructions}&rdquo;</p>
+        </div>
+      )}
       {plan.exhibit && <Exhibit title={plan.exhibit.title} text={plan.exhibit.text} shown={view.exhibitShown} />}
       {plan.turns.map((turn, i) => {
         const tv = view.turns[i];
@@ -257,7 +265,10 @@ const Answer = memo(function Answer({
       const cls = [
         p.marks.includes("b") ? "font-bold" : "",
         p.marks.includes("i") ? "italic" : "",
-        p.marks.includes("code") ? "rounded-sm bg-white/8 px-0.5" : "",
+        // Session 10: no padding or rounded corners on code. A streaming answer splits a
+        // piece of code where the words stop, and padding on each part made the line
+        // wrap and then unwrap (a jump, seen in whole recordings, which have code).
+        p.marks.includes("code") ? "bg-white/8" : "",
         p.shown ? "" : "unseen",
         p.hot && p.shown && hot ? `hot-${hot.tone}` : "",
       ].filter(Boolean).join(" ");
@@ -312,7 +323,17 @@ const Answer = memo(function Answer({
             </Tag>
           );
         })}
+        {turn.text.trim() === "" && (
+          // Session 9: Gemma 4 thought until it hit the length limit on 3 traps, and never answered.
+          <p className="mb-3 text-muted italic">{turn.cutOff ? "(No answer: it hit the length limit before writing one.)" : "(It gave no answer.)"}</p>
+        )}
       </div>
+      {turn.cutOff && turn.text.trim() !== "" && (
+        <p className={`m-0 mb-1 text-[12px] leading-snug text-muted ${tv.started && tv.reveal >= turn.text.length ? "" : "unseen"}`}>
+          <span className="font-label tracking-[0.12em]" aria-hidden="true">✂ </span>
+          <span className="font-label tracking-[0.12em]">CUT OFF</span> · this answer hit the length limit. It was judged and scored as it stands.
+        </p>
+      )}
       {turn.confidence && (
         <p className={`mt-1 text-[13px] text-muted ${tv.confidenceShown ? "" : "unseen"}`} data-follow={tv.confidenceShown ? "" : undefined}>
           <span className="font-label tracking-[0.12em] text-brass" title={confidenceQuestion}>CONFIDENCE CHECK</span>{" "}

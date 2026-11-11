@@ -21,6 +21,8 @@ export const ROOT = resolve(here, "..", "..");
 const OUT = resolve(here, "..", "public", "runs");
 // Who stands in the lineup (Session 9). The scores come from runs/.
 const ROSTER = resolve(here, "..", "src", "data", "lineup.json");
+// The replay's Highlights (Session 6), made by scripts/make-sample.mjs.
+const SAMPLE = resolve(here, "..", "src", "sample", "sample-run.json");
 
 const JUDGED = /^(.*)_judged-by_(.+?)(?:~(\d+))?\.json$/;
 
@@ -49,7 +51,17 @@ export function newestJudgedCopies(files) {
 
 const pick = (obj, keys) => Object.fromEntries(keys.filter((k) => obj && k in obj).map((k) => [k, obj[k]]));
 
-/** Christian's hand labels for this run's traps, from the Session 5 judge check. */
+/** Every word of a trap's conversations: who said it, what kind of turn, and the text. */
+const wordsOf = (trap) =>
+  JSON.stringify((trap?.conversations ?? []).map((c) => c.turns.map((t) => [t.role, t.kind, t.content])));
+
+/**
+ * Christian's hand labels for this run's traps, from the Session 5 judge check.
+ *
+ * A label belongs to an answer, not to a judge. So it also goes on a later run
+ * that reused the labeled run's answers (`polygraph run --reuse`, Session 9),
+ * but only on a trap whose every word is the same as in the run he labeled.
+ */
 export function handLabels(run, root = ROOT) {
   const pickPath = resolve(root, "docs", "judge-check", "sample.json");
   const labelPath = resolve(root, "docs", "judge-check", "labels.json");
@@ -57,11 +69,20 @@ export function handLabels(run, root = ROOT) {
   const jc = JSON.parse(readFileSync(pickPath, "utf8"));
   const labels = JSON.parse(readFileSync(labelPath, "utf8")).labels;
   const original = run.run.judge?.judged_from;
-  const jcRun = jc.runs.find((r) => basename(r.path) === original);
+  let jcRun = jc.runs.find((r) => basename(r.path) === original);
+  let labeled = null; // the labeled run's traps, when this run only reused its answers
+  if (!jcRun && run.run.reused_from) {
+    jcRun = jc.runs.find((r) => basename(r.path) === run.run.reused_from);
+    const path = jcRun && resolve(root, jcRun.path);
+    if (path && existsSync(path)) labeled = new Map(JSON.parse(readFileSync(path, "utf8")).traps.map((t) => [t.id, t]));
+    else jcRun = undefined;
+  }
   const out = new Map();
   if (!jcRun) return out;
+  const mine = new Map(run.traps.map((t) => [t.id, t]));
   for (const it of jc.items) {
     if (it.run !== jcRun.key || !labels[it.id]) continue;
+    if (labeled && wordsOf(mine.get(it.trap)) !== wordsOf(labeled.get(it.trap))) continue;
     out.set(it.trap, { verdict: labels[it.id].verdict, unsure: !!labels[it.id].unsure, item: it.id });
   }
   return out;
@@ -371,7 +392,81 @@ export function readRoster(path = ROSTER) {
   return existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : null;
 }
 
-export function exportRuns({ root = ROOT, out = OUT, write = true, roster = readRoster() } = {}) {
+/** The replay's Highlights (src/sample/sample-run.json): which recording and judge they come from. */
+export function readSample(path = SAMPLE) {
+  if (!existsSync(path)) return null;
+  const s = JSON.parse(readFileSync(path, "utf8"));
+  return { run: s.run?.id ?? null, judge: s.run?.judge?.model ?? null };
+}
+
+/**
+ * What each judged run is (Session 10, Christian's rule: every screen opens on
+ * the lineup's own grades; everything else stays reachable, clearly labeled):
+ *
+ * - "lineup": a bot's grade on the lineup wall (Claude Haiku 5.5, 200 traps)
+ * - "unranked": a custom bot in a side-by-side (Never Unsure), graded the same way
+ * - "second_opinion": the same answers graded by the second-opinion judge
+ * - "replaced": grades by a judge that was replaced (they don't count)
+ * - "earlier": a run of an earlier trap library (the 80-trap runs)
+ * - "other": anything else, like a short live run or another judge's grades
+ */
+export const ROLES = ["lineup", "unranked", "second_opinion", "replaced", "earlier", "other"];
+
+export function assignRoles(entries, lineup, roster) {
+  const role = new Map();
+  for (const b of lineup?.bots ?? []) {
+    if (b.state === "scored" && b.run_id) role.set(b.run_id, "lineup");
+    if (b.second_opinion?.run_id) role.set(b.second_opinion.run_id, "second_opinion");
+  }
+  for (const p of lineup?.pairs ?? []) {
+    for (const s of [p.left, p.right]) if (s?.run_id && s.custom && !role.has(s.run_id)) role.set(s.run_id, "unranked");
+  }
+  // The second opinion of a custom bot: the same recording as an unranked run, by the second-opinion judge.
+  const unrankedFrom = new Set(entries.filter((e) => role.get(e.id) === "unranked").map((e) => e.judged_from));
+  const second = roster?.second_opinion?.judge ?? null;
+  const replaced = new Set((roster?.replaced_judges ?? []).map((r) => r.judge));
+  for (const e of entries) {
+    if (role.has(e.id)) continue;
+    if (replaced.has(e.judge)) role.set(e.id, "replaced");
+    else if (roster?.trap_set && e.trap_set !== roster.trap_set) role.set(e.id, "earlier");
+    else if (second && e.judge === second && unrankedFrom.has(e.judged_from)) role.set(e.id, "second_opinion");
+    else role.set(e.id, "other");
+  }
+  return entries.map((e) => ({ ...e, role: role.get(e.id) }));
+}
+
+/** The order of the Subject picker: the lineup's grades first, by Truth Score, then the rest, newest first. */
+export function pickerOrder(entries) {
+  const byScore = (a, b) => (b.overall ?? -1) - (a.overall ?? -1) || String(a.model).localeCompare(String(b.model));
+  const newest = (a, b) => (a.started_at < b.started_at ? 1 : a.started_at > b.started_at ? -1 : String(a.id).localeCompare(String(b.id)));
+  return [...entries].sort((a, b) => {
+    const r = ROLES.indexOf(a.role) - ROLES.indexOf(b.role);
+    if (r) return r;
+    return a.role === "lineup" ? byScore(a, b) : newest(a, b);
+  });
+}
+
+/**
+ * The run every data screen opens on: the lineup's grade of the bot in the
+ * replay's Highlights (Gemma 3 12B), so the report card is the bot you just
+ * watched. Only ever a lineup grade; with no Highlights to match, the first one.
+ */
+export function opensOn(entries, sample) {
+  const lineup = entries.filter((e) => e.role === "lineup");
+  const match = sample && lineup.find((e) => e.judged_from === `${sample.run}.json` && e.judge === sample.judge);
+  return (match ?? lineup[0] ?? entries[0])?.id ?? null;
+}
+
+/** The recordings the replay offers, besides the Highlights: the lineup's grades and the custom bot's. Small, so the first page stays light. */
+export function replayList(entries) {
+  return entries
+    .filter((e) => e.role === "lineup" || e.role === "unranked")
+    .map((e) =>
+      pick(e, ["id", "file", "role", "model", "name", "custom", "maker", "provider_label", "judge", "judge_company", "votes", "traps", "overall", "grade", "recorded_first", "recorded_last"]),
+    );
+}
+
+export function exportRuns({ root = ROOT, out = OUT, write = true, roster = readRoster(), sample = readSample() } = {}) {
   const runsDir = resolve(root, "runs");
   const files = existsSync(runsDir) ? readdirSync(runsDir) : [];
   const entries = [];
@@ -403,14 +498,26 @@ export function exportRuns({ root = ROOT, out = OUT, write = true, roster = read
     records: judgeCheckRecords(root).map((f) => ({ ...f, decision: decisionFor(f.judge, root), spot_check: spotCheckFor(f.judge, root) })),
     leanOf,
   });
-  const index = { format: "polygraph-dashboard-runs", made_by: "dashboard/scripts/export-runs.mjs", runs: entries, lineup };
+  // Session 10: what each run is, the lineup's grades first, and the one every screen opens on.
+  const runs = pickerOrder(assignRoles(entries, lineup, roster));
+  const index = {
+    format: "polygraph-dashboard-runs",
+    made_by: "dashboard/scripts/export-runs.mjs",
+    opens_on: opensOn(runs, sample),
+    runs,
+    lineup,
+  };
+  // The replay's list of recordings, on its own: the first page only needs this
+  // (a few KB). Each recording is loaded only when it's picked.
+  const replays = { format: "polygraph-dashboard-replays", made_by: "dashboard/scripts/export-runs.mjs", recordings: replayList(runs) };
   if (write) {
     rmSync(out, { recursive: true, force: true });
     mkdirSync(out, { recursive: true });
     for (const o of outputs) writeFileSync(resolve(out, o.file), JSON.stringify(o.data));
     writeFileSync(resolve(out, "index.json"), JSON.stringify(index, null, 2) + "\n");
+    writeFileSync(resolve(out, "replays.json"), JSON.stringify(replays, null, 2) + "\n");
   }
-  return { index, outputs };
+  return { index, outputs, replays };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

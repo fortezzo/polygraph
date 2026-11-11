@@ -1,3 +1,3 @@
 """Polygraph: a lie detector for AI chatbots."""
 
-__version__ = "0.9.0"
+__version__ = "0.10.0"

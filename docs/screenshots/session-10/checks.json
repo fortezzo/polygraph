@@ -1,0 +1,308 @@
+{
+  "base": "a local copy of the demo build",
+  "checked_at": "2026-11-11T04:43:15.503Z",
+  "firstPage_desktop": {
+    "files": 11,
+    "bytes": 749897,
+    "runs": [
+      "runs/replays.json"
+    ],
+    "recordingsLoaded": 0
+  },
+  "firstPage_phone": {
+    "files": 11,
+    "bytes": 749897,
+    "runs": [
+      "runs/replays.json"
+    ],
+    "recordingsLoaded": 0
+  },
+  "recordingPicker": [
+    {
+      "value": "highlights",
+      "label": "Highlights: gemma3:12b, 6 answers checked by hand",
+      "group": null,
+      "selected": true
+    },
+    {
+      "value": "2026-11-10_13-40-55_openai_gpt-6-astra",
+      "label": "gpt-6-astra · 99 (A)",
+      "group": "Whole interrogations, every question",
+      "selected": false
+    },
+    {
+      "value": "2026-11-10_13-12-15_openai_gpt-6.1-terra",
+      "label": "gpt-6.1-terra · 97 (A)",
+      "group": "Whole interrogations, every question",
+      "selected": false
+    },
+    {
+      "value": "2026-11-10_13-02-02_openai_gpt-6-luna",
+      "label": "gpt-6-luna · 94 (A)",
+      "group": "Whole interrogations, every question",
+      "selected": false
+    },
+    {
+      "value": "2026-11-10_19-02-51_ollama_gemma4-12b",
+      "label": "gemma4:12b · 73 (C)",
+      "group": "Whole interrogations, every question",
+      "selected": false
+    },
+    {
+      "value": "2026-11-10_18-40-55_ollama_phi4-14b",
+      "label": "phi4:14b · 66 (D)",
+      "group": "Whole interrogations, every question",
+      "selected": false
+    },
+    {
+      "value": "2026-11-10_13-08-46_ollama_gemma3-12b",
+      "label": "gemma3:12b · 49 (F)",
+      "group": "Whole interrogations, every question",
+      "selected": false
+    },
+    {
+      "value": "2026-11-10_18-07-11_ollama_ministral-3-14b",
+      "label": "ministral-3:14b · 49 (F)",
+      "group": "Whole interrogations, every question",
+      "selected": false
+    },
+    {
+      "value": "2026-11-10_13-02-10_ollama_llama3.2",
+      "label": "llama3.2 · 35 (F)",
+      "group": "Whole interrogations, every question",
+      "selected": false
+    },
+    {
+      "value": "2026-11-10_13-05-55_ollama_llama3.2",
+      "label": "Never Unsure (llama3.2) · 34 (F), not ranked",
+      "group": "Whole interrogations, every question",
+      "selected": false
+    }
+  ],
+  "subjectPicker": [
+    {
+      "value": "2026-11-10_13-40-55_openai_gpt-6-astra",
+      "label": "gpt-6-astra",
+      "group": "The lineup, graded by claude-haiku-5-5",
+      "selected": false
+    },
+    {
+      "value": "2026-11-10_13-12-15_openai_gpt-6.1-terra",
+      "label": "gpt-6.1-terra",
+      "group": "The lineup, graded by claude-haiku-5-5",
+      "selected": false
+    },
+    {
+      "value": "2026-11-10_13-02-02_openai_gpt-6-luna",
+      "label": "gpt-6-luna",
+      "group": "The lineup, graded by claude-haiku-5-5",
+      "selected": false
+    },
+    {
+      "value": "2026-11-10_19-02-51_ollama_gemma4-12b",
+      "label": "gemma4:12b",
+      "group": "The lineup, graded by claude-haiku-5-5",
+      "selected": false
+    },
+    {
+      "value": "2026-11-10_18-40-55_ollama_phi4-14b",
+      "label": "phi4:14b",
+      "group": "The lineup, graded by claude-haiku-5-5",
+      "selected": false
+    },
+    {
+      "value": "2026-11-10_13-08-46_ollama_gemma3-12b",
+      "label": "gemma3:12b",
+      "group": "The lineup, graded by claude-haiku-5-5",
+      "selected": true
+    },
+    {
+      "value": "2026-11-10_18-07-11_ollama_ministral-3-14b",
+      "label": "ministral-3:14b",
+      "group": "The lineup, graded by claude-haiku-5-5",
+      "selected": false
+    },
+    {
+      "value": "2026-11-10_13-02-10_ollama_llama3.2",
+      "label": "llama3.2",
+      "group": "The lineup, graded by claude-haiku-5-5",
+      "selected": false
+    },
+    {
+      "value": "2026-11-10_13-05-55_ollama_llama3.2",
+      "label": "Never Unsure (llama3.2) · not ranked",
+      "group": "Not ranked: a bot with its own instructions, graded by claude-haiku-5-5",
+      "selected": false
+    },
+    {
+      "value": "2026-11-10_19-02-51_ollama_gemma4-12b--gpt-6-luna",
+      "label": "gemma4:12b · second opinion by gpt-6-luna",
+      "group": "Second opinions, graded by gpt-6-luna",
+      "selected": false
+    },
+    {
+      "value": "2026-11-10_18-40-55_ollama_phi4-14b--gpt-6-luna",
+      "label": "phi4:14b · second opinion by gpt-6-luna",
+      "group": "Second opinions, graded by gpt-6-luna",
+      "selected": false
+    },
+    {
+      "value": "2026-11-10_18-07-11_ollama_ministral-3-14b--gpt-6-luna",
+      "label": "ministral-3:14b · second opinion by gpt-6-luna",
+      "group": "Second opinions, graded by gpt-6-luna",
+      "selected": false
+    },
+    {
+      "value": "2026-11-10_13-08-46_ollama_gemma3-12b--gpt-6-luna",
+      "label": "gemma3:12b · second opinion by gpt-6-luna",
+      "group": "Second opinions, graded by gpt-6-luna",
+      "selected": false
+    },
+    {
+      "value": "2026-11-10_13-05-55_ollama_llama3.2--gpt-6-luna",
+      "label": "Never Unsure (llama3.2) · second opinion by gpt-6-luna",
+      "group": "Second opinions, graded by gpt-6-luna",
+      "selected": false
+    },
+    {
+      "value": "2026-11-10_13-02-10_ollama_llama3.2--gpt-6-luna",
+      "label": "llama3.2 · second opinion by gpt-6-luna",
+      "group": "Second opinions, graded by gpt-6-luna",
+      "selected": false
+    },
+    {
+      "value": "2026-11-10_13-12-15_openai_gpt-6.1-terra--qwen3.6-35b",
+      "label": "gpt-6.1-terra · replaced grades by qwen3.6:35b",
+      "group": "Replaced grades: they don't count",
+      "selected": false
+    },
+    {
+      "value": "2026-11-10_13-02-02_openai_gpt-6-luna--qwen3.6-35b",
+      "label": "gpt-6-luna · replaced grades by qwen3.6:35b",
+      "group": "Replaced grades: they don't count",
+      "selected": false
+    },
+    {
+      "value": "2026-11-10_10-31-50_ollama_llama3.2",
+      "label": "Never Unsure (llama3.2) · earlier 80-trap run, Nov 10, 2026 10:31",
+      "group": "Earlier runs, from the 80-trap library",
+      "selected": false
+    },
+    {
+      "value": "2026-11-10_01-20-40_ollama_llama3.2",
+      "label": "Never Unsure (llama3.2) · earlier 80-trap run, Nov 10, 2026 01:20",
+      "group": "Earlier runs, from the 80-trap library",
+      "selected": false
+    },
+    {
+      "value": "2026-11-09_15-47-13_ollama_gemma3-12b",
+      "label": "gemma3:12b · earlier 80-trap run, Nov 9, 2026",
+      "group": "Earlier runs, from the 80-trap library",
+      "selected": false
+    },
+    {
+      "value": "2026-11-08_21-51-00_ollama_llama3.2",
+      "label": "llama3.2 · earlier 80-trap run, Nov 8, 2026",
+      "group": "Earlier runs, from the 80-trap library",
+      "selected": false
+    }
+  ],
+  "reportOpensOn": {
+    "value": "2026-11-10_13-08-46_ollama_gemma3-12b",
+    "label": "gemma3:12b",
+    "group": "The lineup, graded by claude-haiku-5-5",
+    "selected": true
+  },
+  "evidenceOpensOn": "gemma3:12b",
+  "confidenceOpensOn": "gemma3:12b",
+  "layoutShift_desktop_recording": {
+    "total": 0.0001329973636831276,
+    "entries": [
+      {
+        "value": 0.0001,
+        "at": 152842,
+        "moved": [
+          "#text \"25\" y 226→226"
+        ]
+      }
+    ],
+    "played": 320527,
+    "rate": 8
+  },
+  "layoutShift_phone_recording": {
+    "total": 0.00028132746272430353,
+    "entries": [
+      {
+        "value": 0.0003,
+        "at": 152824,
+        "moved": [
+          "#text \"25\" y 310→310"
+        ]
+      }
+    ],
+    "played": 320548,
+    "rate": 8
+  },
+  "layoutShift_desktop_#/report": 0.00003420781893004115,
+  "layoutShift_desktop_#/evidence": 0,
+  "layoutShift_desktop_#/confidence": 0.00003420781893004115,
+  "layoutShift_desktop_#/report?run=2026-11-10_13-08-46_ollama_gemma3-12b--gpt-6-luna": 0.00003420781893004115,
+  "layoutShift_phone_#/report": 0,
+  "layoutShift_phone_#/evidence": 0,
+  "layoutShift_phone_#/confidence": 0,
+  "layoutShift_phone_#/report?run=2026-11-10_13-08-46_ollama_gemma3-12b--gpt-6-luna": 0,
+  "frames": {
+    "frames": 1440,
+    "fps": 240,
+    "p95": 4.3,
+    "p99": 4.3,
+    "worst": 8.3
+  },
+  "controls": {
+    "normalSpeed": 1,
+    "fourTimes": 4,
+    "fourPressed": "true",
+    "nextCaught": [
+      {
+        "trap": "ghost-003",
+        "now": 45658,
+        "madeUpWordsIn": 2499
+      },
+      {
+        "trap": "ghost-005",
+        "now": 72514,
+        "madeUpWordsIn": 2499
+      },
+      {
+        "trap": "ghost-006",
+        "now": 91400,
+        "madeUpWordsIn": 2499
+      }
+    ],
+    "numberTab": "number-001",
+    "newTab": 0
+  },
+  "axe": {
+    "desktop ?paused": [],
+    "desktop ?paused#/replay?run=2026-11-10_13-02-10_ollama_llama3.2": [],
+    "desktop ?paused#/replay?run=2026-11-10_13-05-55_ollama_llama3.2": [],
+    "desktop #/replay?run=no-such-recording": [],
+    "desktop #/report": [],
+    "desktop #/evidence": [],
+    "desktop #/confidence": [],
+    "desktop #/report?run=2026-11-10_13-08-46_ollama_gemma3-12b--gpt-6-luna": [],
+    "desktop #/report?run=2026-11-09_15-47-13_ollama_gemma3-12b": [],
+    "desktop #/new": [],
+    "phone ?paused": [],
+    "phone ?paused#/replay?run=2026-11-10_13-02-10_ollama_llama3.2": [],
+    "phone ?paused#/replay?run=2026-11-10_13-05-55_ollama_llama3.2": [],
+    "phone #/replay?run=no-such-recording": [],
+    "phone #/report": [],
+    "phone #/evidence": [],
+    "phone #/confidence": [],
+    "phone #/report?run=2026-11-10_13-08-46_ollama_gemma3-12b--gpt-6-luna": [],
+    "phone #/report?run=2026-11-09_15-47-13_ollama_gemma3-12b": [],
+    "phone #/new": []
+  },
+  "problems": []
+}

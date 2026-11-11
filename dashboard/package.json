@@ -1,7 +1,7 @@
 {
   "name": "polygraph-dashboard",
   "private": true,
-  "version": "0.9.0",
+  "version": "0.10.0",
   "type": "module",
   "engines": {
     "node": ">=20.19"
@@ -9,8 +9,10 @@
   "scripts": {
     "dev": "node scripts/export-runs.mjs && vite",
     "build": "node scripts/export-runs.mjs && vite build",
+    "build:demo": "node scripts/export-runs.mjs && vite build --mode demo",
     "runs": "node scripts/export-runs.mjs",
     "preview": "vite preview",
+    "preview:demo": "npm run build:demo && vite preview --strictPort",
     "phone": "npm run build && vite preview --host 0.0.0.0 --port 4173 --strictPort",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",

@@ -1,7 +1,8 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { hrefFor, type Screen } from "../lib/route";
+import { DEMO } from "../lib/demo";
 
-const TABS: { screen: Screen; label: string; short: string }[] = [
+const ALL_TABS: { screen: Screen; label: string; short: string }[] = [
   { screen: "replay", label: "Interrogation room", short: "Replay" },
   { screen: "report", label: "Report card", short: "Report" },
   { screen: "evidence", label: "Evidence wall", short: "Evidence" },
@@ -11,6 +12,13 @@ const TABS: { screen: Screen; label: string; short: string }[] = [
   // Live mode (Session 8): start a run and watch it. The live screen counts as this tab.
   { screen: "new", label: "New interrogation", short: "New" },
 ];
+
+/** The menu. The public demo (Session 10) has no live mode, so no New interrogation tab. */
+export function tabsFor(demo: boolean) {
+  return demo ? ALL_TABS.filter((t) => t.screen !== "new") : ALL_TABS;
+}
+
+const TABS = tabsFor(DEMO);
 
 const FADE = 28; // px of fade at an edge with more tabs past it
 

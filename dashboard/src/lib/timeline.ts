@@ -75,6 +75,8 @@ export interface TurnPlan {
   hidden: Span[];
   /** Live runs: a saved answer, reused from an earlier run, with the day the bot first gave it. */
   saved?: string | null;
+  /** The answer hit the length limit (Session 9). It was judged and scored as it stands. */
+  cutOff?: boolean;
 }
 
 export interface Headline {
@@ -237,6 +239,7 @@ function planTrap(run: RunFile, trap: TrapResult, index: number, t0: number, pac
           // Christian's rule: in an answer Polygraph caught, names credited with a study
           // or citation are hidden on screen. The run file keeps them.
           hidden: tone ? namesToHide(text) : [],
+          cutOff: !!turn.call?.truncated,
         });
         t = c ? confAt + pace.confidenceShow : end;
       }
@@ -341,6 +344,23 @@ export function viewKey(v: View): string {
   const turns = v.turns.map((x) => `${x.started ? "s" : ""}${x.reveal}${x.typing ? "t" : ""}${x.confidenceShown ? "c" : ""}`).join(",");
   const flags = [v.exhibitShown, v.spiking, v.stamped, v.verdictShown, v.finalShown, v.ended].map((f) => (f ? 1 : 0)).join("");
   return `${v.trap}|${turns}|${flags}|${v.shown.map((s) => s ?? "-").join(",")}`;
+}
+
+/**
+ * How far ahead of the made-up words "Next caught answer" lands (Session 10):
+ * the question is already on screen, and the made-up words stream in a moment later.
+ */
+export const CAUGHT_LEAD = 2500;
+
+/** Where "Next caught answer" jumps from time t: just before the next made-up words still ahead. */
+export function nextCaught(tl: Timeline, t: number): { index: number; at: number } | null {
+  for (const p of tl.traps) {
+    if (!p.tone) continue;
+    const moment = p.spike?.start ?? p.stampAt ?? p.verdictAt;
+    const at = Math.max(p.start, moment - CAUGHT_LEAD);
+    if (at > t + 250) return { index: p.index, at };
+  }
+  return null;
 }
 
 /** Named moments, for jumping around and for the screenshot script. */

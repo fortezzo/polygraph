@@ -1,18 +1,20 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { MotionConfig, useReducedMotion } from "motion/react";
 import type { RunFile } from "../data/runFile";
 import { answersOf } from "../data/runFile";
 import { VERDICT_INFO } from "../data/verdicts";
-import { buildTimeline, marksOf, viewAt, viewKey, type Timeline } from "../lib/timeline";
+import { buildTimeline, marksOf, nextCaught, viewAt, viewKey, type Timeline } from "../lib/timeline";
 import { trackOf } from "../lib/signal";
 import { Playback } from "../lib/playback";
 import { Sound } from "../lib/sound";
 import { onFrame } from "../lib/frame";
 import { recordedRange } from "../lib/format";
+import { MANY } from "../lib/rail";
+import { subjectOf } from "../lib/runs";
 import { ChartPaper } from "../components/ChartPaper";
 import { Transcript } from "../components/Transcript";
 import { CaseDetails, CaseSummary } from "../components/CaseNotes";
-import { ReplayControls, Rail, ReplayBar } from "../components/Header";
+import { NextCaughtButton, ReplayControls, Rail, ReplayBar, SpeedControl, TypeRail } from "../components/Header";
 import { TopBar } from "../components/TopBar";
 
 export interface StartOptions {
@@ -39,15 +41,29 @@ declare global {
   }
 }
 
-export function InterrogationScreen({ run, start = {} }: { run: RunFile; start?: StartOptions }) {
+export function InterrogationScreen({
+  run, start = {}, rate = start.rate ?? 1, onRate, picker,
+}: {
+  run: RunFile;
+  start?: StartOptions;
+  /** Session 10: the speed, kept by the app so a newly picked recording plays at it too. */
+  rate?: number;
+  onRate?: (rate: number) => void;
+  /** Session 10: the Recording picker, shown where the bot's name goes. */
+  picker?: ReactNode;
+}) {
   const reduced = useReducedMotion() ?? false;
   const timeline = useMemo(() => buildTimeline(run, { reduced }), [run, reduced]);
   const track = useMemo(() => trackOf(timeline), [timeline]);
   const playback = useMemo(
-    () => new Playback(timeline.duration, { paused: start.paused, at: startTime(timeline, start.at), rate: start.rate }),
+    () => new Playback(timeline.duration, { paused: start.paused, at: startTime(timeline, start.at), rate }),
     // Only a new timeline (the reduce-motion setting changed) gets a new clock.
     [timeline],
   );
+  // A new speed carries on from exactly where the replay is.
+  useEffect(() => playback.setRate(rate), [playback, rate]);
+  // Whether there's a caught answer still ahead, for "Next caught answer".
+  const [hasNext, setHasNext] = useState(() => nextCaught(timeline, playback.now()) !== null);
   const subscribe = useCallback((fn: () => void) => playback.subscribe(fn), [playback]);
   const status = useSyncExternalStore(subscribe, () => playback.status);
   const sound = useMemo(() => new Sound(), []);
@@ -57,13 +73,20 @@ export function InterrogationScreen({ run, start = {} }: { run: RunFile; start?:
   const [view, setView] = useState(() => viewAt(timeline, playback.now()));
   useEffect(() => {
     let key = "";
+    let next: boolean | null = null;
     return onFrame(() => {
       playback.tick();
-      const v = viewAt(timeline, playback.now());
+      const t = playback.now();
+      const v = viewAt(timeline, t);
       const k = viewKey(v);
       if (k !== key) {
         key = k;
         setView(v);
+      }
+      const ahead = nextCaught(timeline, t) !== null;
+      if (ahead !== next) {
+        next = ahead;
+        setHasNext(ahead);
       }
     });
   }, [timeline, playback]);
@@ -110,6 +133,9 @@ export function InterrogationScreen({ run, start = {} }: { run: RunFile; start?:
       seek: (t: number) => playback.seek(t),
       pause: () => playback.pause(),
       play: () => playback.play(),
+      rate: () => playback.rate,
+      traps: timeline.traps.length,
+      nextCaught: () => nextCaught(timeline, playback.now()),
       sound: { enabled: () => sound.enabled, contextCreated: () => sound.contextCreated },
     };
     return () => {
@@ -152,6 +178,21 @@ export function InterrogationScreen({ run, start = {} }: { run: RunFile; start?:
     playback.seek(p.start);
     playback.play();
   };
+  // Session 10 (Christian): straight to the next lie, just before its made-up words stream in.
+  const goNext = () => {
+    const n = nextCaught(timeline, playback.now());
+    if (!n) return;
+    playback.seek(n.at);
+    playback.play();
+  };
+  const instructions = target.system_prompt?.trim() || null;
+  // Session 10: the speed and "Next caught answer", at the end of the strip of questions.
+  const controls = (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <SpeedControl rate={rate} onRate={(r) => onRate?.(r)} />
+      <NextCaughtButton onNext={goNext} disabled={!hasNext} />
+    </div>
+  );
 
   return (
     <MotionConfig reducedMotion="user">
@@ -163,13 +204,18 @@ export function InterrogationScreen({ run, start = {} }: { run: RunFile; start?:
           <ReplayControls status={status} soundOn={soundOn} onPlayPause={playPause} onRestart={() => playback.restart()} onSound={toggleSound} />
         </TopBar>
         <ReplayBar
-          model={target.model}
+          model={subjectOf(target)}
           maker={judge?.bot_company}
           via={target.provider_label}
           recorded={recorded}
           judge={judge ? `${judge.model}${judge.company ? ` (${judge.company})` : ""}` : undefined}
+          subject={picker}
         />
-        <Rail timeline={timeline} view={view} onJump={jump} />
+        {timeline.traps.length > MANY ? (
+          <TypeRail timeline={timeline} view={view} onJump={jump} aside={controls} />
+        ) : (
+          <Rail timeline={timeline} view={view} onJump={jump} aside={controls} />
+        )}
         {plan && (
           <main className="screen-grid mt-1">
             <div className="area-chart">
@@ -191,6 +237,7 @@ export function InterrogationScreen({ run, start = {} }: { run: RunFile; start?:
               model={target.model}
               reduced={reduced}
               confidenceQuestion={run.run.prompts?.confidence_question}
+              instructions={instructions}
             />
             <div className="folder">
               <CaseSummary plan={plan} view={view} />

@@ -40,10 +40,63 @@ function noise(x: number): number {
   return (hash(i) * (1 - u) + hash(i + 1) * u) * 2 - 1;
 }
 
+// Session 10: a whole interrogation has hundreds of windows, and the chart paper
+// asks for hundreds of points every frame. So each list is sorted once (and kept
+// for as long as the list itself), and each point only looks at the windows near
+// it. The needle draws exactly the same line as before.
+interface Sorted<T extends Window> {
+  items: T[];
+  starts: number[];
+  /** The latest end among the first i + 1 items: how far back a long window could still reach. */
+  maxEnd: number[];
+}
+
+const sortedCache = new WeakMap<readonly Window[], Sorted<Window>>();
+
+function sorted<T extends Window>(ws: readonly T[]): Sorted<T> {
+  let s = sortedCache.get(ws) as Sorted<T> | undefined;
+  if (!s) {
+    const items = [...ws].sort((a, b) => a.start - b.start);
+    let m = -Infinity;
+    s = { items, starts: items.map((w) => w.start), maxEnd: items.map((w) => (m = Math.max(m, w.end))) };
+    sortedCache.set(ws, s as unknown as Sorted<Window>);
+  }
+  return s;
+}
+
+/** The last index whose start is at or before t, or -1. */
+function lastStartingBy(starts: number[], t: number): number {
+  let lo = 0;
+  let hi = starts.length - 1;
+  let found = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (starts[mid]! <= t) {
+      found = mid;
+      lo = mid + 1;
+    } else hi = mid - 1;
+  }
+  return found;
+}
+
+/**
+ * The items that could matter at time t (start <= t + before, end >= t - after):
+ * items[lo..hi], in order. Nothing is copied, since this runs for every point drawn.
+ */
+function near<T extends Window>(ws: readonly T[], t: number, before: number, after: number): { items: T[]; lo: number; hi: number } {
+  const s = sorted(ws);
+  const hi = lastStartingBy(s.starts, t + before);
+  let lo = hi;
+  while (lo > 0 && s.maxEnd[lo - 1]! + after >= t) lo--;
+  return { items: s.items, lo: Math.max(lo, 0), hi };
+}
+
 function inside(ws: Window[], t: number): number {
   // 1 well inside a window, easing to 0 at its edges.
   let best = 0;
-  for (const w of ws) {
+  const { items, lo, hi } = near(ws, t, EDGE, EDGE);
+  for (let i = lo; i <= hi; i++) {
+    const w = items[i]!;
     if (t < w.start - EDGE || t > w.end + EDGE) continue;
     const a = Math.min(1, (t - (w.start - EDGE)) / EDGE, ((w.end + EDGE) - t) / EDGE);
     if (a > best) best = a;
@@ -69,7 +122,9 @@ export function needleAt(track: Track, t: number): NeedlePoint {
   const level = 0.55 + 0.45 * a - 0.3 * q;
   let y = CALM * level * wave;
   let tone: Tone | null = null;
-  for (const sp of track.spikes) {
+  const spikes = near(track.spikes, t, 0, 1900);
+  for (let i = spikes.lo; i <= spikes.hi; i++) {
+    const sp = spikes.items[i]!;
     if (t < sp.start || t > sp.end + 1900) continue;
     const ts = (t - sp.start) / 1000;
     const decay = Math.exp(-ts / 0.55);

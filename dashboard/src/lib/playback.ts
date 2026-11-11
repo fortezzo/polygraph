@@ -7,7 +7,12 @@ export type Status = "playing" | "paused" | "ended";
 export interface Clock {
   now(): number;
   readonly status: Status;
+  /** How fast it runs (Session 10's speed control). The live screen's is always 1. */
+  readonly rate?: number;
 }
+
+/** The replay's speeds (Session 10). A whole 200-question recording takes about an hour at 1×. */
+export const SPEEDS = [1, 2, 4, 8] as const;
 
 export class Playback {
   private origin = 0;
@@ -61,6 +66,15 @@ export class Playback {
   restart(): void {
     this.pausedAt = 0;
     this.play();
+  }
+
+  /** A new speed, without a jump: the replay carries on from exactly where it is. */
+  setRate(rate: number): void {
+    if (!(rate > 0) || rate === this.rate) return;
+    const t = this.now();
+    this.rate = rate;
+    if (this.pausedAt === null) this.origin = this.clock() - t / rate;
+    this.emit();
   }
 
   /** Called every frame: stops the clock cleanly at the end. */

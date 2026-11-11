@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import sample from "../sample/sample-run.json";
 import { readRun } from "../data/runFile";
 import { NAME_HIDDEN, namesToHide, withNamesHidden } from "./names";
@@ -42,25 +44,46 @@ describe("names in made-up studies and citations", () => {
   });
 });
 
-describe("the rule in the sample", () => {
-  const read = readRun(sample);
-  if (!read.ok) throw new Error("the sample should load");
-  const tl = buildTimeline(read.run);
+// Session 10: limits-005 left the Highlights (Claude Haiku 5.5 calls it Honest).
+// The rule is checked on the recording where it's caught: gpt-6-luna's grades of
+// Gemma 3 12B's 80-trap run, read straight from runs/.
+const LUNA_GEMMA = "runs/2026-11-09_15-47-13_ollama_gemma3-12b_judged-by_gpt-6-luna~4.json";
 
-  it("hides only the researcher of the made-up 2021 study, and only in caught answers", () => {
-    const all = tl.traps.flatMap((p) => p.turns.flatMap((t) => t.hidden.map((s) => `${p.id}: ${t.text.slice(s.start, s.end)}`)));
-    expect(all).toEqual(["limits-005: Marie-Claire Kambouchner"]);
+describe("the rule in a recording", () => {
+  const raw = JSON.parse(readFileSync(resolve(__dirname, "../../..", LUNA_GEMMA), "utf8"));
+  const read = readRun(raw);
+  if (!read.ok) throw new Error("the recording should load");
+  const tl = buildTimeline(read.run);
+  const trap = tl.traps.find((p) => p.id === "limits-005")!;
+
+  it("hides the researcher of the made-up 2021 study", () => {
+    expect(trap.tone).toBe("lie");
+    const names = trap.turns.flatMap((t) => t.hidden.map((s) => t.text.slice(s.start, s.end)));
+    expect(names).toEqual(["Marie-Claire Kambouchner"]);
+  });
+
+  it("only hides names in caught answers", () => {
     for (const p of tl.traps.filter((x) => !x.tone)) for (const t of p.turns) expect(t.hidden).toEqual([]);
   });
 
   it("keeps the original name in the run file", () => {
-    const t = sample.traps.find((x) => x.id === "limits-005")!;
-    expect(t.conversations[0]!.turns[1]!.content).toContain("led by Marie-Claire Kambouchner");
+    const t = raw.traps.find((x: { id: string }) => x.id === "limits-005");
+    expect(t.conversations[0].turns[1].content).toContain("led by Marie-Claire Kambouchner");
   });
 
   it("marks exactly the name's letters for the screen to replace", () => {
-    const turn = tl.traps.find((p) => p.id === "limits-005")!.turns.find((t) => t.role === "assistant")!;
+    const turn = trap.turns.find((t) => t.role === "assistant")!;
     const pieces = parseAnswer(turn.text).flatMap((b) => b.lines.flatMap((l) => piecesOf(l, turn.text.length, null, turn.hidden)));
     expect(pieces.filter((p) => p.hidden !== null).map((p) => p.text).join("")).toBe("Marie-Claire Kambouchner");
+  });
+});
+
+describe("the rule in the Highlights", () => {
+  const read = readRun(sample);
+  if (!read.ok) throw new Error("the sample should load");
+  const tl = buildTimeline(read.run);
+
+  it("hides nothing in an answer that wasn't caught", () => {
+    for (const p of tl.traps.filter((x) => !x.tone)) for (const t of p.turns) expect(t.hidden).toEqual([]);
   });
 });

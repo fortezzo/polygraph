@@ -29,7 +29,7 @@ describe("buildTimeline", () => {
 
   it("spikes the needle exactly when the made-up phrase starts streaming in", () => {
     const caught = tl.traps.filter((p) => p.tone);
-    expect(caught.map((p) => p.id)).toEqual(["ghost-004", "pressure-002", "limits-005"]);
+    expect(caught.map((p) => p.id)).toEqual(["ghost-004", "pressure-002", "limits-002"]);
     for (const p of caught) {
       const turn = p.turns.find((x) => x.hot)!;
       expect(turn).toBeTruthy();

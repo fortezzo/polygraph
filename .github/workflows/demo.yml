@@ -1,0 +1,73 @@
+# The demo site (Session 10). After the tests pass on a push to main, GitHub
+# builds the dashboard in demo mode (recorded runs only, no live mode) and
+# publishes it with GitHub Pages. It can also be run by hand from the Actions tab.
+#
+# Nothing is published until the repository variable DEMO_SITE is set to
+# "github-pages" (Settings, then Secrets and variables, then Actions, then
+# Variables). Christian decides when the demo goes public.
+
+name: Demo site
+
+on:
+  workflow_run:
+    workflows: [Tests]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One publish at a time, and a publish that started is never cut off.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build the demo
+    # Only when publishing is switched on, and only after the tests passed on a
+    # push to main in this repository (never for a pull request), or by hand.
+    if: >-
+      vars.DEMO_SITE == 'github-pages' && (
+        github.event_name == 'workflow_dispatch' || (
+          github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.event == 'push' &&
+          github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The commit the tests passed on.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.20.0"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - name: Install exactly the locked packages (their install scripts stay off)
+        run: npm ci --no-audit --no-fund
+        working-directory: dashboard
+      - name: Build the demo site
+        run: npm run build:demo
+        working-directory: dashboard
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: dashboard/dist
+
+  deploy:
+    name: Publish it with GitHub Pages
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

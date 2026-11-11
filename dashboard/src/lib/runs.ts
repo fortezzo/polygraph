@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { readRun, type RunFile } from "../data/runFile";
 import type { LineupData } from "./lineup";
+import { shownScore } from "./report";
 
 export interface JudgeCheck {
   judge: string;
@@ -16,10 +17,19 @@ export interface JudgeCheck {
   caught_called_honest: number;
 }
 
+/**
+ * What a judged run is (Session 10, from scripts/export-runs.mjs). Every screen
+ * opens on a "lineup" grade; the rest stay reachable, clearly labeled.
+ */
+export type RunRole = "lineup" | "unranked" | "second_opinion" | "replaced" | "earlier" | "other";
+
 export interface RunEntry {
   id: string;
   file: string;
   source: string | null;
+  /** The run file that was judged (in runs/): two judges' grades of the same answers share it. */
+  judged_from?: string | null;
+  role?: RunRole;
   model: string;
   /** A custom bot's name, like "Bob's Pizza bot" (Session 8). */
   name?: string | null;
@@ -51,6 +61,102 @@ export interface RunEntry {
 /** What to call the bot on screen: a custom bot's name with its model, or just the model. */
 export function subjectOf(entry: Pick<RunEntry, "model" | "name">): string {
   return entry.name ? `${entry.name} (${entry.model})` : entry.model;
+}
+
+/** The run list, and the run every data screen opens on (always a lineup grade when there is one). */
+export interface RunIndex {
+  runs: RunEntry[];
+  opensOn: string | null;
+}
+
+/** The run to show: the one in the address, or else the one the screens open on. */
+export function chosenRun(index: RunIndex, wanted: string | null): RunEntry | undefined {
+  const { runs, opensOn } = index;
+  return runs.find((r) => r.id === wanted) ?? runs.find((r) => r.id === opensOn) ?? runs.find((r) => r.role === "lineup") ?? runs[0];
+}
+
+const ROLE_GROUP: Record<RunRole, (judge: string | null) => string> = {
+  lineup: (j) => `The lineup, graded by ${j ?? "its judge"}`,
+  unranked: (j) => `Not ranked: a bot with its own instructions, graded by ${j ?? "its judge"}`,
+  second_opinion: (j) => `Second opinions, graded by ${j ?? "another judge"}`,
+  replaced: () => "Replaced grades: they don't count",
+  earlier: () => "Earlier runs, from the 80-trap library",
+  other: () => "Other runs",
+};
+
+const ROLE_ORDER: RunRole[] = ["lineup", "unranked", "second_opinion", "replaced", "earlier", "other"];
+
+/** The Subject picker's groups, in order, each with a label that says whose grades they are. */
+export function pickerGroups(runs: RunEntry[]): { role: RunRole; label: string; runs: RunEntry[] }[] {
+  return ROLE_ORDER.map((role) => {
+    const these = runs.filter((r) => (r.role ?? "other") === role);
+    const judges = [...new Set(these.map((r) => r.judge))];
+    return { role, label: ROLE_GROUP[role](judges.length === 1 ? judges[0] ?? null : null), runs: these };
+  }).filter((g) => g.runs.length > 0);
+}
+
+/**
+ * A run's name in the Subject picker. A closed picker only shows this line, so
+ * anything that isn't the lineup's own grade says what it is, and whose.
+ */
+export function pickerLabel(run: RunEntry, all: RunEntry[]): string {
+  const base = (r: RunEntry): string => {
+    const name = subjectOf(r);
+    switch (r.role) {
+      case "lineup":
+        return name;
+      case "unranked":
+        return `${name} · not ranked`;
+      case "second_opinion":
+        return `${name} · second opinion by ${r.judge}`;
+      case "replaced":
+        return `${name} · replaced grades by ${r.judge}`;
+      case "earlier":
+        return `${name} · earlier ${r.traps}-trap run, ${r.recorded_first}`;
+      default:
+        return `${name} · ${r.traps} traps, ${r.recorded_first}, graded by ${r.judge}`;
+    }
+  };
+  const label = base(run);
+  if (all.filter((r) => base(r) === label).length < 2) return label;
+  const time = /T(\d{2}):(\d{2})/.exec(run.started_at);
+  return `${label}${time ? ` ${time[1]}:${time[2]}` : ""}`;
+}
+
+/** The lineup's own grade of the same answers, for a second opinion or replaced grades to point to. */
+export function lineupGradeOf(entry: RunEntry, runs: RunEntry[]): RunEntry | undefined {
+  const own = (r: RunEntry) => r.role === "lineup" || r.role === "unranked";
+  const same = runs.find((r) => own(r) && r.judged_from && r.judged_from === entry.judged_from);
+  if (same) return same;
+  // An earlier run: the lineup's run of the same bot (a custom bot goes with the custom bot).
+  return runs.find((r) => own(r) && r.model === entry.model && !!r.custom === !!entry.custom && (r.name ?? null) === (entry.name ?? null));
+}
+
+/** A recording's line in the replay's picker: the bot and its grade, rounded as the lineup shows it. */
+export function recordingLabel(r: Recording): string {
+  const score = shownScore(r.overall);
+  const graded = score === null ? "not graded" : `${score} (${r.grade})`;
+  return r.custom ? `${subjectOf(r)} · ${graded}, not ranked` : `${subjectOf(r)} · ${graded}`;
+}
+
+/** One recording the replay can play (scripts/export-runs.mjs, replays.json). */
+export interface Recording {
+  id: string;
+  file: string;
+  role: RunRole;
+  model: string;
+  name?: string | null;
+  custom?: boolean;
+  maker: string | null;
+  provider_label: string;
+  judge: string | null;
+  judge_company: string | null;
+  votes: number | null;
+  traps: number;
+  overall: number | null;
+  grade: string | null;
+  recorded_first: string;
+  recorded_last: string;
 }
 
 /** Forget the runs loaded so far, so a run that just finished shows up (Session 8). */
@@ -101,7 +207,7 @@ function useLoad<T>(key: string | null, load: () => Promise<T>): [Load<T>, () =>
   return [state, retry];
 }
 
-export function useRunIndex(): [Load<RunEntry[]>, () => void] {
+export function useRunIndex(): [Load<RunIndex>, () => void] {
   return useLoad("index", async () => {
     let data: unknown;
     try {
@@ -113,7 +219,26 @@ export function useRunIndex(): [Load<RunEntry[]>, () => void] {
     }
     const runs = (data as { runs?: RunEntry[] })?.runs;
     if (!Array.isArray(runs)) throw new Error("The list of runs is damaged. Run npm run runs in the dashboard folder to make it again.");
-    return runs;
+    const opensOn = (data as { opens_on?: string | null }).opens_on ?? null;
+    return { runs, opensOn };
+  });
+}
+
+/**
+ * The replay's recordings (Session 10): a few KB on their own, so the first
+ * page never waits for the full run list. Each recording loads when it's picked.
+ */
+export function useRecordings(): [Load<Recording[]>, () => void] {
+  return useLoad("replays", async () => {
+    let data: unknown;
+    try {
+      data = await cached("./runs/replays.json");
+    } catch {
+      throw new Error("The list of recordings couldn't be loaded. Check your connection and try again.");
+    }
+    const list = (data as { recordings?: Recording[] })?.recordings;
+    if (!Array.isArray(list)) throw new Error("The list of recordings is damaged. Run npm run runs in the dashboard folder to make it again.");
+    return list;
   });
 }
 
@@ -134,7 +259,7 @@ export function useLineup(): [Load<LineupData | null>, () => void] {
   });
 }
 
-export function useRunFile(entry: RunEntry | undefined): [Load<RunFile>, () => void] {
+export function useRunFile(entry: Pick<RunEntry, "file" | "model"> | undefined): [Load<RunFile>, () => void] {
   return useLoad(entry?.file ?? null, async () => {
     let data: unknown;
     try {

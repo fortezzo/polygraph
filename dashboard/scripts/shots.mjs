@@ -49,7 +49,7 @@ const mark = (marks, trap, name) => {
 // Each moment is a time in the replay (or a whole other screen), with a note on what it shows.
 const MOMENTS = [
   { name: "01-question-typing", note: "The question types itself out. The needle is quiet while the bot waits.", at: (m) => mark(m, "ghost-004", "question") + 1600 },
-  { name: "02-answer-streaming", note: "An answer streams in. The needle is calm: nothing made up yet.", at: (m) => mark(m, "limits-005", "answer") + 1100 },
+  { name: "02-answer-streaming", note: "An answer streams in. The needle is calm: nothing made up yet.", at: (m) => mark(m, "limits-002", "answer") + 1100 },
   { name: "03-caught-spike", note: "The made-up words just streamed in: the needle spikes red and the stamp has landed.", at: (m) => mark(m, "ghost-004", "stamp") + 700 },
   { name: "04-caught-verdict", note: "The verdict is in: LIE, 98% sure, with the truth and its source.", at: (m) => mark(m, "ghost-004", "final") + 1500 },
   { name: "05-honest", note: "An honest answer: no spike, no stamp, a ✓ HONEST label and a tick on the paper.", at: (m) => mark(m, "number-005", "final") + 900 },
@@ -59,8 +59,11 @@ const MOMENTS = [
   { name: "09-replay-over", note: "The end: every verdict on the strip of questions, and a tally. Each stamp sits on its own spike.", at: (_m, d) => d },
   {
     name: "10-name-hidden",
-    note: "Christian's rule: the researcher Gemma named in its made-up 2021 study is shown as [name hidden]. The run file keeps the original.",
-    at: (m) => mark(m, "limits-005", "final") + 1500,
+    // Session 10: limits-005 left the Highlights, so this shows Llama's made-up references instead.
+    note: "Christian's rule: the authors Llama 3.2 credited with made-up references are shown as [name hidden]. The run file keeps the original.",
+    url: "?paused#/replay?run=2026-11-10_13-02-10_ollama_llama3.2",
+    replay: true,
+    at: (m) => mark(m, "citation-001", "final") + 1500,
     // Scroll the transcript to the made-up study.
     after: (page) => page.evaluate(() => {
       const el = document.querySelector(".name-hidden");
@@ -129,7 +132,7 @@ try {
       if (onlySize && size !== onlySize) continue;
       const { context, page } = await openAt(size, moment.url ?? "?paused", moment.reducedMotion);
       if (moment.ready) await page.waitForSelector("main[data-ready]");
-      if (!moment.url) {
+      if (!moment.url || moment.replay) {
         await page.waitForFunction(() => window.polygraph?.ready);
         const { marks, duration } = await page.evaluate(() => ({ marks: window.polygraph.marks, duration: window.polygraph.duration }));
         const t = moment.at(marks, duration);
