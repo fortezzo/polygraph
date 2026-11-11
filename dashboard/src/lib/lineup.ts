@@ -52,6 +52,8 @@ export interface LineupBot {
   judge: PlacardJudge | null;
   /** On hold: the judge whose grades are on hold. */
   held_by: string | null;
+  /** Another judge's grade of the same run, shown next to the score (Session 9: gpt-6-luna's). */
+  second_opinion: { judge: string; run_id: string; score: LineupScore } | null;
   thinking: Thinking | null;
   cut_off: { answers: number; traps: string[] } | null;
 }
@@ -79,6 +81,8 @@ export interface LineupJudge {
   grades: string[];
   /** Lineup bots it graded, with those grades on hold. */
   held_bots: string[];
+  /** Lineup bots whose placards show its grade as a second opinion. */
+  second_opinion_for: string[];
   measured: {
     answers: number;
     agree: number;
@@ -90,12 +94,28 @@ export interface LineupJudge {
     lean: Lean;
     measured_at: string | null;
     file: string;
-    settings: { thinking: string | null } | null;
+    settings: { thinking: string | null; effort?: string | null } | null;
   } | null;
   /** The line Christian set in advance, for a judge measured against one. */
   line: { agree: number | null; answers: number | null; percent: number | null; passed: boolean } | null;
   decision: { decision: string | null; why: string[]; file: string | null } | null;
   hold: { since: string | null; why: string | null } | null;
+  /** It was replaced, and its grades don't count. */
+  replaced: { by: string | null; since: string | null; why: string | null } | null;
+  /** Christian's check of verdicts it marked as caught, outside the test half (Session 9). */
+  spot_check: {
+    checked_on: string | null;
+    /** Which bots' verdicts: "the OpenAI bots". */
+    on: string | null;
+    answers: number;
+    same_verdict: number | null;
+    honest_vs_caught: number | null;
+    drawn_from: string | null;
+    disagreed: { bot: string; trap: string; judge: string; christian: string; why: string | null }[];
+    different_reason: { bot: string; trap: string; verdict: string; why: string | null }[];
+    decision: string | null;
+    file: string;
+  } | null;
   versus: { other: string; agree: number | null; answers: number | null; percent: number | null } | null;
 }
 
@@ -132,6 +152,10 @@ export interface LineupPair {
 
 export interface LineupData {
   trap_set: string;
+  /** The judge whose grades are the lineup's scores. */
+  judge: string | null;
+  /** The judge shown as a second opinion. */
+  second_opinion: string | null;
   traps: number | null;
   hold: { judges: string[]; bots: string[]; since: string | null; headline: string | null; why: string | null } | null;
   bots: LineupBot[];

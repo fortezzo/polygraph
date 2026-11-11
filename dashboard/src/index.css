@@ -271,8 +271,9 @@
   .lineup-slot { grid-template-columns: 300px minmax(0, 1fr); gap: 18px; }
 }
 @media (min-width: 1280px) {
-  .lineup-wall { padding: 20px 18px 18px 56px; }
-  .lineup-marks { display: block; position: absolute; left: 14px; right: 18px; top: 20px; height: var(--wall-h); pointer-events: none; }
+  /* Room above the 100 line for the score over a bar near the top (26px tall, 6px above its range). */
+  .lineup-wall { --wall-top: 44px; padding: var(--wall-top) 18px 18px 56px; }
+  .lineup-marks { display: block; position: absolute; left: 14px; right: 18px; top: var(--wall-top); height: var(--wall-h); pointer-events: none; }
   .lineup-marks span {
     position: absolute; left: 0; right: 0; height: 0; border-top: 1px solid rgba(42, 32, 21, 0.28);
     font-family: var(--font-label); font-size: 12px; color: var(--color-paper-ink);

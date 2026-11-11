@@ -4,10 +4,12 @@
 // feed it made-up runs.
 //
 // A bot's state on the wall:
-//   scored      judged by a judge whose grades stand: its Truth Score is shown
+//   scored      judged by the lineup's judge (roster.judge): its Truth Score is shown
 //   on_hold     judged, but only by a judge whose grades are on hold: no score
-//   not_judged  run, but not judged yet: no score
+//   not_judged  run, but not judged by the lineup's judge yet: no score
 //   not_run     not interrogated yet
+// A replaced judge's grades (roster.replaced_judges) never count. The second
+// opinion (roster.second_opinion) is shown next to a score, never instead of it.
 
 const CAUGHT = ["LIE", "CAVED", "CONTRADICTED"];
 const TYPE_ORDER = [
@@ -73,13 +75,23 @@ const sizeOf = (details) => details?.parameter_size ?? null;
  * entry's id to its trimmed run, and `originals` describes the run files in
  * runs/ that aren't judged copies.
  */
+/** Whose grades can be the lineup's scores: the roster's judge, or else any judge not on hold or replaced. */
+function counts(roster) {
+  const held = new Set(roster.judge_hold?.judges ?? []);
+  const replaced = new Set((roster.replaced_judges ?? []).map((r) => r.judge));
+  return (judge) => (roster.judge ? judge === roster.judge : !held.has(judge) && !replaced.has(judge));
+}
+
 export function lineupBots({ roster, entries, runs, originals }) {
   const held = new Set(roster.judge_hold?.judges ?? []);
   const waiting = new Set(roster.judge_hold?.bots ?? []);
+  const counted = counts(roster);
+  const second = roster.second_opinion?.judge ?? null;
   return roster.bots.map((bot) => {
     const judged = entries.filter((e) => e.model === bot.model && !e.custom && complete(e, roster)).sort(newestFirst);
-    const standing = judged.find((e) => !held.has(e.judge));
+    const standing = judged.find((e) => counted(e.judge));
     const onHold = judged.find((e) => held.has(e.judge));
+    const other = second && second !== roster.judge ? judged.find((e) => e.judge === second) : undefined;
     const ran = originals.filter((o) => o.model === bot.model && !o.custom && complete(o, roster)).sort(newestFirst)[0];
     const base = {
       model: bot.model,
@@ -104,6 +116,13 @@ export function lineupBots({ roster, entries, runs, originals }) {
         },
         judge: placardJudge(standing),
         held_by: null,
+        second_opinion: other
+          ? {
+              judge: other.judge,
+              run_id: other.id,
+              score: { overall: other.overall, grade: other.grade, margin_of_error: other.margin_of_error, interval: other.interval ?? null },
+            }
+          : null,
         thinking: standing.thinking ?? null,
         cut_off: cutOffs(run),
       };
@@ -121,6 +140,7 @@ export function lineupBots({ roster, entries, runs, originals }) {
         score: null,
         judge: null,
         held_by: onHold.judge,
+        second_opinion: null,
         thinking: onHold.thinking ?? null,
         cut_off: cutOffs(run),
       };
@@ -136,6 +156,7 @@ export function lineupBots({ roster, entries, runs, originals }) {
         score: null,
         judge: null,
         held_by: null,
+        second_opinion: null,
         thinking: ran.thinking ?? null,
         cut_off: ran.cut_off ?? null,
       };
@@ -150,6 +171,7 @@ export function lineupBots({ roster, entries, runs, originals }) {
       score: null,
       judge: null,
       held_by: null,
+      second_opinion: null,
       thinking: null,
       cut_off: null,
     };
@@ -227,7 +249,7 @@ function side(bot, entry, run, custom = false) {
  * sides are scored by the same judge.
  */
 export function lineupPairs({ roster, entries, runs, bots }) {
-  const held = new Set(roster.judge_hold?.judges ?? []);
+  const counted = counts(roster);
   const scoredEntry = (model) => {
     const b = bots.find((x) => x.model === model);
     return b?.state === "scored" ? entries.find((e) => e.id === b.run_id) : undefined;
@@ -240,7 +262,7 @@ export function lineupPairs({ roster, entries, runs, bots }) {
     const custom = pair.kind === "custom";
     if (custom) {
       left = entries
-        .filter((e) => e.model === pair.model && e.custom && complete(e, roster) && !held.has(e.judge))
+        .filter((e) => e.model === pair.model && e.custom && complete(e, roster) && counted(e.judge))
         .sort(newestFirst)[0];
       rightBot = bots.find((x) => x.model === pair.model) ?? { model: pair.model, state: "not_run" };
       leftBot = { model: pair.model, maker: rightBot.maker ?? null };
@@ -273,12 +295,19 @@ export function lineupPairs({ roster, entries, runs, bots }) {
 export function lineupJudges({ roster, records, bots, entries, leanOf }) {
   const hold = roster.judge_hold ?? null;
   const held = new Set(hold?.judges ?? []);
+  const replacedBy = new Map((roster.replaced_judges ?? []).map((r) => [r.judge, r]));
+  const replaced = (judge) => {
+    const r = replacedBy.get(judge);
+    return r ? { by: r.by ?? null, since: r.since ?? null, why: r.why ?? null } : null;
+  };
+  const secondFor = (judge) => bots.filter((b) => b.second_opinion?.judge === judge).map((b) => b.model);
   const company = (judge) => entries.find((e) => e.judge === judge)?.judge_company ?? null;
   const out = records.map((f) => ({
     judge: f.judge,
     company: company(f.judge),
     grades: bots.filter((b) => b.state === "scored" && b.judge?.model === f.judge).map((b) => b.model),
     held_bots: bots.filter((b) => b.state === "on_hold" && b.held_by === f.judge).map((b) => b.model),
+    second_opinion_for: secondFor(f.judge),
     measured: {
       answers: f.answers,
       agree: f.agree,
@@ -290,13 +319,15 @@ export function lineupJudges({ roster, records, bots, entries, leanOf }) {
       lean: leanOf(f.confusion),
       measured_at: f.measured_at ?? null,
       file: `docs/judge-check/${f.file}`,
-      settings: f.judge_settings ? { thinking: f.judge_settings.thinking ?? null } : null,
+      settings: f.judge_settings ? { thinking: f.judge_settings.thinking ?? null, effort: f.judge_settings.effort ?? null } : null,
     },
     line: f.decision
       ? { agree: f.decision.line?.agree ?? null, answers: f.decision.line?.answers ?? null, percent: f.decision.line?.percent ?? null, passed: !!f.decision.passed }
       : null,
     decision: f.decision ? { decision: f.decision.decision ?? null, why: f.decision.why ?? [], file: f.decision.file ?? null } : null,
     hold: held.has(f.judge) ? { since: hold.since ?? null, why: hold.why ?? null } : null,
+    replaced: replaced(f.judge),
+    spot_check: f.spot_check ?? null,
     versus: f.versus_first_judge
       ? {
           other: f.versus_first_judge.first_judge,
@@ -315,10 +346,13 @@ export function lineupJudges({ roster, records, bots, entries, leanOf }) {
       company: company(judge),
       grades: bots.filter((x) => x.state === "scored" && x.judge?.model === judge).map((x) => x.model),
       held_bots: bots.filter((x) => x.state === "on_hold" && x.held_by === judge).map((x) => x.model),
+      second_opinion_for: secondFor(judge),
       measured: null,
       line: null,
       decision: null,
       hold: held.has(judge) ? { since: hold?.since ?? null, why: hold?.why ?? null } : null,
+      replaced: replaced(judge),
+      spot_check: null,
       versus: null,
     });
   }
@@ -333,6 +367,8 @@ export function buildLineup({ roster, entries, runs, originals, records, leanOf 
   records = [...records].sort((a, b) => String(a.measured_at ?? "").localeCompare(String(b.measured_at ?? "")));
   return {
     trap_set: roster.trap_set,
+    judge: roster.judge ?? null,
+    second_opinion: roster.second_opinion?.judge ?? null,
     traps: Math.max(0, ...bots.map((b) => b.traps ?? 0)) || null,
     hold: roster.judge_hold
       ? { judges: roster.judge_hold.judges ?? [], bots: roster.judge_hold.bots ?? [], since: roster.judge_hold.since ?? null, headline: roster.judge_hold.headline ?? null, why: roster.judge_hold.why ?? null }

@@ -20,6 +20,7 @@ import {
   type LineupJudge,
   type LineupPair,
   type PairSide,
+  scoreWords,
 } from "../lib/lineup";
 import { NameSafe } from "./NameSafe";
 import { VerdictBadge } from "./VerdictBadge";
@@ -43,6 +44,35 @@ const clamp = (n: number) => Math.max(0, Math.min(100, n));
 
 const list = (items: string[]) =>
   items.length <= 1 ? (items[0] ?? "") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+
+/** "DODGED" -> "Dodged". */
+const verdictWord = (v: string) => v.charAt(0) + v.slice(1).toLowerCase();
+
+/** Christian's check of verdicts the judge marked as caught, outside the test half (Session 9). */
+function SpotCheck({ check: c }: { check: NonNullable<LineupJudge["spot_check"]> }) {
+  const all = c.honest_vs_caught !== null && c.honest_vs_caught === c.answers;
+  return (
+    <div className="mt-3 border-t border-dashed border-manila-label/45 pt-3 text-[14px] leading-snug">
+      <p className="m-0">
+        <b>Christian&rsquo;s spot check{c.checked_on ? ` (${day(c.checked_on)})` : ""}:</b> of {c.answers} random verdicts it
+        marked as caught{c.on ? ` on ${c.on}` : ""}, he agreed with {c.same_verdict}
+        {all ? `, and with all ${c.answers} that the answer wasn’t honest` : ""}.
+      </p>
+      {c.disagreed.map((d) => (
+        <p key={`${d.bot}-${d.trap}`} className="mt-1.5 mb-0">
+          He called {d.bot}&rsquo;s {d.trap} {verdictWord(d.christian)}, not {verdictWord(d.judge)}
+          {d.why ? `: ${d.why}` : "."}
+        </p>
+      ))}
+      {c.different_reason.map((d) => (
+        <p key={`${d.bot}-${d.trap}-reason`} className="mt-1.5 mb-0">
+          {d.bot}&rsquo;s {d.trap}: the same verdict ({verdictWord(d.verdict)}), for a different reason. {d.why}
+        </p>
+      ))}
+      {c.decision && <p className="mt-1.5 mb-0">{c.decision}</p>}
+    </div>
+  );
+}
 
 /** The whole lineup screen, from the export's data. */
 export function LineupView({ lineup, focusJudge }: { lineup: LineupData; focusJudge?: string | null }) {
@@ -225,7 +255,7 @@ export function Placard({
         </div>
       )}
 
-      {(bot.judge || bot.held_by || thinking || cut) && (
+      {(bot.judge || bot.held_by || bot.second_opinion || thinking || cut) && (
         <ul className="mt-2.5 mb-0 list-none space-y-1 border-t border-dashed border-manila-label/45 p-0 pt-2 text-[12.5px] leading-snug">
           {bot.judge && (
             <li>
@@ -238,6 +268,12 @@ export function Placard({
           )}
           {m && <li title={`${leanWords(m)}.`}>{leanShort(m)}</li>}
           {bot.held_by && <li>Graded by {bot.held_by}: on hold</li>}
+          {bot.second_opinion && (
+            <li>
+              Second opinion: <span className="[overflow-wrap:anywhere]">{bot.second_opinion.judge}</span> gave it{" "}
+              <b className="whitespace-nowrap">{scoreWords(bot.second_opinion.score)}</b>
+            </li>
+          )}
           {thinking && <li>{thinking}</li>}
           {cut && <li>{cut}</li>}
         </ul>
@@ -294,9 +330,13 @@ export function JudgeCard({ judge: j, focused }: { judge: LineupJudge; focused: 
   const m = j.measured;
   const role = j.grades.length
     ? `Grades ${list(j.grades)}.`
-    : j.held_bots.length
-      ? `Graded ${list(j.held_bots)}.`
-      : "Grades no bot in the lineup right now.";
+    : j.second_opinion_for.length
+      ? `A second opinion on ${list(j.second_opinion_for)}.`
+      : j.held_bots.length
+        ? `Graded ${list(j.held_bots)}.`
+        : j.replaced
+          ? `Replaced${j.replaced.by ? ` by ${j.replaced.by}` : ""}: its grades don't count.`
+          : "Grades no bot in the lineup right now.";
   return (
     <article
       id={judgeAnchor(j.judge)}
@@ -312,6 +352,7 @@ export function JudgeCard({ judge: j, focused }: { judge: LineupJudge; focused: 
           </h3>
         </div>
         {j.hold && <div className="stamp-ink mt-1 shrink-0 rotate-[-6deg] px-2.5 pt-1 pb-1.5 text-[20px]">ON HOLD</div>}
+        {j.replaced && <div className="stamp-ink mt-1 shrink-0 rotate-[-6deg] px-2.5 pt-1 pb-1.5 text-[20px]">REPLACED</div>}
       </div>
       <p className="mt-2 mb-0 text-[14.5px] leading-snug">{role}</p>
 
@@ -387,6 +428,16 @@ export function JudgeCard({ judge: j, focused }: { judge: LineupJudge; focused: 
           <b>On hold{j.hold.since ? ` since ${day(j.hold.since)}` : ""}.</b> {j.hold.why}
         </p>
       )}
+      {j.replaced && (
+        <p className="mt-3 mb-0 border-l-4 border-lie-ink pl-3 text-[14px] leading-snug">
+          <b>
+            Replaced{j.replaced.since ? ` on ${day(j.replaced.since)}` : ""}
+            {j.replaced.by ? ` by ${j.replaced.by}` : ""}.
+          </b>{" "}
+          {j.replaced.why}
+        </p>
+      )}
+      {j.spot_check && <SpotCheck check={j.spot_check} />}
       {j.versus && j.versus.agree !== null && (
         <p className="mt-3 mb-0 text-[13.5px] leading-snug">
           It and {j.versus.other} gave the same verdict on {j.versus.agree} of {j.versus.answers} of those answers ({j.versus.percent}%).
@@ -395,7 +446,8 @@ export function JudgeCard({ judge: j, focused }: { judge: LineupJudge; focused: 
       {m && (
         <p className="mt-3 mb-0 text-[12px] text-manila-label">
           Measured {day(m.measured_at) ?? ""}
-          {m.settings?.thinking ? `, thinking ${m.settings.thinking}` : ""} · {m.file}
+          {m.settings?.thinking ? `, thinking ${m.settings.thinking}` : ""}
+          {m.settings?.effort ? `, effort ${m.settings.effort}` : ""} · {m.file}
         </p>
       )}
     </article>

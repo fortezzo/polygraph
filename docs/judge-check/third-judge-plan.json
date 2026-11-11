@@ -2,7 +2,8 @@
   "format": "polygraph-third-judge-plan",
   "format_version": 1,
   "written_at": "2026-11-10T17:20:00-06:00",
-  "what": "Claude Haiku 5.5's setup as the judge, fixed and committed before it judges a single test-half answer (Session 9). Christian picked it on Nov 10, after his review of Qwen3.6 35B's caught verdicts on the OpenAI bots (about two thirds looked wrong to him) and the reference-checker fix (hard checks 4). It's measured on his locked test-half labels exactly the way gpt-6-luna and Qwen were, with no tuning.",
+  "what": "Claude Haiku 5.5's setup as the judge, fixed and committed before it judges a single test-half answer (Session 9). Christian picked it on Nov 10, after he had another Claude chat review all 59 verdicts Qwen3.6 35B marked as caught on the OpenAI bots (it found about two in three wrong, such as true facts called lies) and the reference-checker fix (hard checks 4). It's measured on his locked test-half labels exactly the way gpt-6-luna and Qwen were, with no tuning.",
+  "corrected": "Nov 11, 2026, after the lock: the sentence above first said Christian reviewed Qwen's 59 caught verdicts himself. Another Claude chat did, and he passed on its findings. Only that sentence changed; every setting below is as locked in commit a84a210.",
   "judge": {
     "model": "claude-haiku-5-5",
     "maker": "Anthropic",

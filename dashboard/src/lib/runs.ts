@@ -44,6 +44,8 @@ export interface RunEntry {
   judge_check: JudgeCheck | null;
   /** The judge's grades are on hold (Session 9): every screen says so next to them. */
   judge_hold?: { since: string | null; why: string | null } | null;
+  /** The judge was replaced (Session 9): its grades don't count, and every screen says so. */
+  judge_replaced?: { by: string | null; since: string | null; why: string | null } | null;
 }
 
 /** What to call the bot on screen: a custom bot's name with its model, or just the model. */

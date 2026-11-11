@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { readRun, type RunFile } from "../data/runFile";
 import { buckets, mostConfidentCheckedLie, radarPoint, roundHalfUp, shownScore, summary, verdictLine } from "./report";
 // @ts-expect-error: a plain JavaScript module with no type declarations
-import { exportRuns, newestJudgedCopies } from "../../scripts/export-runs.mjs";
+import { exportRuns, fileSafe, newestJudgedCopies } from "../../scripts/export-runs.mjs";
 
 // The real runs, as the dashboard gets them (built in memory, nothing written).
 // The two committed Session 5 runs, picked by their judged copy's file name, so
@@ -39,6 +39,16 @@ describe("exporting the runs", () => {
     // Only the newest judged copy of each run and judge: none of the older ~2, ~3...
     expect(sources).not.toContain("2026-11-09_15-47-13_ollama_gemma3-12b_judged-by_gpt-6-luna~3.json");
     expect(sources).not.toContain("2026-11-08_21-51-00_ollama_llama3.2_judged-by_gpt-6-luna~4.json");
+  });
+
+  it("names every file so it works on any computer: a judge's colon becomes a dash", () => {
+    expect(fileSafe("qwen3.6:35b")).toBe("qwen3.6-35b");
+    expect(fileSafe("gpt-6.1-terra")).toBe("gpt-6.1-terra");
+    expect(fileSafe(":")).toBe("model");
+    for (const e of index.runs) {
+      expect(e.file).toMatch(/^[A-Za-z0-9._-]+\.json$/);
+      expect(e.file).toBe(`${e.id}.json`);
+    }
   });
 
   it("keeps every word the bot said, and every verdict and score", () => {

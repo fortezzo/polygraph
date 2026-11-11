@@ -1,15 +1,52 @@
 {
-  "what": "Who stands in the lineup (Session 9, as Christian approved it), which side-by-sides it shows, and which judge's grades are on hold. Scores never come from here: they come from the judged runs in runs/ (scripts/export-runs.mjs reads both). When a run is judged, or a hold ends, only data changes: this file, or runs/.",
+  "what": "Who stands in the lineup (Session 9, as Christian approved it), the judge whose grades are its scores, the second opinion, which side-by-sides it shows, and the judge that was replaced. Scores never come from here: they come from the judged runs in runs/ (scripts/export-runs.mjs reads both). When a run is judged, only data changes.",
   "trap_set": "d2492cb9427b",
+  "judge": "claude-haiku-5-5",
+  "second_opinion": {
+    "judge": "gpt-6-luna",
+    "why": "gpt-6-luna graded the models not made by OpenAI before Claude Haiku 5.5 took over. Christian kept its grades as a second opinion, to show how much the judge moves a score."
+  },
   "bots": [
-    { "model": "llama3.2", "maker": "Meta", "provider": "ollama" },
-    { "model": "gemma3:12b", "maker": "Google", "provider": "ollama" },
-    { "model": "gemma4:12b", "maker": "Google", "provider": "ollama" },
-    { "model": "ministral-3:14b", "maker": "Mistral AI", "provider": "ollama" },
-    { "model": "phi4:14b", "maker": "Microsoft", "provider": "ollama" },
-    { "model": "gpt-6-luna", "maker": "OpenAI", "provider": "openai" },
-    { "model": "gpt-6.1-terra", "maker": "OpenAI", "provider": "openai" },
-    { "model": "gpt-6-astra", "maker": "OpenAI", "provider": "openai" }
+    {
+      "model": "llama3.2",
+      "maker": "Meta",
+      "provider": "ollama"
+    },
+    {
+      "model": "gemma3:12b",
+      "maker": "Google",
+      "provider": "ollama"
+    },
+    {
+      "model": "gemma4:12b",
+      "maker": "Google",
+      "provider": "ollama"
+    },
+    {
+      "model": "ministral-3:14b",
+      "maker": "Mistral AI",
+      "provider": "ollama"
+    },
+    {
+      "model": "phi4:14b",
+      "maker": "Microsoft",
+      "provider": "ollama"
+    },
+    {
+      "model": "gpt-6-luna",
+      "maker": "OpenAI",
+      "provider": "openai"
+    },
+    {
+      "model": "gpt-6.1-terra",
+      "maker": "OpenAI",
+      "provider": "openai"
+    },
+    {
+      "model": "gpt-6-astra",
+      "maker": "OpenAI",
+      "provider": "openai"
+    }
   ],
   "pairs": [
     {
@@ -26,11 +63,12 @@
       "why": "Two generations of the same family at the same size. Gemma 4 thinks before it answers, by default."
     }
   ],
-  "judge_hold": {
-    "judges": ["qwen3.6:35b"],
-    "bots": ["gpt-6-luna", "gpt-6.1-terra", "gpt-6-astra"],
-    "since": "2026-11-10",
-    "headline": "Judge being chosen",
-    "why": "Christian checked every verdict Qwen3.6 35B marked as caught on the OpenAI bots, and about two thirds look wrong to him. So its grades are on hold, and the OpenAI bots get no score until he picks how they'll be judged."
-  }
+  "replaced_judges": [
+    {
+      "judge": "qwen3.6:35b",
+      "by": "claude-haiku-5-5",
+      "since": "2026-11-10",
+      "why": "Christian had another Claude chat review all 59 verdicts Qwen3.6 35B marked as caught on the OpenAI bots. It found about two in three wrong, such as true facts called lies. Claude Haiku 5.5 replaced it, and grades every model. Qwen's grades don't count."
+    }
+  ]
 }

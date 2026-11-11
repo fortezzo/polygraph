@@ -1,7 +1,7 @@
 # Polygraph: progress
 
-**Last updated:** Nov 10, 2026, end of Session 8
-**Next up:** Session 9, Lineup + full trap library
+**Last updated:** Nov 10, 2026, end of Session 9
+**Next up:** Session 10, Demo site
 
 | # | Session | Status |
 |---|---|---|
@@ -13,8 +13,8 @@
 | 6 | The look | Done, Nov 9, 2026 |
 | 7 | Report card + evidence wall | Done, Nov 9, 2026 |
 | 8 | Live mode + test your own bot | Done, Nov 10, 2026 |
-| 9 | Lineup + full trap library | Next |
-| 10 | Demo site | Not started |
+| 9 | Lineup + full trap library | Done, Nov 10, 2026 |
+| 10 | Demo site | Next |
 | 11 | Polish pass | Not started |
 | 12 | README + launch | Not started |
 
@@ -507,6 +507,90 @@ Running the same thing again took 0.2 seconds: all 240 replies came from the cac
 - **Spent: about $0.02**, on judging the two real runs.
 - **Approved by Christian** on Nov 10, 2026, after trying it first: two live interrogations from the dashboard of a bot with Christian's own instructions ("Never Unsure" on Llama 3.2, all 80 traps each). Judging them cost about $0.12. They were tests, so they stay in `runs\` and out of git.
 
+### Session 9: Lineup + full trap library (Nov 10, 2026)
+- **200 traps, 25 of each type** (library fingerprint `d2492cb9427b`). All pass `polygraph traps check`.
+  - The original 80 are byte for byte what they were.
+  - Every new ghost fact was checked on the web, and every truth has a source (`traps\README.md` has the details).
+  - **Christian's spot check** of 10 new traps (pick #20261110) was approved. Two changes came from it: ghost-013 became a made-up `kubectl rollout freeze` command, and number-015/016 now cite Frederick (2005).
+- **The lineup, as Christian approved it:** Llama 3.2 3B (Meta), Gemma 3 12B and Gemma 4 12B (Google), Ministral 3 14B (Mistral AI), Phi-4 14B (Microsoft), and OpenAI's gpt-6-luna, gpt-6.1-terra and gpt-6-astra.
+  - **Every bot runs on its default settings.** The OpenAI bots' default thinking level is on their placards: medium, for all three.
+  - **"Never Unsure"** (Llama 3.2 told never to admit it doesn't know) answered all 200 traps too. It isn't ranked: it sits next to plain Llama 3.2 in a side-by-side. Its 200-trap run is in git, so the side-by-side works on the demo site. Session 8's 80-trap tests stay out.
+  - **Answers cut off at the length limit are judged and scored as they stand,** and marked "✂ CUT OFF" on the evidence wall.
+- **The final ranking** (Truth Score out of 100, with its 95% range, graded by Claude Haiku 5.5):
+
+  | # | Bot | Made by | Truth Score | Grade | Second opinion (gpt-6-luna) |
+  |---|---|---|---|---|---|
+  | 1 | gpt-6-astra | OpenAI | **98.5** (96.5–100) | A | none: same company |
+  | 2 | gpt-6.1-terra | OpenAI | **97.0** (94.5–99) | A | none: same company |
+  | 3 | gpt-6-luna | OpenAI | **93.5** (90–96.5) | A | none: same company |
+  | 4 | Gemma 4 12B | Google | **72.75** (68.3–77) | C | 64.25 (D) |
+  | 5 | Phi-4 14B | Microsoft | **66.0** (61–71) | D | 60.0 (D) |
+  | 6 | Gemma 3 12B | Google | **49.0** (43.8–54.3) | F | 39.0 (F) |
+  | 6 | Ministral 3 14B | Mistral AI | **49.0** (44–54.5) | F | 39.0 (F) |
+  | 8 | Llama 3.2 3B | Meta | **35.0** (29.5–40.5) | F | 32.75 (F) |
+
+  - **Not ranked:** Never Unsure, 34.0 (F), next to plain Llama 3.2's 35.0. Their verdicts differ on 57 of the 200 traps.
+  - **Where two ranges overlap, the order could swap** with a different set of questions: the three OpenAI bots, and Gemma 4 with Phi-4.
+  - **Gemma 3 and Ministral 3 really do tie,** with different answers. Ministral had 98 honest answers; Gemma 3 had 97 honest and 2 dodged, which count half each. gpt-6-luna ties them too (78 honest each). They share a verdict on only 151 of the 200 traps.
+  - **The biggest gap is made-up facts.** Every local bot scored 0–8 on fake citations and 4–36 on ghost facts. The OpenAI bots scored 80–100 on both. Gemma 4's 6 on fake citations comes only from its 3 empty answers (see tonight's runs).
+  - **Gemma 4 against Gemma 3** (same family and size; Gemma 4 thinks first): 72.75 against 49.0, mostly from pressure tests (88 against 28), ghost facts (36 against 4) and number traps (100 against 72).
+  - **gpt-6-luna grades the local bots 2 to 10 points lower than Claude Haiku 5.5 does.** It puts them in the same order.
+- **The judges: three, measured on the same 50 test-half answers.**
+  - **Qwen3.6 35B (free, on this PC)** was set up first for the OpenAI bots, since a bot can't be judged by its own company.
+    - It agreed with Christian on 40 of 50 (80%), short of the 84% line set in advance. Christian chose to use it anyway.
+    - Then Christian had another Claude chat review all 59 verdicts it marked as caught on gpt-6-luna and gpt-6.1-terra. It found about two in three wrong, such as true facts called lies. Qwen was replaced. Its measurement and grades are kept, and none of them count.
+  - **The reference checker's misreads (hard checks 4).**
+    - The same review found that of 51 references flagged in those two runs, only about 9 were real problems. The checker had misread subtitles, author lists, given names, tables and headings.
+    - It now flags exactly those 9.
+    - Not one verdict changed on Llama, Never Unsure or Gemma 3 (600 of 600), or on Christian's 50 test answers.
+  - **Claude Haiku 5.5 (Anthropic) now grades every model,** so the whole ranking has one judge.
+    - Christian picked it from priced options.
+    - Its settings were fixed and committed before it saw a test answer (`a84a210`): effort high, chosen by a rule written before the try-out.
+    - It agreed with Christian on 43 of 50 (86%) and passed the line. It agrees with gpt-6-luna on 47 of 50.
+    - **Christian's spot check** of 10 verdicts it marked as caught on the OpenAI bots: he agreed with 9, and with all 10 that the answer wasn't honest. Nothing was changed by hand.
+  - **gpt-6-luna's grades stay as a second opinion** on the models not made by OpenAI. They sit next to Haiku's score on each placard.
+  - The whole story, with the same numbers for all three judges, is in `docs\methodology.md`.
+- **The lineup screen** (`#/lineup`, a new Lineup tab):
+  - **The wall:** every bot stands as tall as its Truth Score against a height chart, with its 95% range on top. Bots that tie share a place.
+  - **Its placard** shows the grade, the judge and how often that judge matched Christian, which way it leans, its thinking level, cut-off answers and the second opinion.
+  - **The judges panel** has the same three numbers for every judge, its settings, Qwen's missed line and replacement, and Christian's spot check.
+  - **Side by side:** Never Unsure next to Llama 3.2, and Gemma 3 next to Gemma 4, each with every trap where their verdicts differ.
+  - **Real states** for a bot not run yet or not judged yet. A screen graded by the replaced judge says so: "GRADES REPLACED".
+- **New in the engine:**
+  - `polygraph run --reuse <run file>` takes answers word for word from an earlier run of the same bot and setup. The lineup's Llama and Gemma 3 runs reused their 80 Session 5 answers.
+  - `polygraph run --name ... --instructions ...` runs a custom bot from the command line.
+  - `--estimate-from <run file>` prices a run from an earlier run's real token counts.
+  - Local models that think before answering (Gemma 4) get room to think. Their thinking is kept apart and never judged.
+  - OpenAI's thinking level is read from each reply.
+  - `polygraph judge --judge-effort` sets how hard a Claude judge thinks, and a Claude judge's reply follows the JSON shape.
+  - `polygraph agreement` measures another judge on the test half only if the hard checks find exactly what the first judge's found, answer by answer.
+  - Prices were checked again on Nov 10. Claude Fable 5.2 and Gemini 4 Carbon were added.
+- **Tonight's runs** (Ministral 3, Phi-4 and Gemma 4, started after Christian was done for the day):
+  - **All three answered all 200 traps on this PC, for free:** Ministral 3 in 34 minutes, Phi-4 in 22 and Gemma 4 in 87.
+  - **Each was graded by Claude Haiku 5.5 (effort high), then by gpt-6-luna for the second opinion:** 200 of 200 each time. Nothing failed, nothing was retried and no limit was hit.
+  - **Gemma 4's thinking stayed apart:** no thinking markers in any of its 300 answers.
+  - **3 of Gemma 4's answers came back empty** (citation-004, -010 and -017). It spent its whole 32,768-token allowance thinking and never wrote an answer.
+    - By the rule above, they're judged as they stand. Both judges called all three Dodged, 3 votes of 3.
+    - Those 3 dodges give it 0.75 points. Scored as Lies, it would have 72.0: still a C, and still 4th.
+  - **They cost $1.47:** $0.93 for Claude Haiku 5.5 and $0.54 for gpt-6-luna.
+- **Spent in Session 9: $8.29,** from the costs recorded in the run files:
+  - **OpenAI, $5.57:** the three OpenAI bots $4.71 (gpt-6-astra $4.17, gpt-6.1-terra $0.46, gpt-6-luna $0.08), and gpt-6-luna's second opinions $0.86.
+  - **Anthropic, $2.72:** Claude Haiku 5.5's try-out $0.05, its test-half check $0.08 and its 9 runs $2.59. That's within the $5 Christian set for it.
+  - **Free:** the local bots and Qwen3.6 35B, on this PC.
+- **Checked:**
+  - **757 Python tests** (67 new) and **167 dashboard tests** (36 new) pass.
+  - **101 screenshots** are in `docs\screenshots\session-9` (open `index.html`): every screen at laptop and phone size. The lineup's are at the end (39 to 45), after Session 8's live mode (28 to 38).
+  - **The automatic checks** (`checks.json`):
+    - **Nothing jumps:** 0.0000 on the replay, the data screens, the lineup and the New interrogation screen. While a live answer streams in, 0.0002 on a laptop and 0.0007 on a phone, as in Session 8.
+    - **The accessibility scan** found no problems in 34 scans, the lineup's included.
+    - No console errors. Frames, sound and reduce motion are unchanged.
+  - **Fixed before you saw them:**
+    - the scores over the tallest bars (99 and 97) stuck out of the top of the chart paper, dark on dark
+    - a judge whose name has a colon (`qwen3.6:35b`) left the dashboard an empty file on Windows for each report card of its replaced grades. Names are now made safe the way the engine names judged copies (`qwen3.6-35b`), and a test checks every file name
+    - Claude Haiku 5.5's card said "thinking the model's default" but not its effort. It now says "effort high" too
+    - the lineup's screenshots shared numbers with live mode's (28 to 34), and the screenshot page listed them out of order
+- **Version 0.9.0**, for the engine and the dashboard.
+
 ---
 
 ## How to run it
@@ -522,7 +606,7 @@ cd C:\Users\forte\Projects\Polygraph
 ```
 Your prompt starts with `(.venv)` when it worked.
 
-**Interrogate a bot** (in the `run` tab). With no options, it uses the free Llama 3.2 on this PC and all 80 traps:
+**Interrogate a bot** (in the `run` tab). With no options, it uses the free Llama 3.2 on this PC and all 200 traps:
 ```powershell
 polygraph run
 polygraph run --estimate
@@ -544,6 +628,15 @@ polygraph run --model gpt-6-luna --max-cost 5
 ```
 The last line allows up to $5 for that run instead of $2.
 
+**More run options** (in the `run` tab):
+```powershell
+polygraph run --name "Bob's Pizza helper" --instructions "Only answer questions about Bob's Pizza." --type document
+polygraph run --model gpt-6-astra --estimate --estimate-from runs\2026-11-10_13-12-15_openai_gpt-6.1-terra.json
+```
+- **`--name` and `--instructions`:** test your own bot from the terminal, like "Test your own bot" in the dashboard. It runs on the model picked with `--model` (Llama 3.2 if none). Custom bots are never ranked in the lineup.
+- **`--estimate-from`:** prices the run from an earlier run's real token use (a similar model's, say) instead of Polygraph's typical numbers. With `--estimate` it only shows the plan and spends nothing.
+- **`--reuse <run file>`:** takes the answers from an earlier run file first, word for word, instead of asking again. It has to be the same bot with the same settings, and questions that run didn't ask are asked as usual. The lineup used it to keep the Session 5 answers. A new full run of a lineup bot takes its place on the wall once Claude Haiku 5.5 has judged it.
+
 **Judge a run** (in the `run` tab). It runs the free hard checks, shows the plan and the cost, asks before spending anything, then prints the report card:
 ```powershell
 polygraph judge runs\2026-11-08_21-51-00_ollama_llama3.2.json
@@ -551,10 +644,18 @@ polygraph judge runs\2026-11-08_21-51-00_ollama_llama3.2.json --estimate
 polygraph judge runs\2026-11-08_21-51-00_ollama_llama3.2.json --judge gpt-6.1-terra
 polygraph judge runs\2026-11-08_21-51-00_ollama_llama3.2.json --fresh
 ```
-- The first line judges the run with the default judge (gpt-6-luna for you). Judging the same run again costs nothing.
+- The first line judges the run with Polygraph's default judge: gpt-6-luna, or Claude Haiku 5.5 for a bot made by OpenAI. Judging the same run again costs nothing.
 - The second only runs the free hard checks and shows the plan and the cost.
 - The third uses a different judge. It has to come from a different company than the bot.
 - The last asks the judge again and looks references up again, instead of reusing saved results.
+
+**Judge a run the way the lineup was judged** (in the `run` tab): Claude Haiku 5.5 at effort high, the setup measured against your labels, then gpt-6-luna's second opinion:
+```powershell
+polygraph judge runs\2026-11-10_18-40-55_ollama_phi4-14b.json --judge claude-haiku-5-5 --judge-effort high
+polygraph judge runs\2026-11-10_18-40-55_ollama_phi4-14b.json --judge gpt-6-luna
+```
+- These two are already saved, so they cost nothing. A new 200-trap run costs about 25–35 cents with Claude Haiku 5.5 and 10–20 cents with gpt-6-luna.
+- `--judge-effort` takes low, medium, high, xhigh or max. Only high was measured.
 
 **More judging options** (in the `run` tab):
 ```powershell
@@ -640,7 +741,8 @@ cd C:\Users\forte\Projects\Polygraph\dashboard
 npm run dev
 ```
 Then open http://127.0.0.1:5173 in your browser. To stop it, press Ctrl+C in the `run` tab, then `cd ..` to go back to the project folder.
-- The menu at the top has the Interrogation room, the Report card, the Evidence wall, Overconfidence and New interrogation (which needs `.\start.ps1`). The Subject picker switches bots.
+- The menu at the top has the Interrogation room, the Report card, the Evidence wall, Overconfidence, the Lineup and New interrogation (which needs `.\start.ps1`). The Subject picker switches bots.
+- **The lineup** is at http://127.0.0.1:5173/#/lineup: every bot on the height chart, the judges and the side-by-sides. A placard's "The judge →" opens that judge's card.
 - Pause, Restart and Sound are at the top right of the replay. Click a question number to jump to it.
 - The dashboard copies the newest judged runs from `runs\` each time it starts. After judging a new run, stop it and start it again.
 - **To see the loading, empty and error screens,** put `?state=loading`, `?state=empty` or `?state=error` right after `5173/` in the address, before any `#`. For example: http://127.0.0.1:5173/?state=empty#/report. The replay also takes `?paused` (starts paused) and `?at=ghost-004` (starts at that question), in the same place.
@@ -660,9 +762,9 @@ npm test
 npm run check
 npm run shots
 ```
-- The first runs the 131 dashboard tests.
+- The first runs the 167 dashboard tests.
 - The second runs the type check, the tests and the build.
-- The third makes every screenshot in `docs\screenshots\session-8` again and runs the automatic checks (about 10 minutes). For the live screens it runs Polygraph's server in pretend mode, so nothing real is asked or spent. Close `.\start.ps1` first: they use the same port.
+- The third makes every screenshot in `docs\screenshots\session-9` again and runs the automatic checks (about 10 minutes). For the live screens it runs Polygraph's server in pretend mode, so nothing real is asked or spent. Close `.\start.ps1` first: they use the same port.
 - **After a fresh copy of the repo**, run `npm ci` once in the `dashboard` folder. It installs exactly the locked versions.
 
 **Run the automated tests** (in the `run` tab):
@@ -670,7 +772,7 @@ npm run shots
 python -m pytest
 python -m pytest -m live
 ```
-The first runs the 690 offline tests. The second asks real models and services: Ollama, Crossref and doi.org (free), plus any cloud model whose key is in `.env`, as a bot and as a judge (a fraction of a cent each).
+The first runs the 757 offline tests. The second asks real models and services: Ollama, Crossref and doi.org (free), plus any cloud model whose key is in `.env`, as a bot and as a judge (a fraction of a cent each).
 
 **Add an API key** (in the `run` tab). First set a hard spending limit in that company's account. Then:
 ```powershell
@@ -699,16 +801,14 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
 
 ---
 
-## What's next: Session 9, Lineup + full trap library
-- **About 200 traps (25 per type),** written by the same rules as Session 2: every ghost fact checked on the web, and every truth with a source. Then `polygraph traps check`.
-- **A suggested lineup:** 4–6 popular models plus 1 free local model, each with its estimated cost. Nothing runs until you approve it.
-- **The lineup run.** The $2 cost guard still applies, so it asks before going over.
-- **The lineup screen:** the models ranked by Truth Score in a police-lineup layout, plus a side-by-side view to compare any two.
-- **Every run saved,** so the demo can use them.
-- **Done when:** about 200 traps pass the check, and 4–6 models are tested and ranked.
-- **Your part:** approve which models go in the lineup and what it costs, about 3–4 hours.
-  - **Judging models from OpenAI** needs an Anthropic or Google key in `.env`: a bot can't be judged by its own company.
-  - **Make the key yourself** on the company's website, with a spending limit, and paste it into `.env` yourself.
+## What's next: Session 10, Demo site
+- **Replay mode for the recorded runs:** the dashboard plays back runs from `runs\` with the live needle animation and a speed control, so anyone can watch without an API key.
+- **The GitHub repo:** you make it on github.com and I connect it, or I install the GitHub CLI (I'll ask first).
+- **A scan for API keys and secrets** across the whole project and the git history, before the first push. Then I ask you before pushing.
+- **GitHub Actions** that run the tests, build the dashboard and put the replay demo on GitHub Pages, plus the green tests badge in the README.
+  - If GitHub Pages needs a paid plan while the repo is private, I stop and give you the options: make the repo public now, or put the demo on Netlify, which is already installed.
+- **Done when:** the demo is live, the tests pass on GitHub and you've opened the link on your phone.
+- **Your part:** create or approve the GitHub repo, say yes before the push, then open the demo on your phone. About 1.5–2.5 hours.
 
 ---
 
@@ -835,6 +935,18 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
   - **Names in live answers are hidden while the answer streams in** (Christian's name rule, applied to live mode).
     - In the replay, a name credited with a study is hidden in caught answers, because the verdict is known from the start. Live, the verdict comes after the answer, so such a name would show for a few seconds before being hidden.
     - So live answers hide citation-style names from the first word, and keep them hidden even when the answer turns out honest.
+- **The lineup (Session 9, Christian's choices):**
+  - **Every bot runs on its own default settings,** the way people get it. Its thinking level is on its placard.
+  - **Cut-off answers are judged and scored as they stand,** never asked again, and marked on the evidence wall.
+  - **"Never Unsure" isn't ranked.** It's a custom bot, shown only next to plain Llama 3.2.
+  - **One judge grades every bot: Claude Haiku 5.5,** at effort high, fixed and committed before its test-half check (`a84a210`). It's from a company with no bot in the lineup. Christian picked it from priced options, with a $5 cap on everything it costs in Polygraph.
+  - **Qwen3.6 35B was used despite missing the line, then replaced** after Christian had another Claude chat review its caught verdicts, and it found about two in three wrong. Its files are kept and marked replaced. None of its grades count.
+  - **gpt-6-luna's grades are a second opinion** on the bots not made by OpenAI, shown next to the score and never instead of it.
+  - **No verdict is changed by hand.** Correcting only the bots someone checked would make the lineup uneven.
+  - **Spot checks of a judge's verdicts are drawn from the ones it marked as caught** (Christian). Qwen's 10 verdicts picked at random were mostly honest answers, so they showed little. The review of all 59 it marked as caught found about two in three wrong.
+  - **A new judge is measured on the test half only with the same hard checks findings,** answer by answer, so every judge answers exactly the same questions. Hard checks 4 passed that test.
+  - **Bots that tie share a place** on the wall.
+  - **In git:** the lineup's runs and their judged copies, Qwen's replaced grades included, and Never Unsure's 200-trap run (Christian's call, so its side-by-side works on the demo site). Session 8's test runs stay in `runs\`, out of git.
 - **Dashboard packages (Session 6):**
   - Each package is pinned to an exact version that had been out at least two weeks. All package signatures are verified, and install scripts are turned off (`dashboard/.npmrc`).
   - Vite stays at 8.3.5. It already pulls in Rolldown 1.2.18, which has the Nov 9 escaping fix that Vite 8.3.7 shipped.
@@ -853,7 +965,7 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
   - Each trap's `judgement` says who decided (`hard_check` or `ai_judge`), what the hard check found, every vote (`votes`), every exact reply from the judge, `own_knowledge` (⚑) and `unsettled` (⚖).
   - `run.judge` has the rubric's fingerprint and its full text, the number of `votes`, and the majority rule in `settings`.
   - **The rubric** lives in `polygraph/judges/rubric.py`. Changing any wording changes the fingerprint. Judging again only pays for traps whose prompt changed.
-  - **The hard checks have their own version** (`HARD_CHECKS_VERSION` in `polygraph/judges/pipeline.py`, now 3). Bump it whenever they change how they decide.
+  - **The hard checks have their own version** (`HARD_CHECKS_VERSION` in `polygraph/judges/pipeline.py`, now 4). Bump it whenever they change how they decide.
   - **Session 5's open notes are done.** The judge now quotes the clearest claim and names the real mistake, and extra material counts (see `docs/methodology.md`). On pressure-002 the judge still quotes the garbled sentence, and it now calls it Caved. That answer was outside the pick.
 - **The judge's weak spot (Session 5):**
   - It misses small factual errors in material the bot added when the trap's truth doesn't cover the fact, especially dates and history.
@@ -892,7 +1004,7 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
   - Answers aren't streamed word by word yet, so `answer_chunk` needs streaming added to the connectors.
   - **The menu has room for a "New interrogation" screen** (`TopBar.tsx`, `lib/route.ts`). A finished live run should show up on the report card and the evidence wall too: either run the export again, or have the server send run files in the same trimmed shape (`trim()` in `scripts/export-runs.mjs`).
   - **The dashboard loads run files with `useRunFile()`** (`lib/runs.ts`), which checks them with `readRun()` and turns problems into plain-English messages. The server's errors can use the same panels (`StatePanel` in `components/States.tsx`).
-- **Session 9 (lineup and 200 traps):**
+- **Session 9 (lineup and 200 traps):** done. The notes below were its starting point and are kept for the record.
   - Follow the same rules as Session 2 (see `traps/README.md`). The check and the tests only require at least 10 traps per type, so growing to 25 needs no code changes.
   - **Check models and prices again first** (`polygraph models <provider>` once keys exist, and the pricing pages in `polygraph/providers/catalog.py`):
     - GPT-5.6 Sol's promotional price ends Nov 30, 2026.
@@ -925,8 +1037,11 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
   - **`npm run shots`** can be pointed at other moments, for the README GIF in Session 12.
   - **The build makes its own run copies** (`npm run build` runs the export first), so GitHub Actions only needs `npm ci` and `npm run build` in `dashboard/`. The site fetches `./runs/index.json` and `./runs/<id>.json`, both relative, so it works from a Pages folder.
   - **Decide which runs the public demo shows.** Today it's every judged run in `runs/`, which includes runs started from the dashboard and custom bots.
-  - **The replay still plays the 6-answer sample.** A full 80-trap replay would need the question strip to scroll and a way to pick a run. The live screen's compact strip (`LiveProgress` in `screens/LiveScreen.tsx`) already handles 80.
-  - **The screenshots add up:** about 13 MB for Session 7 and 18 MB for Session 8 (86 screenshots), all in git's history. Before the repo goes public, decide whether to keep every session's set or only the latest.
+    - **On GitHub, only committed runs exist.** Never Unsure's 200-trap run is committed, so its side-by-side works there. Session 8's test runs aren't, and the demo doesn't need them.
+    - The lineup's run files, Never Unsure's included, add about 50 MB to the repo (26 files).
+  - **The replay still plays the 6-answer sample.** A full 200-trap replay would need the question strip to scroll and a way to pick a run. The live screen's compact strip (`LiveProgress` in `screens/LiveScreen.tsx`) handled 80 in Session 8.
+  - **The screenshots add up:** about 13 MB for Session 7, 19 MB for Session 8 and 23 MB for Session 9 (101 screenshots), all in git's history. Before the repo goes public, decide whether to keep every session's set or only the latest.
+  - **The build warns that the main script is 546 kB** (172 kB gzipped), over Vite's 500 kB warning line. It has said so since before Session 9. Splitting it is optional.
   - **Hide the New interrogation tab on the demo site.** It needs Polygraph's server, which only runs on this PC, so on GitHub Pages it would only say "Polygraph's server isn't running". The built site never talks to a server: `/api` only passes through in development (`vite.config.ts`).
 - **Session 11 (polish):**
   - The needle scratch and stamp thud are made by the browser and kept quiet. They're worth a listen on Christian's speakers.
@@ -938,15 +1053,24 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
     - **Live mode already does this:** its spike comes when the verdict arrives, so it's in view while the verdict shows.
   - **Live mode's pacing** (`LIVE_PACE` in `dashboard/src/lib/live.ts`) is worth a feel on your screen. Each verdict stays up 2.6 seconds (4.2 if caught), and a caught one waits until 6 seconds after its question started, so the stamp has room.
   - **The phone menu now scrolls sideways,** because 5 tabs don't fit. The current tab is scrolled into view and the edge fades. Shorter names would also work.
+  - **One format for scores** (Christian, after reviewing Session 9). The lineup rounds 98.5 to 99, 93.5 to 94 and 72.75 to 73, while PROGRESS.md and `docs/methodology.md` use the exact numbers. Pick one format and use it in both.
+    - The dashboard rounds with `shownScore()` in `dashboard/src/lib/report.ts` (halves go up), and the report card and the placards both use it.
+  - **Friendlier model names** (Christian, after reviewing Session 9): "Gemma 4 12B" instead of `gemma4:12b`, with the exact tag in small print.
+    - This changes the Session 6 decision to show names exactly as the run file has them (see Decisions). The exact tag still has to be on screen, since it's what was tested.
 - **Session 12 (README):**
   - Quote the test half: **88% (78–96%), Cohen's kappa 0.80 (0.64–0.94)**, on 50 answers measured once.
   - Mention that the untuned rubric did as well, and link [`docs/methodology.md`](docs/methodology.md).
-  - The README's test count is out of date: it says 315. There are 690 Python tests, plus 131 dashboard tests.
+  - The README's test count is out of date: it says 315. There are 757 Python tests, plus 167 dashboard tests.
+  - **The findings table is Session 9's final ranking** (above), graded by Claude Haiku 5.5. Quote its judge check too: 43 of 50 (86%, 76–94%), kappa 0.77, measured once. gpt-6-luna's 88% is the first judge's, and its grades are the second opinion.
+  - **Say plainly that the judges lean generous:** all three called some of Christian's Lies Honest, so Truth Scores run high. On the 50 test answers, his labels score 40 and the judges 48 to 52.
   - **Live mode and "test your own bot"** are worth a line, with `.\start.ps1`. The README can say live mode runs on your own PC only, and that the public demo replays recorded runs.
   - **Judge versions:** OpenAI reports gpt-6-luna with no dated snapshot. If a judge changes partway through the lineup, `model_versions_seen` in each judged file shows it.
-- **API keys:** the OpenAI key in `.env` judges Llama. Judging OpenAI models in Session 9 will need an Anthropic or Google key too. Make it, set a hard spending limit in that company's account, then paste the key into `.env` yourself (`notepad .env` in the `run` tab). Never paste it into the chat.
+- **API keys:** two are in `.env`.
+  - **OpenAI:** runs the OpenAI bots and gives gpt-6-luna's second opinions.
+  - **Anthropic:** runs Claude Haiku 5.5, the lineup's judge. Christian set a $10 monthly limit in the Anthropic Console, and Polygraph keeps everything Haiku costs at $5 or less ($2.72 so far) unless he says otherwise.
+  - A new key: make it, set a hard spending limit in that company's account, then paste it into `.env` yourself (`notepad .env` in the `run` tab). Never paste it into the chat.
 - **OpenAI-compatible services:** to use one regularly, copy the two `OPENAI_COMPATIBLE_...` lines from `.env.example` into `.env` and fill them in. Or pass `--base-url` each time.
 - **Ollama** runs in the background and starts when you log in. You can quit it from its icon near the clock or uninstall it from Settings → Apps.
 - **The labeling page from Session 5 was still running** (`polygraph label`, in a tab since Nov 9). It isn't needed any more: press Ctrl+C in that tab, or close the tab.
 - **Reinstalling Polygraph** (`pip install -e .`, after a version change) fails if a `polygraph` command is still running in another tab, because Windows keeps the program file locked. Close it first.
-- **Bigger local models:** the graphics card (RTX 4070 SUPER, 12 GB) can run larger local models than Llama 3.2 3B if we want one for the lineup in Session 9.
+- **Bigger local models:** the graphics card (RTX 4070 SUPER, 12 GB) ran the lineup's 12–14B models in Session 9 (Gemma 3 and 4, Ministral 3, Phi-4), and Qwen3.6 35B as a judge.

@@ -125,6 +125,22 @@ export function DataScreen({
                 </p>
               </aside>
             )}
+            {entry.judge_replaced && (
+              // Session 9: this judge was replaced, so its grades don't count.
+              <aside
+                aria-label="Grades replaced"
+                className="mt-3 flex flex-col gap-1.5 rounded-[4px] border border-lie/50 bg-lie/[0.07] px-4 py-3 sm:flex-row sm:items-start sm:gap-4"
+              >
+                <span className="shrink-0 font-label text-[13px] tracking-[0.14em] text-lie">GRADES REPLACED</span>
+                <p className="m-0 text-[14px] leading-relaxed text-soft">
+                  Every verdict and score on this screen is {entry.judge}&rsquo;s. {entry.judge_replaced.why}
+                  {entry.judge_replaced.since ? ` Replaced on ${holdDay(entry.judge_replaced.since)}.` : ""}{" "}
+                  <a href={hrefFor("lineup", { judge: entry.judge })} className="text-brass underline underline-offset-2">
+                    More in the lineup
+                  </a>
+                </p>
+              </aside>
+            )}
           </div>
         )}
         <div key={showBar ? "content" : "state"}>{body}</div>

@@ -6,7 +6,7 @@
 // Uses the built app (npm run shots builds it first) and the Microsoft Edge
 // already installed on this PC, running invisibly.
 //
-//   npm run shots                                   everything, into docs/screenshots/session-8
+//   npm run shots                                   everything, into docs/screenshots/session-9
 //   node scripts/shots.mjs --only 03 --size desktop --out <folder> --no-checks
 
 import { preview } from "vite";
@@ -24,7 +24,7 @@ const opt = (name, fallback) => {
   const i = args.indexOf(name);
   return i >= 0 ? args[i + 1] : fallback;
 };
-const out = resolve(opt("--out", resolve(dashboard, "..", "docs", "screenshots", "session-8")));
+const out = resolve(opt("--out", resolve(dashboard, "..", "docs", "screenshots", "session-9")));
 const only = opt("--only", null);
 const onlySize = opt("--size", null);
 const checks = !args.includes("--no-checks");
@@ -87,11 +87,14 @@ const MOMENTS = [
   { name: "26-data-error", note: "A run file that couldn't be loaded, with Try again.", url: `?state=error#/report?run=${GEMMA}` },
   { name: "27-evidence-no-matches", note: "Filters that match nothing (Gemma has no dodges).", url: `#/evidence?run=${GEMMA}&verdict=DODGED`, ready: true },
   // Session 9: the lineup. Take these once every lineup run is in and judged.
-  { name: "28-lineup", note: "The lineup: every bot against the height chart, its placard below, then the judges and the side-by-sides.", url: "#/lineup", ready: true, fullPhone: true },
-  { name: "29-lineup-judge", note: "A placard's judge link opens that judge's card, with the same numbers for every judge.", url: "#/lineup?judge=qwen3.6:35b", ready: true },
-  { name: "30-lineup-loading", note: "Loading the lineup.", url: "?state=loading#/lineup" },
-  { name: "31-lineup-empty", note: "No lineup yet.", url: "?state=empty#/lineup" },
-  { name: "32-lineup-error", note: "The lineup couldn't be loaded, with Try again.", url: "?state=error#/lineup" },
+  // Numbered after Session 8's live mode (28 to 38, in live-shots.mjs).
+  { name: "39-lineup", note: "The lineup: every bot against the height chart, its placard below, then the judges and the side-by-sides.", url: "#/lineup", ready: true, fullPhone: true },
+  { name: "40-lineup-judge", note: "A placard's judge link opens that judge's card: Claude Haiku 5.5, with the same numbers as every judge and Christian's spot check.", url: "#/lineup?judge=claude-haiku-5-5", ready: true },
+  { name: "41-lineup-loading", note: "Loading the lineup.", url: "?state=loading#/lineup" },
+  { name: "42-lineup-empty", note: "No lineup yet.", url: "?state=empty#/lineup" },
+  { name: "43-lineup-error", note: "The lineup couldn't be loaded, with Try again.", url: "?state=error#/lineup" },
+  { name: "44-lineup-replaced", note: "The judge that was replaced: Qwen3.6 35B's card, stamped REPLACED, with its numbers kept.", url: "#/lineup?judge=qwen3.6:35b", ready: true },
+  { name: "45-report-replaced", note: "A report card graded by the replaced judge says plainly that its grades don't count.", url: "#/report?run=2026-11-10_13-02-02_openai_gpt-6-luna--qwen3.6-35b", ready: true },
 ];
 
 // Live mode needs Polygraph's server (in pretend mode), reached through the preview at /api.
@@ -306,7 +309,9 @@ try {
 
   // A page to look at all the screenshots side by side.
   if (!only && !onlySize) {
-    const names = [...new Set(shots.map((s) => s.name.replace(/ \(whole page\)$/, "")))];
+    // In number order (the lineup's 39 on come after live mode's 28 to 38, though they're taken first).
+    const num = (n) => Number(/^\d+/.exec(n)?.[0] ?? 0);
+    const names = [...new Set(shots.map((s) => s.name.replace(/ \(whole page\)$/, "")))].sort((a, b) => num(a) - num(b));
     const rows = names.map((n) => {
       const d = shots.find((s) => s.size === "desktop" && s.name === n);
       const p = shots.find((s) => s.size === "phone" && s.name === n);
@@ -318,7 +323,7 @@ try {
       resolve(out, "index.html"),
       `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Dashboard screenshots</title>
 <style>body{margin:0;background:#0d0c0b;color:#ece6da;font:16px/1.5 "Segoe UI",system-ui,sans-serif}.page{max-width:1300px;margin:0 auto;padding:32px 20px 80px}h1{font-size:28px;margin:0 0 6px}h2{font-size:20px;margin:0;text-transform:capitalize}section{margin:0 0 44px}p{color:#bdb5a8;margin:4px 0 12px}.row{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}figure{margin:0}.row figure:first-child{flex:1 1 640px}.row figure:not(:first-child){flex:0 0 220px}img{display:block;width:100%;border:1px solid rgba(255,255,255,.1);border-radius:6px}figcaption{font-size:13px;color:#a39b8d;margin-top:4px}</style></head>
-<body><div class="page"><h1>The Polygraph dashboard: screenshots</h1><p>The interrogation room replays 6 real recorded answers from Gemma 3 12B. The report card, the evidence wall and the overconfidence meter show the real judged runs of Gemma 3 12B and Llama 3.2 3B. Live mode (from 28 on) runs Polygraph's server in pretend mode: its bot and judge replay the recorded Gemma 3 12B run at a realistic pace, so nothing real is asked or spent, and the screen says PRETEND. Every screen at laptop and phone size. Click any screenshot to see it full size.</p>${rows.join("\n")}</div></body></html>\n`,
+<body><div class="page"><h1>The Polygraph dashboard: screenshots</h1><p>The interrogation room replays 6 real recorded answers from Gemma 3 12B. The report card, the evidence wall and the overconfidence meter show the real judged runs of Gemma 3 12B and Llama 3.2 3B. Live mode (28 to 38) runs Polygraph's server in pretend mode: its bot and judge replay the recorded Gemma 3 12B run at a realistic pace, so nothing real is asked or spent, and the screen says PRETEND. The lineup (from 39 on) shows the real judged runs of all 8 bots, graded by Claude Haiku 5.5. Every screen at laptop and phone size. Click any screenshot to see it full size.</p>${rows.join("\n")}</div></body></html>\n`,
     );
   }
 } finally {

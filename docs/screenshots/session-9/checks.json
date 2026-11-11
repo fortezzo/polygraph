@@ -1,0 +1,129 @@
+{
+  "liveShift": {
+    "desktop": {
+      "total": 0.0001998668445644719,
+      "entries": [
+        {
+          "value": 0.0001,
+          "when": "at 4928: trap ghost-001 started 28, answer done 4925, confidence 4925, verdict -1",
+          "moved": [
+            "text \" \" y 693→693 h 18→18"
+          ]
+        }
+      ]
+    },
+    "phone": {
+      "total": 0.0007462873865631835,
+      "entries": [
+        {
+          "value": 0.0004,
+          "when": "at 4920: trap ghost-001 started 21, answer done 4916, confidence 4916, verdict -1",
+          "moved": [
+            "text \"using \" y 795→795 h 17→17"
+          ]
+        },
+        {
+          "value": 0.0003,
+          "when": "at 6199: trap ghost-002 started 10392, answer done -1, confidence -1, verdict -1",
+          "moved": [
+            "span. \"0:06 · free\" y 277→277 h 20→20"
+          ]
+        }
+      ]
+    }
+  },
+  "axe": {
+    "desktop #/live (caught)": [],
+    "phone #/live (caught)": [],
+    "desktop #/live (finished)": [],
+    "phone #/live (finished)": [],
+    "desktop #/report (custom bot)": [],
+    "phone #/report (custom bot)": [],
+    "desktop #/new": [],
+    "phone #/new": [],
+    "desktop ?paused&scan": [],
+    "desktop ?state=loading": [],
+    "desktop ?state=empty": [],
+    "desktop ?state=error": [],
+    "desktop #/report?run=2026-11-09_15-47-13_ollama_gemma3-12b": [],
+    "desktop #/evidence?run=2026-11-09_15-47-13_ollama_gemma3-12b": [],
+    "desktop #/evidence?run=2026-11-09_15-47-13_ollama_gemma3-12b&type=fake_citation": [],
+    "desktop #/confidence?run=2026-11-09_15-47-13_ollama_gemma3-12b": [],
+    "desktop #/confidence?run=2026-11-08_21-51-00_ollama_llama3.2": [],
+    "desktop #/evidence?run=2026-11-09_15-47-13_ollama_gemma3-12b&verdict=DODGED": [],
+    "desktop ?state=error#/report?run=2026-11-09_15-47-13_ollama_gemma3-12b": [],
+    "desktop #/lineup": [],
+    "desktop ?state=error#/lineup": [],
+    "phone ?paused&scan": [],
+    "phone ?state=loading": [],
+    "phone ?state=empty": [],
+    "phone ?state=error": [],
+    "phone #/report?run=2026-11-09_15-47-13_ollama_gemma3-12b": [],
+    "phone #/evidence?run=2026-11-09_15-47-13_ollama_gemma3-12b": [],
+    "phone #/evidence?run=2026-11-09_15-47-13_ollama_gemma3-12b&type=fake_citation": [],
+    "phone #/confidence?run=2026-11-09_15-47-13_ollama_gemma3-12b": [],
+    "phone #/confidence?run=2026-11-08_21-51-00_ollama_llama3.2": [],
+    "phone #/evidence?run=2026-11-09_15-47-13_ollama_gemma3-12b&verdict=DODGED": [],
+    "phone ?state=error#/report?run=2026-11-09_15-47-13_ollama_gemma3-12b": [],
+    "phone #/lineup": [],
+    "phone ?state=error#/lineup": []
+  },
+  "layoutShift_desktop_new": 0.00003420781893004115,
+  "layoutShift_phone_new": 0,
+  "layoutShift_desktop": {
+    "total": 0.000020633650414737653,
+    "entries": [],
+    "played": 113078
+  },
+  "layoutShift_phone": {
+    "total": 0,
+    "entries": [],
+    "played": 113078
+  },
+  "layoutShift_desktop_report": 0.00003420781893004115,
+  "layoutShift_desktop_evidence": 0.00003420781893004115,
+  "layoutShift_desktop_confidence": 0.00003420781893004115,
+  "layoutShift_desktop_lineup": 0.00003420781893004115,
+  "layoutShift_phone_report": 0,
+  "layoutShift_phone_evidence": 0,
+  "layoutShift_phone_confidence": 0,
+  "layoutShift_phone_lineup": 0,
+  "frames": {
+    "frames": 1439,
+    "fps": 240,
+    "p50": 4.2,
+    "p95": 4.3,
+    "p99": 4.3,
+    "worst": 8.4,
+    "longTasks": []
+  },
+  "sound": {
+    "atLoad": {
+      "on": false,
+      "made": false
+    },
+    "ariaPressedAtLoad": "false",
+    "afterClick": {
+      "on": true,
+      "made": true
+    },
+    "ariaPressedAfterClick": "true"
+  },
+  "reducedMotion": {
+    "first": {
+      "grid": "translate3d(0px, 0px, 0px)",
+      "grain": "none",
+      "motion": "reduced",
+      "t": 510
+    },
+    "later": {
+      "grid": "translate3d(0px, 0px, 0px)",
+      "grain": "none",
+      "motion": "reduced",
+      "t": 3013
+    },
+    "paperStill": true,
+    "normalPaperMoves": true
+  },
+  "consoleErrors": []
+}

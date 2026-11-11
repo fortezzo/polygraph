@@ -1,0 +1,27 @@
+{
+  "format": "polygraph-judge-decision",
+  "format_version": 1,
+  "decided_on": "2026-11-10",
+  "decided_by": "Christian",
+  "judge": "claude-haiku-5-5",
+  "line_set_in_advance": {
+    "agree": 42,
+    "answers": 50,
+    "percent": 84,
+    "where": "docs/judge-check/third-judge-plan.json, committed in a84a210 before the measurement"
+  },
+  "result": {
+    "agree": 43,
+    "answers": 50,
+    "percent": 86.0,
+    "file": "docs/judge-check/final-claude-haiku-5-5.json"
+  },
+  "passed_the_line": true,
+  "decision": "Claude Haiku 5.5 grades every model in the lineup, so the whole ranking has one judge. gpt-6-luna's grades stay as a second opinion on the models not made by OpenAI. Qwen3.6 35B's remaining jobs are dropped; its measurement and grades are kept, and none of them count.",
+  "why": [
+    "Christian picked Claude Haiku 5.5 after he had another Claude chat review all 59 verdicts Qwen marked as caught on the OpenAI bots. It found about two in three wrong, such as true facts called lies.",
+    "Anthropic has no model in the lineup, so one judge can grade every bot, OpenAI's included.",
+    "It passed the line set in advance: 43 of 50 (86%), with its settings fixed and committed before it saw a test-half answer.",
+    "Christian's rule: if it passed and grading every model fit in $5, grade every model with it. Re-priced from the test's real cost, every model came to about $2.60."
+  ]
+}

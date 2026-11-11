@@ -24,6 +24,15 @@ const ROSTER = resolve(here, "..", "src", "data", "lineup.json");
 
 const JUDGED = /^(.*)_judged-by_(.+?)(?:~(\d+))?\.json$/;
 
+/**
+ * A name that's safe in a file name on any computer, the way the engine names
+ * judged copies in runs/: "qwen3.6:35b" becomes "qwen3.6-35b". (On Windows a
+ * colon in a file name hides everything after it, leaving an empty file.)
+ */
+export function fileSafe(name) {
+  return String(name).replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^[-.]+|[-.]+$/g, "") || "model";
+}
+
 /** The newest judged copy of each run (and judge), by file name. */
 export function newestJudgedCopies(files) {
   const groups = new Map();
@@ -101,6 +110,33 @@ export function judgeCheckRecords(root = ROOT) {
 }
 
 /**
+ * Christian's spot checks of a judge's caught verdicts (Session 9:
+ * docs/judge-check/spot-check-<judge>.json), keyed by judge.
+ */
+export function spotCheckFor(judge, root = ROOT) {
+  const folder = resolve(root, "docs", "judge-check");
+  if (!existsSync(folder)) return null;
+  for (const name of readdirSync(folder).filter((f) => /^spot-check-.+\.json$/.test(f))) {
+    const d = JSON.parse(readFileSync(resolve(folder, name), "utf8"));
+    if (d.judge !== judge) continue;
+    const item = (n) => d.items.find((i) => i.n === n);
+    return {
+      checked_on: d.checked_on ?? null,
+      on: d.on ?? null,
+      answers: d.result?.answers ?? d.items.length,
+      same_verdict: d.result?.same_verdict ?? null,
+      honest_vs_caught: d.result?.honest_vs_caught ?? null,
+      drawn_from: d.drawn_from ?? null,
+      disagreed: (d.disagreed ?? []).map(item).filter(Boolean).map((i) => ({ bot: i.bot, trap: i.trap, judge: i.judge, christian: i.christian, why: i.why ?? null })),
+      different_reason: (d.same_verdict_different_reason ?? []).map(item).filter(Boolean).map((i) => ({ bot: i.bot, trap: i.trap, verdict: i.judge, why: i.different_reason ?? null })),
+      decision: d.decision ?? null,
+      file: `docs/judge-check/${name}`,
+    };
+  }
+  return null;
+}
+
+/**
  * Christian's decision about a judge that missed the line he set in advance
  * (docs/judge-check/qwen-decision.json): the line, the result and why it was
  * used anyway. Null for a judge with no such record.
@@ -130,6 +166,7 @@ export function judgeCheck(run, root = ROOT) {
     if (f.judge_settings) {
       if ((j.settings?.thinking ?? null) !== (f.judge_settings.thinking ?? null)) continue;
       if ((j.settings?.context_window ?? null) !== (f.judge_settings.context_window ?? null)) continue;
+      if ((j.settings?.effort ?? null) !== (f.judge_settings.effort ?? null)) continue;
     }
     const row = (label) => f.confusion?.[label] ?? {};
     const caught = ["LIE", "CAVED", "CONTRADICTED"];
@@ -340,16 +377,20 @@ export function exportRuns({ root = ROOT, out = OUT, write = true, roster = read
   const entries = [];
   const outputs = [];
   const held = new Set(roster?.judge_hold?.judges ?? []);
+  const replaced = new Map((roster?.replaced_judges ?? []).map((r) => [r.judge, r]));
   for (const f of newestJudgedCopies(files)) {
     const run = JSON.parse(readFileSync(resolve(runsDir, f), "utf8"));
     if (run.format !== "polygraph-run" || !run.scores) continue;
     let id = run.run.id;
-    if (entries.some((e) => e.id === id)) id = `${id}--${run.run.judge?.model ?? "judge"}`;
+    if (entries.some((e) => e.id === id)) id = `${id}--${fileSafe(run.run.judge?.model ?? "judge")}`;
     const slim = trim(run, handLabels(run, root));
     const file = `${id}.json`;
     // A judge whose grades are on hold (Session 9): every screen says so next to them.
     const hold = held.has(run.run.judge?.model) ? { since: roster.judge_hold.since ?? null, why: roster.judge_hold.why ?? null } : null;
-    entries.push({ ...indexEntry(slim, file, id, f), judge_check: judgeCheck(run, root), judge_hold: hold });
+    // A judge that was replaced (Session 9): its grades don't count, and every screen says so.
+    const gone = replaced.get(run.run.judge?.model);
+    const judgeReplaced = gone ? { by: gone.by ?? null, since: gone.since ?? null, why: gone.why ?? null } : null;
+    entries.push({ ...indexEntry(slim, file, id, f), judge_check: judgeCheck(run, root), judge_hold: hold, judge_replaced: judgeReplaced });
     outputs.push({ file, data: slim });
   }
   // Newest recording first.
@@ -359,7 +400,7 @@ export function exportRuns({ root = ROOT, out = OUT, write = true, roster = read
     entries,
     runs: new Map(outputs.map((o) => [o.file.replace(/\.json$/, ""), o.data])),
     originals: roster ? originalRuns(runsDir, files) : [],
-    records: judgeCheckRecords(root).map((f) => ({ ...f, decision: decisionFor(f.judge, root) })),
+    records: judgeCheckRecords(root).map((f) => ({ ...f, decision: decisionFor(f.judge, root), spot_check: spotCheckFor(f.judge, root) })),
     leanOf,
   });
   const index = { format: "polygraph-dashboard-runs", made_by: "dashboard/scripts/export-runs.mjs", runs: entries, lineup };
