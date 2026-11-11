@@ -230,6 +230,52 @@ export function judgeCheck(run, root = ROOT) {
   return null;
 }
 
+/**
+ * Christian's name rule (Session 10): names in studies and citations are hidden
+ * in every answer, whatever the verdict, except in a reference that Polygraph's
+ * own citation check confirmed: Crossref has the paper, with the title, authors
+ * and year the bot gave. For each such reference this gives the paper's authors
+ * as Crossref lists them (family names), and where the reference's lines are in
+ * the answer the check read (the trap's first answer), keyed by its number. The
+ * dashboard shows a name there only if it's one of those authors (names.ts).
+ * A reference whose lines can't all be found in order keeps its names hidden.
+ */
+export function confirmedReferences(trap) {
+  const found = new Map();
+  const hc = trap.judgement?.hard_check;
+  if (hc?.kind !== "references") return found;
+  const turns = trap.conversations.flatMap((c) => c.turns);
+  const answer = turns.find((x) => x.kind === "answer");
+  // The check reads the first answer; the dashboard applies this to its first answer.
+  if (!answer || answer !== turns.find((x) => x.role === "assistant")) return found;
+  const text = answer.content ?? "";
+  let from = 0; // references come in the order they're written
+  let previous = null; // two DOIs in one list item make two references with the same lines
+  for (const r of hc.details?.references ?? []) {
+    let at = previous && r.text && previous.text === r.text ? previous.at : null;
+    if (!at) {
+      at = [];
+      let cursor = from;
+      for (const line of (r.text ?? "").split("\n").map((l) => l.trim()).filter(Boolean)) {
+        const i = text.indexOf(line, cursor);
+        if (i < 0) {
+          at = null;
+          break;
+        }
+        at.push([i, i + line.length]);
+        cursor = i + line.length;
+      }
+      if (at?.length) from = cursor;
+    }
+    previous = { text: r.text, at };
+    const authors = (r.record?.authors ?? []).filter((a) => typeof a === "string" && a.trim());
+    if (r.status === "checks_out" && r.authors_match === true && authors.length && at?.length) {
+      found.set(r.number, { authors, at });
+    }
+  }
+  return found;
+}
+
 /** The run, trimmed to what the dashboard shows, in the run file's own format. */
 export function trim(run, labels = new Map()) {
   const judge = run.run.judge ? { ...run.run.judge } : undefined;
@@ -242,6 +288,7 @@ export function trim(run, labels = new Map()) {
     traps: run.traps.map((t) => {
       const j = t.judgement ?? null;
       const hc = j?.hard_check ?? null;
+      const confirmed = confirmedReferences(t);
       return {
         ...pick(t, ["id", "type", "label", "status", "error"]),
         trap: t.trap,
@@ -261,9 +308,10 @@ export function trim(run, labels = new Map()) {
             ...pick(hc, ["kind", "outcome", "summary"]),
             details: hc.details?.references
               ? {
-                  references: hc.details.references.map((r) =>
-                    pick(r, ["number", "label", "quote", "doi", "url", "title", "years", "status", "note", "real_paper", "wrong", "link_status", "problem"]),
-                  ),
+                  references: hc.details.references.map((r) => ({
+                    ...pick(r, ["number", "label", "quote", "doi", "url", "title", "years", "status", "note", "real_paper", "wrong", "link_status", "problem"]),
+                    ...(confirmed.has(r.number) ? { confirmed: confirmed.get(r.number) } : {}),
+                  })),
                 }
               : null,
           },

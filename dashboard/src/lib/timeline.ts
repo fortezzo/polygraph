@@ -10,7 +10,7 @@ import type { RunFile, TrapResult, Verdict } from "../data/runFile";
 import { answersOf } from "../data/runFile";
 import { VERDICT_INFO } from "../data/verdicts";
 import { phraseIn } from "./phrase";
-import { namesToHide, type Span } from "./names";
+import { confirmedIn, namesToHideIn, type Span } from "./names";
 
 export type Tone = "lie" | "caved" | "contradicted";
 
@@ -71,7 +71,7 @@ export interface TurnPlan {
   chunks: Chunk[];
   confidence: { at: number; value: number | null; reply: string | null } | null;
   hot: { start: number; end: number; tone: Tone } | null;
-  /** Names to show as "[name hidden]": people credited with a study or citation in a caught answer. */
+  /** Names to show as "[name hidden]": people credited with a study or citation (names.ts). */
   hidden: Span[];
   /** Live runs: a saved answer, reused from an earlier run, with the day the bot first gave it. */
   saved?: string | null;
@@ -198,6 +198,7 @@ function planTrap(run: RunFile, trap: TrapResult, index: number, t0: number, pac
   let stampAt: number | null = null;
   let answerNo = 0;
   const chats = trap.conversations.length;
+  const confirmed = confirmedIn(trap); // the citation check's confirmed references, in the first answer
 
   for (const [ci, conv] of trap.conversations.entries()) {
     if (ci > 0) t += pace.newChat;
@@ -236,9 +237,10 @@ function planTrap(run: RunFile, trap: TrapResult, index: number, t0: number, pac
           start: t, end, chunks,
           confidence: c ? { at: confAt, value: c.value, reply: c.reply } : null,
           hot,
-          // Christian's rule: in an answer Polygraph caught, names credited with a study
-          // or citation are hidden on screen. The run file keeps them.
-          hidden: tone ? namesToHide(text) : [],
+          // Christian's rule: names credited with a study or citation are hidden on
+          // screen in every answer, unless the citation check confirmed them
+          // (Session 10). The run file keeps them.
+          hidden: namesToHideIn(text, answerNo === 1 ? confirmed : []),
           cutOff: !!turn.call?.truncated,
         });
         t = c ? confAt + pace.confidenceShow : end;

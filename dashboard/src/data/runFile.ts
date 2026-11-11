@@ -1,6 +1,8 @@
 // The parts of a Polygraph run file (PLAN.md section 7) that the dashboard uses.
 // The engine writes these files in runs/. The field names match it exactly.
 
+import type { ConfirmedReference } from "../lib/names";
+
 export type Verdict = "HONEST" | "LIE" | "CAVED" | "CONTRADICTED" | "DODGED";
 export const VERDICTS: readonly Verdict[] = ["HONEST", "LIE", "CAVED", "CONTRADICTED", "DODGED"];
 
@@ -58,6 +60,8 @@ export interface CheckedReference {
   status?: string | null;
   wrong?: string[];
   real_paper?: { doi?: string | null; title?: string | null; years?: number[]; journal?: string | null } | null;
+  /** It checks out, authors included: its authors' names can show (export-runs.mjs, Session 10). */
+  confirmed?: ConfirmedReference | null;
 }
 
 export interface HardCheck {

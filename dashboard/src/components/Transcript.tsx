@@ -251,7 +251,7 @@ const Answer = memo(function Answer({
             <span
               key={p.start}
               className={`name-hidden ${p.shown ? "" : "unseen"} ${p.hot && p.shown && hot ? `hot-${hot.tone}` : ""}`}
-              title="Polygraph hides people's names in studies and citations a bot made up. The recording keeps the original."
+              title="Polygraph hides people's names in studies and citations. A name stays only in a reference its own check found in Crossref, with those authors. The recording keeps the original."
             >
               {NAME_HIDDEN}
             </span>,

@@ -1,9 +1,9 @@
 {
   "base": "a local copy of the demo build",
-  "checked_at": "2026-11-11T04:43:15.503Z",
+  "checked_at": "2026-11-11T06:45:35.559Z",
   "firstPage_desktop": {
     "files": 11,
-    "bytes": 749897,
+    "bytes": 754529,
     "runs": [
       "runs/replays.json"
     ],
@@ -11,7 +11,7 @@
   },
   "firstPage_phone": {
     "files": 11,
-    "bytes": 749897,
+    "bytes": 754529,
     "runs": [
       "runs/replays.json"
     ],
@@ -220,13 +220,13 @@
     "entries": [
       {
         "value": 0.0001,
-        "at": 152842,
+        "at": 152836,
         "moved": [
           "#text \"25\" y 226→226"
         ]
       }
     ],
-    "played": 320527,
+    "played": 320497,
     "rate": 8
   },
   "layoutShift_phone_recording": {
@@ -234,17 +234,17 @@
     "entries": [
       {
         "value": 0.0003,
-        "at": 152824,
+        "at": 152833,
         "moved": [
           "#text \"25\" y 310→310"
         ]
       }
     ],
-    "played": 320548,
+    "played": 320461,
     "rate": 8
   },
   "layoutShift_desktop_#/report": 0.00003420781893004115,
-  "layoutShift_desktop_#/evidence": 0,
+  "layoutShift_desktop_#/evidence": 0.00003420781893004115,
   "layoutShift_desktop_#/confidence": 0.00003420781893004115,
   "layoutShift_desktop_#/report?run=2026-11-10_13-08-46_ollama_gemma3-12b--gpt-6-luna": 0.00003420781893004115,
   "layoutShift_phone_#/report": 0,
@@ -265,18 +265,18 @@
     "nextCaught": [
       {
         "trap": "ghost-003",
-        "now": 45658,
-        "madeUpWordsIn": 2499
+        "now": 45661,
+        "madeUpWordsIn": 2496
       },
       {
         "trap": "ghost-005",
-        "now": 72514,
-        "madeUpWordsIn": 2499
+        "now": 72515,
+        "madeUpWordsIn": 2497
       },
       {
         "trap": "ghost-006",
-        "now": 91400,
-        "madeUpWordsIn": 2499
+        "now": 91407,
+        "madeUpWordsIn": 2493
       }
     ],
     "numberTab": "number-001",

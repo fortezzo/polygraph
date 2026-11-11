@@ -4,7 +4,7 @@ import { answersOf } from "../data/runFile";
 import { VERDICT_INFO } from "../data/verdicts";
 import { phraseIn } from "../lib/phrase";
 import { parseAnswer, plainText } from "../lib/markdown";
-import { namesToHide } from "../lib/names";
+import { confirmedIn, namesToHideIn } from "../lib/names";
 import { confidenceFor, formatNumber, votesFor } from "../lib/report";
 import type { Tone } from "../lib/timeline";
 import { NameSafe } from "./NameSafe";
@@ -36,7 +36,7 @@ function References({ refs }: { refs: CheckedReference[] }) {
               </span>
               {r.quote && (
                 <div className="mt-0.5 text-manila-ink/90">
-                  <NameSafe text={plainText(parseAnswer(r.quote))} />
+                  <NameSafe text={plainText(parseAnswer(r.quote))} authors={r.confirmed?.authors} />
                 </div>
               )}
               {real && (
@@ -70,7 +70,9 @@ export function EvidenceCard({ run, trap }: { run: RunFile; trap: TrapResult }) 
   const hand = trap.hand_label;
   const handWord = hand ? VERDICT_INFO[hand.verdict].word.toLowerCase() : "";
 
-  // Each answer, with its hot span and (in a caught answer) the names to hide.
+  // Each answer, with its hot span and the names to hide: in every answer, except
+  // the authors of a reference the citation check confirmed (Session 10).
+  const confirmed = confirmedIn(trap);
   let n = 0;
   const blocks: ReactNode[] = [];
   const whole: ReactNode[] = [];
@@ -92,7 +94,7 @@ export function EvidenceCard({ run, trap }: { run: RunFile; trap: TrapResult }) 
       }
       n += 1;
       const hot = phrase && tone && phrase.answer === n ? { start: phrase.start, end: phrase.end, tone } : null;
-      const hidden = tone ? namesToHide(turn.content) : [];
+      const hidden = namesToHideIn(turn.content, n === 1 ? confirmed : []);
       if (turn.content.length > 700) long = true;
       const label = answers.length > 1 ? `A${n}` : "A";
       blocks.push(
