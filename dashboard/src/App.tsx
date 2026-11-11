@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import sample from "./sample/sample-run.json";
 import { readRun } from "./data/runFile";
 import { hrefFor, useRoute, type Route, type Screen } from "./lib/route";
-import { recordingLabel, useRecordings, useRunFile } from "./lib/runs";
+import { recordingDisplay, recordingLabel, useRecordings, useRunFile } from "./lib/runs";
+import { modelName } from "./lib/models";
 import { DEMO } from "./lib/demo";
-import { Room } from "./components/Room";
+import { focusContent, Room } from "./components/Room";
 import { Empty, ErrorState, Loading, StatePanel } from "./components/States";
-import { HIGHLIGHTS, RecordingPicker } from "./components/Header";
+import { HIGHLIGHTS, Picker, SubjectBar } from "./components/Header";
 import { TopBar } from "./components/TopBar";
 import { InterrogationScreen, type StartOptions } from "./screens/InterrogationScreen";
 import { DataScreen } from "./screens/DataScreen";
@@ -18,12 +19,13 @@ import { LiveScreen } from "./screens/LiveScreen";
 import { LineupScreen } from "./screens/LineupScreen";
 
 // The faces the dashboard uses. Nothing shows until they're ready, so text never
-// changes shape (and nothing jumps) when a font arrives late.
+// changes shape (and nothing jumps) when a font arrives late. Session 11: bold
+// italic isn't waited for: it's rare, and Courier Prime's letters are all the same
+// width, so it can arrive late without moving anything.
 const FONTS = [
   '16px "Courier Prime"',
   'bold 16px "Courier Prime"',
   'italic 16px "Courier Prime"',
-  'bold italic 16px "Courier Prime"',
   '16px "Special Elite"',
   '600 16px "Oswald"',
   '700 16px "Oswald"',
@@ -65,8 +67,8 @@ function ReplayFrame({ picker, children }: { picker: ReactNode; children: ReactN
   return (
     <div className="mx-auto flex max-w-[1680px] flex-col gap-3 px-4 pt-3 pb-12 sm:px-6 lg:px-8 lg:pt-[18px]">
       <TopBar active="replay" />
-      <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[13px] sm:text-[14px]">{picker}</div>
-      <main>{children}</main>
+      <SubjectBar tag="replay" picker={picker} />
+      <main id="content">{children}</main>
     </div>
   );
 }
@@ -93,14 +95,24 @@ function Replay({ route, state, start, sampleRun, onRetrySample, rate, onRate }:
   const pick = (id: string) => {
     window.location.hash = hrefFor("replay", id === HIGHLIGHTS ? {} : { run: id });
   };
-  const highlights = sampleRun.ok
-    ? `Highlights: ${sampleRun.run.run.target.model}, ${sampleRun.run.traps.length} answers checked by hand`
-    : "Highlights";
+  // Session 11: the picker shows the bot's friendly name, with its exact tag in small print.
+  const sampleTag = sampleRun.ok ? sampleRun.run.run.target.model : null;
+  const sampleCount = sampleRun.ok ? sampleRun.run.traps.length : 0;
+  const highlights = sampleTag ? `Highlights: ${modelName(sampleTag)}, ${sampleCount} answers checked by hand` : "Highlights";
+  const shown =
+    rec ? recordingDisplay(rec)
+    : wanted === HIGHLIGHTS ? { main: sampleTag ? `Highlights · ${modelName(sampleTag)}` : "Highlights", sub: sampleTag ? `${sampleCount} answers checked by hand · ${sampleTag}` : "" }
+    : { main: "Pick a recording", sub: "" };
   const picker = (
-    <RecordingPicker
+    <Picker
+      label="Recording"
       value={rec ? rec.id : wanted === HIGHLIGHTS ? HIGHLIGHTS : ""}
-      highlights={highlights}
-      options={recordings.map((r) => ({ id: r.id, label: recordingLabel(r) }))}
+      options={[
+        { id: HIGHLIGHTS, label: highlights },
+        ...recordings.map((r) => ({ id: r.id, label: recordingLabel(r), group: "Whole interrogations, every question" })),
+      ]}
+      main={shown.main}
+      sub={shown.sub || null}
       note={list.status === "loading" ? "Loading the other recordings…" : list.status === "error" ? "The other recordings couldn't be loaded" : null}
       onPick={pick}
     />
@@ -163,14 +175,14 @@ function NotInDemo() {
   return (
     <div className="mx-auto flex max-w-[1680px] flex-col gap-3 px-4 pt-3 pb-12 sm:px-6 lg:px-8 lg:pt-[18px]">
       <TopBar active="new" />
-      <main>
+      <main id="content">
         <StatePanel kicker="NOT IN THIS DEMO" title="New interrogations run on the computer where Polygraph is installed">
           <p className="m-0">
             This site replays interrogations that were recorded earlier. Starting a new one needs Polygraph&rsquo;s server and the API keys
             of the companies whose bots it asks, so it only runs on that computer.
           </p>
           <p className="mt-3 mb-0">
-            <a href={hrefFor("replay")} className="text-brass underline underline-offset-2">
+            <a href={hrefFor("replay")} className="inline-flex min-h-11 items-center text-brass underline underline-offset-2">
               Watch a recorded interrogation
             </a>
           </p>
@@ -198,9 +210,18 @@ export default function App() {
   const [rate, setRate] = useState(start.rate ?? 1);
 
   // A new screen starts at the top, with its own page title.
+  // Session 11: after the first screen, a new screen also takes the keyboard's focus
+  // to its main heading, so a screen reader says where you are and Tab starts there.
+  const firstScreen = useRef(true);
   useEffect(() => {
     window.scrollTo(0, 0);
     document.title = `Polygraph · ${TITLES[route.screen]}`;
+    if (firstScreen.current) {
+      firstScreen.current = false;
+      return;
+    }
+    const t = window.setTimeout(() => focusContent(true), 0);
+    return () => window.clearTimeout(t);
   }, [route.screen]);
 
   const sampleRun = useMemo(() => {
@@ -210,7 +231,7 @@ export default function App() {
   }, [state]);
 
   let body;
-  if (!fontsReady) body = <Loading />;
+  if (!fontsReady) body = <Loading plain />;
   else if (route.screen === "replay") {
     body = (
       <Replay

@@ -12,6 +12,7 @@
 //   node scripts/export-runs.mjs
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { buildLineup, cutOffs } from "./lineup.mjs";
@@ -505,6 +506,95 @@ export function opensOn(entries, sample) {
   return (match ?? lineup[0] ?? entries[0])?.id ?? null;
 }
 
+/**
+ * The most confident lie Christian checked by hand: the same rule as
+ * mostConfidentCheckedLie() in src/lib/report.ts (a test holds them together).
+ */
+export function checkedLieId(run) {
+  const points = run.scores?.calibration?.points ?? [];
+  const byId = new Map(run.traps.map((t) => [t.id, t]));
+  const order = new Map(run.traps.map((t, i) => [t.id, i]));
+  const best = points
+    .filter((p) => p.verdict === "LIE" && p.confidence !== null && p.suspect === null)
+    .filter((p) => {
+      const t = byId.get(p.trap);
+      return !!t && t.hand_label?.verdict === "LIE" && !t.hand_label.unsure && !t.judgement?.own_knowledge && !t.judgement?.unsettled;
+    })
+    .sort((a, b) => b.confidence - a.confidence || order.get(a.trap) - order.get(b.trap))[0];
+  return best?.trap ?? null;
+}
+
+/**
+ * Session 11: a light copy of a run, for the report card and the overconfidence
+ * meter, which never show the answers. It keeps the run's details, the scores and
+ * each trap's verdict, votes and hand label, but not the conversations or the trap
+ * texts, except for the one trap the meter shows in full (the most confident lie
+ * checked by hand). About a tenth of the size, so those screens open sooner on a
+ * phone. The evidence wall and the replay load the whole run.
+ */
+export function lightRun(slim) {
+  const featured = checkedLieId(slim);
+  return {
+    ...slim,
+    light: true,
+    traps: slim.traps.map((t) =>
+      t.id === featured
+        ? t
+        : {
+            id: t.id,
+            label: t.label,
+            type: t.type,
+            verdict: t.verdict ?? null,
+            status: t.status ?? null,
+            hand_label: t.hand_label ?? null,
+            judgement: t.judgement
+              ? {
+                  decided_by: t.judgement.decided_by,
+                  own_knowledge: t.judgement.own_knowledge,
+                  unsettled: t.judgement.unsettled,
+                  votes: (t.judgement.votes ?? []).map((v) => ({ verdict: v.verdict ?? null })),
+                }
+              : null,
+            trap: { id: t.trap.id, type: t.trap.type },
+            conversations: [],
+          },
+    ),
+  };
+}
+
+const CAUGHT = new Set(["LIE", "CAVED", "CONTRADICTED"]);
+
+/**
+ * Session 11: the evidence wall's copy of a run. The wall opens on the caught
+ * answers (Lie, Caved and Contradicted), so this copy has those traps in full and
+ * the rest only by their verdicts (for the filters' counts), and it leaves out
+ * the parts of a trap the wall never shows. About 60% of the size, so the first
+ * cards show sooner on a phone. Showing Honest or Dodged loads the whole run.
+ */
+export function caughtRun(slim) {
+  const light = lightRun(slim);
+  return {
+    ...light,
+    light: false,
+    caught_only: true,
+    traps: slim.traps.map((t, i) => {
+      if (!CAUGHT.has(t.verdict)) {
+        const compact = light.traps[i];
+        // The light copy keeps the featured trap whole; here only caught ones are.
+        return compact.conversations.length ? { ...compact, trap: { id: t.trap.id, type: t.trap.type }, conversations: [] } : compact;
+      }
+      return {
+        ...t,
+        trap: pick(t.trap, ["id", "type", "question", "truth", "source", "document", "answerable"]),
+        conversations: t.conversations.map((c) => ({
+          ...c,
+          turns: c.turns.map((turn) => ({ ...turn, call: turn.call ? pick(turn.call, ["first_collected_at", "truncated"]) : null })),
+        })),
+      };
+    }),
+  };
+}
+
 /** The recordings the replay offers, besides the Highlights: the lineup's grades and the custom bot's. Small, so the first page stays light. */
 export function replayList(entries) {
   return entries
@@ -514,9 +604,24 @@ export function replayList(entries) {
     );
 }
 
-export function exportRuns({ root = ROOT, out = OUT, write = true, roster = readRoster(), sample = readSample() } = {}) {
+/**
+ * Session 11: the run files git has, for the demo build (--committed), so the demo
+ * built on this PC is the one GitHub builds: test runs that were never committed
+ * stay out. Without git, every file counts.
+ */
+export function committedRuns(root) {
+  try {
+    const out = execFileSync("git", ["ls-files", "-z", "runs"], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    return new Set(out.split("\0").filter(Boolean).map((p) => p.replace(/^runs\//, "")));
+  } catch {
+    return null;
+  }
+}
+
+export function exportRuns({ root = ROOT, out = OUT, write = true, roster = readRoster(), sample = readSample(), committedOnly = false } = {}) {
   const runsDir = resolve(root, "runs");
-  const files = existsSync(runsDir) ? readdirSync(runsDir) : [];
+  const tracked = committedOnly ? committedRuns(root) : null;
+  const files = (existsSync(runsDir) ? readdirSync(runsDir) : []).filter((f) => !tracked || tracked.has(f));
   const entries = [];
   const outputs = [];
   const held = new Set(roster?.judge_hold?.judges ?? []);
@@ -533,8 +638,10 @@ export function exportRuns({ root = ROOT, out = OUT, write = true, roster = read
     // A judge that was replaced (Session 9): its grades don't count, and every screen says so.
     const gone = replaced.get(run.run.judge?.model);
     const judgeReplaced = gone ? { by: gone.by ?? null, since: gone.since ?? null, why: gone.why ?? null } : null;
-    entries.push({ ...indexEntry(slim, file, id, f), judge_check: judgeCheck(run, root), judge_hold: hold, judge_replaced: judgeReplaced });
-    outputs.push({ file, data: slim });
+    const lightFile = `${id}.light.json`;
+    const caughtFile = `${id}.caught.json`;
+    entries.push({ ...indexEntry(slim, file, id, f), light_file: lightFile, caught_file: caughtFile, judge_check: judgeCheck(run, root), judge_hold: hold, judge_replaced: judgeReplaced });
+    outputs.push({ file, data: slim, light: { file: lightFile, data: lightRun(slim) }, caught: { file: caughtFile, data: caughtRun(slim) } });
   }
   // Newest recording first.
   entries.sort((a, b) => (a.started_at < b.started_at ? 1 : -1));
@@ -561,7 +668,11 @@ export function exportRuns({ root = ROOT, out = OUT, write = true, roster = read
   if (write) {
     rmSync(out, { recursive: true, force: true });
     mkdirSync(out, { recursive: true });
-    for (const o of outputs) writeFileSync(resolve(out, o.file), JSON.stringify(o.data));
+    for (const o of outputs) {
+      writeFileSync(resolve(out, o.file), JSON.stringify(o.data));
+      writeFileSync(resolve(out, o.light.file), JSON.stringify(o.light.data));
+      writeFileSync(resolve(out, o.caught.file), JSON.stringify(o.caught.data));
+    }
     writeFileSync(resolve(out, "index.json"), JSON.stringify(index, null, 2) + "\n");
     writeFileSync(resolve(out, "replays.json"), JSON.stringify(replays, null, 2) + "\n");
   }
@@ -569,7 +680,9 @@ export function exportRuns({ root = ROOT, out = OUT, write = true, roster = read
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const { index, outputs } = exportRuns();
+  const committedOnly = process.argv.includes("--committed");
+  const { index, outputs } = exportRuns({ committedOnly });
+  if (committedOnly) console.log("only the runs git has (--committed), as GitHub builds the demo");
   for (const e of index.runs) {
     const kb = (JSON.stringify(outputs.find((o) => o.file === e.file).data).length / 1024).toFixed(0);
     console.log(`run ${e.model.padEnd(12)} Truth Score ${e.overall} (${e.grade})  ${kb} KB, from runs/${e.source}`);

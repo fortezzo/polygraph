@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import type { TrapPlan, View } from "../lib/timeline";
 import { VERDICT_INFO } from "../data/verdicts";
 import type { Verdict } from "../data/runFile";
@@ -49,7 +49,10 @@ export function CaseSummary({ plan, view, notJudged = false }: { plan: TrapPlan;
       <div className="absolute -top-[22px] left-[18px] hidden h-[26px] rounded-t-[6px] bg-[#b8964f] px-4 pt-[5px] font-label text-[12px] tracking-[0.14em] text-[#2e2416] lg:block">
         CASE NOTES · Q{plan.index + 1}
       </div>
-      <div className="flex items-center justify-between gap-3 lg:flex-col lg:items-stretch lg:gap-2">
+      {/* Session 11: on a small phone a long verdict and the confidence collided, so the
+          verdict is a little smaller there, the label under the number wraps onto two short
+          lines, and if they still can't share a line the number goes under the verdict. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 lg:flex-col lg:flex-nowrap lg:items-stretch lg:gap-2">
         <Reveal
           shown={view.verdictShown && !!info}
           className="min-w-0"
@@ -65,7 +68,7 @@ export function CaseSummary({ plan, view, notJudged = false }: { plan: TrapPlan;
               <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border-[3px] p-1 lg:h-11 lg:w-11 lg:p-1.5 ${INK[v]}`}>
                 <Icon name={info.icon} className="h-full w-full" strokeWidth={2.8} />
               </span>
-              <span className={`font-display text-[30px] leading-none font-bold tracking-[0.05em] lg:text-[40px] ${INK[v]}`}>{info.word}</span>
+              <span className={`font-display text-[26px] leading-none font-bold tracking-[0.05em] min-[400px]:text-[30px] lg:text-[40px] ${INK[v]}`}>{info.word}</span>
               {votes.length > 0 && (
                 <span className="ml-1 hidden text-[12px] leading-snug text-manila-label sm:block lg:ml-auto lg:text-right">
                   {agree} of {votes.length}
@@ -78,7 +81,7 @@ export function CaseSummary({ plan, view, notJudged = false }: { plan: TrapPlan;
             // A live run doesn't know the verdict yet: hold its place at the same size, so nothing moves when it lands.
             <div className="flex items-center gap-2.5 lg:gap-3" aria-hidden="true">
               <span className="h-9 w-9 shrink-0 rounded-full border-[3px] lg:h-11 lg:w-11" />
-              <span className="font-display text-[30px] leading-none font-bold tracking-[0.05em] lg:text-[40px]">LIE</span>
+              <span className="font-display text-[26px] leading-none font-bold tracking-[0.05em] min-[400px]:text-[30px] lg:text-[40px]">LIE</span>
             </div>
           )}
         </Reveal>
@@ -97,7 +100,7 @@ export function CaseSummary({ plan, view, notJudged = false }: { plan: TrapPlan;
             <div className="font-display text-[46px] leading-[0.95] font-bold text-manila-ink lg:text-[92px] lg:leading-[0.85]">
               {h ? `${h.value}%` : "?"}
             </div>
-            <div className="text-[11px] leading-snug text-manila-label lg:max-w-[230px] lg:pb-1 lg:text-[13px] lg:text-manila-ink">
+            <div className="ml-auto max-w-[7.5rem] text-[11px] leading-snug text-manila-label min-[400px]:max-w-none lg:ml-0 lg:max-w-[230px] lg:pb-1 lg:text-[13px] lg:text-manila-ink">
               <span className="lg:hidden">how sure it said it was</span>
               <span className="hidden lg:inline">
                 {h
@@ -114,17 +117,44 @@ export function CaseSummary({ plan, view, notJudged = false }: { plan: TrapPlan;
   );
 }
 
+/**
+ * Session 11: whether a scrolling box has more below what's showing, so its bottom
+ * edge can fade only then (a fade on notes that fit would hide their last line).
+ */
+function useMoreBelow(ref: RefObject<HTMLElement | null>, key: unknown): boolean {
+  const [more, setMore] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => setMore(el.scrollHeight - el.clientHeight - el.scrollTop > 4);
+    check();
+    el.addEventListener("scroll", check, { passive: true });
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    for (const child of el.children) ro.observe(child);
+    return () => {
+      el.removeEventListener("scroll", check);
+      ro.disconnect();
+    };
+  }, [ref, key]);
+  return more;
+}
+
 export function CaseDetails({ plan, view, notJudged = false }: { plan: TrapPlan; view: View; notJudged?: boolean }) {
   const v = plan.verdict;
   const info = v ? VERDICT_INFO[v] : null;
   const t = plan.result.trap;
   const j = plan.result.judgement;
+  const box = useRef<HTMLElement>(null);
+  const more = useMoreBelow(box, `${plan.id}-${view.finalShown}`);
   return (
     <section
+      ref={box}
       aria-label={`Case notes for question ${plan.index + 1}`}
       // On a laptop the notes scroll inside the folder, so they can be reached with the keyboard.
       tabIndex={0}
-      className="area-details manila rounded-[6px] px-4 py-4 text-[14px] leading-[1.45] lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:rounded-[0_0_6px_6px] lg:border-t lg:border-dashed lg:border-[#3c2f1a]/40 lg:px-6"
+      // Long links and references wrap instead of running off a phone (Session 11).
+      className="area-details manila rounded-[6px] px-4 py-4 text-[14px] leading-[1.45] [overflow-wrap:anywhere] lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:rounded-[0_0_6px_6px] lg:border-t lg:border-dashed lg:border-[#3c2f1a]/40 lg:px-6"
     >
       <Reveal
         shown={view.finalShown}
@@ -166,6 +196,11 @@ export function CaseDetails({ plan, view, notJudged = false }: { plan: TrapPlan;
           </div>
         </div>
       </Reveal>
+      {/* On a laptop, a fade at the bottom while there's more to scroll to (Session 11). */}
+      <div
+        aria-hidden="true"
+        className={`pointer-events-none sticky bottom-0 -mx-6 -mt-8 hidden h-8 bg-gradient-to-b from-transparent to-manila-2 transition-opacity duration-200 lg:block ${more ? "opacity-100" : "opacity-0"}`}
+      />
     </section>
   );
 }

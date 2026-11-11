@@ -16,6 +16,7 @@
 
 import type { Verdict } from "../data/runFile";
 import type { Problem } from "./api";
+import { modelName } from "./models";
 
 export interface LiveEvent {
   id: number;
@@ -363,7 +364,7 @@ export function statusLine(state: LiveState, now: number, shown?: number): strin
   }
   const trap = shown !== undefined && shown >= 0 ? state.traps[shown] : state.traps[state.traps.length - 1];
   if (!state.info || !trap) return "Getting the interrogation ready…";
-  const who = state.info.bot.name ?? state.info.bot.model;
+  const who = state.info.bot.name ?? modelName(state.info.bot.model);
   if (trap.verdict && trap.verdict.at <= now) return "";
   const turns = trap.turns.filter((t) => t.at <= now);
   const last = turns[turns.length - 1];

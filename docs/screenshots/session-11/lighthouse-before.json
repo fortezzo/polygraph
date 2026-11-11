@@ -1,0 +1,814 @@
+{
+  "base": "https://fortezzo.github.io/polygraph/",
+  "lighthouse": "13.6.0",
+  "measured_at": "2026-11-11T16:50:22.546Z",
+  "runs": 3,
+  "pages": {
+    "replay mobile": {
+      "page": "the first page: the Highlights replay",
+      "url": "https://fortezzo.github.io/polygraph/",
+      "form": "mobile",
+      "scores": {
+        "performance": 97,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "fcp_ms": 794,
+        "lcp_ms": 2513,
+        "tbt_ms": 96,
+        "cls": 0.0001,
+        "speed_index_ms": 1108,
+        "total_kb": 335
+      },
+      "lcp_element": null,
+      "failing": [
+        {
+          "category": "performance",
+          "id": "largest-contentful-paint",
+          "weight": 25,
+          "score": 89,
+          "title": "Largest Contentful Paint",
+          "value": "2.5 s"
+        },
+        {
+          "category": "performance",
+          "id": "cache-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Use efficient cache lifetimes",
+          "value": "Est savings of 305 KiB"
+        },
+        {
+          "category": "performance",
+          "id": "network-dependency-tree-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Network dependency tree",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "render-blocking-insight",
+          "weight": 0,
+          "score": 50,
+          "title": "Render-blocking requests",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "max-potential-fid",
+          "weight": 0,
+          "score": 85,
+          "title": "Max Potential First Input Delay",
+          "value": "150 ms"
+        },
+        {
+          "category": "performance",
+          "id": "unused-javascript",
+          "weight": 0,
+          "score": 0,
+          "title": "Reduce unused JavaScript",
+          "value": "Est savings of 93 KiB"
+        },
+        {
+          "category": "best-practices",
+          "id": "valid-source-maps",
+          "weight": 0,
+          "score": 0,
+          "title": "Missing source maps for large first-party JavaScript",
+          "value": null
+        }
+      ],
+      "performance_runs": [
+        96,
+        97,
+        97
+      ]
+    },
+    "replay desktop": {
+      "page": "the first page: the Highlights replay",
+      "url": "https://fortezzo.github.io/polygraph/",
+      "form": "desktop",
+      "scores": {
+        "performance": 100,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "fcp_ms": 379,
+        "lcp_ms": 676,
+        "tbt_ms": 0,
+        "cls": 0,
+        "speed_index_ms": 552,
+        "total_kb": 335
+      },
+      "lcp_element": null,
+      "failing": [
+        {
+          "category": "performance",
+          "id": "cache-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Use efficient cache lifetimes",
+          "value": "Est savings of 306 KiB"
+        },
+        {
+          "category": "performance",
+          "id": "network-dependency-tree-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Network dependency tree",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "render-blocking-insight",
+          "weight": 0,
+          "score": 50,
+          "title": "Render-blocking requests",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "unused-javascript",
+          "weight": 0,
+          "score": 0,
+          "title": "Reduce unused JavaScript",
+          "value": "Est savings of 85 KiB"
+        },
+        {
+          "category": "best-practices",
+          "id": "valid-source-maps",
+          "weight": 0,
+          "score": 0,
+          "title": "Missing source maps for large first-party JavaScript",
+          "value": null
+        }
+      ],
+      "performance_runs": [
+        100,
+        100,
+        100
+      ]
+    },
+    "report mobile": {
+      "page": "the report card",
+      "url": "https://fortezzo.github.io/polygraph/#/report",
+      "form": "mobile",
+      "scores": {
+        "performance": 88,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "fcp_ms": 792,
+        "lcp_ms": 3938,
+        "tbt_ms": 0,
+        "cls": 0.0148,
+        "speed_index_ms": 799,
+        "total_kb": 626
+      },
+      "lcp_element": null,
+      "failing": [
+        {
+          "category": "performance",
+          "id": "largest-contentful-paint",
+          "weight": 25,
+          "score": 51,
+          "title": "Largest Contentful Paint",
+          "value": "3.9 s"
+        },
+        {
+          "category": "performance",
+          "id": "cache-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Use efficient cache lifetimes",
+          "value": "Est savings of 306 KiB"
+        },
+        {
+          "category": "performance",
+          "id": "network-dependency-tree-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Network dependency tree",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "render-blocking-insight",
+          "weight": 0,
+          "score": 50,
+          "title": "Render-blocking requests",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "interactive",
+          "weight": 0,
+          "score": 88,
+          "title": "Time to Interactive",
+          "value": "3.9 s"
+        },
+        {
+          "category": "performance",
+          "id": "unused-javascript",
+          "weight": 0,
+          "score": 0,
+          "title": "Reduce unused JavaScript",
+          "value": "Est savings of 104 KiB"
+        },
+        {
+          "category": "best-practices",
+          "id": "valid-source-maps",
+          "weight": 0,
+          "score": 0,
+          "title": "Missing source maps for large first-party JavaScript",
+          "value": null
+        }
+      ],
+      "performance_runs": [
+        88,
+        88,
+        88
+      ]
+    },
+    "report desktop": {
+      "page": "the report card",
+      "url": "https://fortezzo.github.io/polygraph/#/report",
+      "form": "desktop",
+      "scores": {
+        "performance": 100,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "fcp_ms": 241,
+        "lcp_ms": 761,
+        "tbt_ms": 0,
+        "cls": 0,
+        "speed_index_ms": 344,
+        "total_kb": 626
+      },
+      "lcp_element": null,
+      "failing": [
+        {
+          "category": "performance",
+          "id": "cache-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Use efficient cache lifetimes",
+          "value": "Est savings of 306 KiB"
+        },
+        {
+          "category": "performance",
+          "id": "network-dependency-tree-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Network dependency tree",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "render-blocking-insight",
+          "weight": 0,
+          "score": 50,
+          "title": "Render-blocking requests",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "unused-javascript",
+          "weight": 0,
+          "score": 0,
+          "title": "Reduce unused JavaScript",
+          "value": "Est savings of 103 KiB"
+        },
+        {
+          "category": "best-practices",
+          "id": "valid-source-maps",
+          "weight": 0,
+          "score": 0,
+          "title": "Missing source maps for large first-party JavaScript",
+          "value": null
+        }
+      ],
+      "performance_runs": [
+        100,
+        100,
+        100
+      ]
+    },
+    "evidence mobile": {
+      "page": "the evidence wall",
+      "url": "https://fortezzo.github.io/polygraph/#/evidence",
+      "form": "mobile",
+      "scores": {
+        "performance": 73,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "fcp_ms": 792,
+        "lcp_ms": 792,
+        "tbt_ms": 1738,
+        "cls": 0.0148,
+        "speed_index_ms": 1166,
+        "total_kb": 626
+      },
+      "lcp_element": null,
+      "failing": [
+        {
+          "category": "performance",
+          "id": "total-blocking-time",
+          "weight": 30,
+          "score": 10,
+          "title": "Total Blocking Time",
+          "value": "1,740 ms"
+        },
+        {
+          "category": "performance",
+          "id": "cache-insight",
+          "weight": 0,
+          "score": 50,
+          "title": "Use efficient cache lifetimes",
+          "value": "Est savings of 306 KiB"
+        },
+        {
+          "category": "performance",
+          "id": "forced-reflow-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Forced reflow",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "network-dependency-tree-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Network dependency tree",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "render-blocking-insight",
+          "weight": 0,
+          "score": 50,
+          "title": "Render-blocking requests",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "max-potential-fid",
+          "weight": 0,
+          "score": 0,
+          "title": "Max Potential First Input Delay",
+          "value": "1,200 ms"
+        },
+        {
+          "category": "performance",
+          "id": "unused-javascript",
+          "weight": 0,
+          "score": 50,
+          "title": "Reduce unused JavaScript",
+          "value": "Est savings of 104 KiB"
+        },
+        {
+          "category": "performance",
+          "id": "mainthread-work-breakdown",
+          "weight": 0,
+          "score": 0,
+          "title": "Minimize main-thread work",
+          "value": "2.9 s"
+        },
+        {
+          "category": "best-practices",
+          "id": "valid-source-maps",
+          "weight": 0,
+          "score": 0,
+          "title": "Missing source maps for large first-party JavaScript",
+          "value": null
+        }
+      ],
+      "performance_runs": [
+        73,
+        73,
+        73
+      ]
+    },
+    "evidence desktop": {
+      "page": "the evidence wall",
+      "url": "https://fortezzo.github.io/polygraph/#/evidence",
+      "form": "desktop",
+      "scores": {
+        "performance": 86,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "fcp_ms": 240,
+        "lcp_ms": 759,
+        "tbt_ms": 322,
+        "cls": 0,
+        "speed_index_ms": 531,
+        "total_kb": 626
+      },
+      "lcp_element": null,
+      "failing": [
+        {
+          "category": "performance",
+          "id": "total-blocking-time",
+          "weight": 30,
+          "score": 55,
+          "title": "Total Blocking Time",
+          "value": "320 ms"
+        },
+        {
+          "category": "performance",
+          "id": "cache-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Use efficient cache lifetimes",
+          "value": "Est savings of 306 KiB"
+        },
+        {
+          "category": "performance",
+          "id": "network-dependency-tree-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Network dependency tree",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "render-blocking-insight",
+          "weight": 0,
+          "score": 50,
+          "title": "Render-blocking requests",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "max-potential-fid",
+          "weight": 0,
+          "score": 33,
+          "title": "Max Potential First Input Delay",
+          "value": "310 ms"
+        },
+        {
+          "category": "performance",
+          "id": "unused-javascript",
+          "weight": 0,
+          "score": 0,
+          "title": "Reduce unused JavaScript",
+          "value": "Est savings of 104 KiB"
+        },
+        {
+          "category": "best-practices",
+          "id": "valid-source-maps",
+          "weight": 0,
+          "score": 0,
+          "title": "Missing source maps for large first-party JavaScript",
+          "value": null
+        }
+      ],
+      "performance_runs": [
+        86,
+        86,
+        86
+      ]
+    },
+    "confidence mobile": {
+      "page": "the overconfidence meter",
+      "url": "https://fortezzo.github.io/polygraph/#/confidence",
+      "form": "mobile",
+      "scores": {
+        "performance": 87,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "fcp_ms": 795,
+        "lcp_ms": 3942,
+        "tbt_ms": 107,
+        "cls": 0.0148,
+        "speed_index_ms": 1267,
+        "total_kb": 626
+      },
+      "lcp_element": null,
+      "failing": [
+        {
+          "category": "performance",
+          "id": "largest-contentful-paint",
+          "weight": 25,
+          "score": 51,
+          "title": "Largest Contentful Paint",
+          "value": "3.9 s"
+        },
+        {
+          "category": "performance",
+          "id": "cache-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Use efficient cache lifetimes",
+          "value": "Est savings of 306 KiB"
+        },
+        {
+          "category": "performance",
+          "id": "network-dependency-tree-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Network dependency tree",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "render-blocking-insight",
+          "weight": 0,
+          "score": 50,
+          "title": "Render-blocking requests",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "interactive",
+          "weight": 0,
+          "score": 88,
+          "title": "Time to Interactive",
+          "value": "3.9 s"
+        },
+        {
+          "category": "performance",
+          "id": "max-potential-fid",
+          "weight": 0,
+          "score": 81,
+          "title": "Max Potential First Input Delay",
+          "value": "160 ms"
+        },
+        {
+          "category": "performance",
+          "id": "unused-javascript",
+          "weight": 0,
+          "score": 0,
+          "title": "Reduce unused JavaScript",
+          "value": "Est savings of 102 KiB"
+        },
+        {
+          "category": "best-practices",
+          "id": "valid-source-maps",
+          "weight": 0,
+          "score": 0,
+          "title": "Missing source maps for large first-party JavaScript",
+          "value": null
+        }
+      ],
+      "performance_runs": [
+        87,
+        87,
+        87
+      ]
+    },
+    "confidence desktop": {
+      "page": "the overconfidence meter",
+      "url": "https://fortezzo.github.io/polygraph/#/confidence",
+      "form": "desktop",
+      "scores": {
+        "performance": 100,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "fcp_ms": 241,
+        "lcp_ms": 760,
+        "tbt_ms": 0,
+        "cls": 0,
+        "speed_index_ms": 475,
+        "total_kb": 626
+      },
+      "lcp_element": null,
+      "failing": [
+        {
+          "category": "performance",
+          "id": "cache-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Use efficient cache lifetimes",
+          "value": "Est savings of 306 KiB"
+        },
+        {
+          "category": "performance",
+          "id": "network-dependency-tree-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Network dependency tree",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "render-blocking-insight",
+          "weight": 0,
+          "score": 50,
+          "title": "Render-blocking requests",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "unused-javascript",
+          "weight": 0,
+          "score": 0,
+          "title": "Reduce unused JavaScript",
+          "value": "Est savings of 99 KiB"
+        },
+        {
+          "category": "best-practices",
+          "id": "valid-source-maps",
+          "weight": 0,
+          "score": 0,
+          "title": "Missing source maps for large first-party JavaScript",
+          "value": null
+        }
+      ],
+      "performance_runs": [
+        100,
+        100,
+        100
+      ]
+    },
+    "lineup mobile": {
+      "page": "the lineup",
+      "url": "https://fortezzo.github.io/polygraph/#/lineup",
+      "form": "mobile",
+      "scores": {
+        "performance": 94,
+        "accessibility": 98,
+        "best-practices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "fcp_ms": 806,
+        "lcp_ms": 2602,
+        "tbt_ms": 178,
+        "cls": 0.0001,
+        "speed_index_ms": 924,
+        "total_kb": 349
+      },
+      "lcp_element": null,
+      "failing": [
+        {
+          "category": "performance",
+          "id": "largest-contentful-paint",
+          "weight": 25,
+          "score": 87,
+          "title": "Largest Contentful Paint",
+          "value": "2.6 s"
+        },
+        {
+          "category": "performance",
+          "id": "cache-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Use efficient cache lifetimes",
+          "value": "Est savings of 305 KiB"
+        },
+        {
+          "category": "performance",
+          "id": "network-dependency-tree-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Network dependency tree",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "render-blocking-insight",
+          "weight": 0,
+          "score": 50,
+          "title": "Render-blocking requests",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "max-potential-fid",
+          "weight": 0,
+          "score": 64,
+          "title": "Max Potential First Input Delay",
+          "value": "210 ms"
+        },
+        {
+          "category": "performance",
+          "id": "unused-javascript",
+          "weight": 0,
+          "score": 0,
+          "title": "Reduce unused JavaScript",
+          "value": "Est savings of 104 KiB"
+        },
+        {
+          "category": "accessibility",
+          "id": "heading-order",
+          "weight": 3,
+          "score": 0,
+          "title": "Heading elements are not in a sequentially-descending order",
+          "value": null
+        },
+        {
+          "category": "best-practices",
+          "id": "valid-source-maps",
+          "weight": 0,
+          "score": 0,
+          "title": "Missing source maps for large first-party JavaScript",
+          "value": null
+        }
+      ],
+      "performance_runs": [
+        94,
+        94,
+        95
+      ]
+    },
+    "lineup desktop": {
+      "page": "the lineup",
+      "url": "https://fortezzo.github.io/polygraph/#/lineup",
+      "form": "desktop",
+      "scores": {
+        "performance": 100,
+        "accessibility": 98,
+        "best-practices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "fcp_ms": 244,
+        "lcp_ms": 564,
+        "tbt_ms": 2,
+        "cls": 0,
+        "speed_index_ms": 416,
+        "total_kb": 349
+      },
+      "lcp_element": null,
+      "failing": [
+        {
+          "category": "performance",
+          "id": "cache-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Use efficient cache lifetimes",
+          "value": "Est savings of 306 KiB"
+        },
+        {
+          "category": "performance",
+          "id": "network-dependency-tree-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Network dependency tree",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "render-blocking-insight",
+          "weight": 0,
+          "score": 50,
+          "title": "Render-blocking requests",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "unused-javascript",
+          "weight": 0,
+          "score": 0,
+          "title": "Reduce unused JavaScript",
+          "value": "Est savings of 104 KiB"
+        },
+        {
+          "category": "accessibility",
+          "id": "heading-order",
+          "weight": 3,
+          "score": 0,
+          "title": "Heading elements are not in a sequentially-descending order",
+          "value": null
+        },
+        {
+          "category": "best-practices",
+          "id": "valid-source-maps",
+          "weight": 0,
+          "score": 0,
+          "title": "Missing source maps for large first-party JavaScript",
+          "value": null
+        }
+      ],
+      "performance_runs": [
+        100,
+        100,
+        100
+      ]
+    }
+  }
+}

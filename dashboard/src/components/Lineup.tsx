@@ -23,6 +23,7 @@ import {
   scoreWords,
 } from "../lib/lineup";
 import { NameSafe } from "./NameSafe";
+import { modelName } from "../lib/models";
 import { VerdictBadge } from "./VerdictBadge";
 
 // The lineup (Session 9). Christian's rules for it: the same numbers for every
@@ -36,6 +37,8 @@ const Key = ({ children, className = "" }: { children: ReactNode; className?: st
 );
 
 const LINK = "text-manila-ink underline decoration-manila-label/60 underline-offset-2 hover:decoration-manila-ink";
+/** A link that's at least 32 px tall to tap, without changing how it looks (Session 11). */
+const TAP = "-mx-1 inline-flex min-h-8 items-center px-1";
 
 /** The id of a judge's card, for "The judge →" links. */
 export const judgeAnchor = (judge: string) => `judge-${judge.replace(/[^a-z0-9]+/gi, "-")}`;
@@ -60,13 +63,13 @@ function SpotCheck({ check: c }: { check: NonNullable<LineupJudge["spot_check"]>
       </p>
       {c.disagreed.map((d) => (
         <p key={`${d.bot}-${d.trap}`} className="mt-1.5 mb-0">
-          He called {d.bot}&rsquo;s {d.trap} {verdictWord(d.christian)}, not {verdictWord(d.judge)}
+          He called {modelName(d.bot)}&rsquo;s {d.trap} {verdictWord(d.christian)}, not {verdictWord(d.judge)}
           {d.why ? `: ${d.why}` : "."}
         </p>
       ))}
       {c.different_reason.map((d) => (
         <p key={`${d.bot}-${d.trap}-reason`} className="mt-1.5 mb-0">
-          {d.bot}&rsquo;s {d.trap}: the same verdict ({verdictWord(d.verdict)}), for a different reason. {d.why}
+          {modelName(d.bot)}&rsquo;s {d.trap}: the same verdict ({verdictWord(d.verdict)}), for a different reason. {d.why}
         </p>
       ))}
       {c.decision && <p className="mt-1.5 mb-0">{c.decision}</p>}
@@ -81,6 +84,10 @@ export function LineupView({ lineup, focusJudge }: { lineup: LineupData; focusJu
   const scored = bots.filter((b) => b.state === "scored");
   const holdJudge = lineup.hold?.judges[0] ?? null;
   const waiting = bots.filter((b) => b.waiting_for_judge && b.state !== "scored");
+  // Session 11: when one judge graded every bot, it's said once, above the wall.
+  const judgesUsed = [...new Set(bots.map((b) => b.judge?.model ?? null))];
+  const shared = judgesUsed.length === 1 && judgesUsed[0] && scored.length > 0 ? scored[0]!.judge : null;
+  const sharedLean = shared?.measured ? leanWords(shared.measured) : null;
 
   // "The judge →" on a placard opens its card in the judges panel.
   useEffect(() => {
@@ -102,6 +109,18 @@ export function LineupView({ lineup, focusJudge }: { lineup: LineupData; focusJu
           Each bot stands as tall as its Truth Score: out of 100, how honest its answers were, with a dodge counting as half a miss. The box at the
           end of each bar is its 95% range. Every bot ran on its own default settings.
         </p>
+        {shared && (
+          <p className="mt-2 mb-0 text-[15px] leading-relaxed text-soft">
+            One judge graded every bot: <b className="text-text">{modelName(shared.model)}</b>
+            {shared.company ? ` (${shared.company})` : ""}.{" "}
+            {shared.measured
+              ? `It matched Christian on ${shared.measured.agree} of ${shared.measured.answers} answers (${shared.measured.percent}%).${sharedLean ? ` ${sharedLean}.` : ""}`
+              : "It hasn't been checked against Christian's labels."}{" "}
+            <a href={hrefFor("lineup", { judge: shared.model })} className="text-brass underline underline-offset-2">
+              The judge
+            </a>
+          </p>
+        )}
       </header>
 
       {lineup.hold && waiting.length > 0 && (
@@ -120,7 +139,7 @@ export function LineupView({ lineup, focusJudge }: { lineup: LineupData; focusJu
       )}
 
       <div>
-        <HeightWall bots={bots} place={place} traps={lineup.traps} holdHeadline={lineup.hold?.headline ?? null} holdJudge={holdJudge} />
+        <HeightWall bots={bots} place={place} traps={lineup.traps} holdHeadline={lineup.hold?.headline ?? null} holdJudge={holdJudge} sharedJudge={shared?.model ?? null} />
         <ul className="mt-3 mb-0 flex max-w-[980px] list-none flex-col gap-1 p-0 text-[13.5px] leading-relaxed text-muted">
           {scored.length > 1 && overlapping(lineup.bots) && (
             <li>Where two bots&rsquo; ranges overlap, their order could swap with a different set of questions: the gap between them is smaller than the uncertainty.</li>
@@ -153,10 +172,11 @@ export function LineupView({ lineup, focusJudge }: { lineup: LineupData; focusJu
 // --- The wall -----------------------------------------------------------------------------------
 
 export function HeightWall({
-  bots, place, traps, holdHeadline, holdJudge,
-}: { bots: LineupBot[]; place: Map<string, number>; traps: number | null; holdHeadline: string | null; holdJudge: string | null }) {
+  bots, place, traps, holdHeadline, holdJudge, sharedJudge = null,
+}: { bots: LineupBot[]; place: Map<string, number>; traps: number | null; holdHeadline: string | null; holdJudge: string | null; sharedJudge?: string | null }) {
   return (
     <div className="lineup-wall chart-panel" style={{ "--slots": bots.length } as CSSProperties}>
+      <h2 className="sr-only">The lineup, highest Truth Score first</h2>
       <div className="lineup-marks" aria-hidden="true">
         {[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((n) => (
           <span key={n} className={n % 50 === 0 ? "major" : undefined} style={{ bottom: `${n}%` }}>
@@ -168,7 +188,7 @@ export function HeightWall({
         {bots.map((b) => (
           <li key={b.model} className="lineup-slot" data-state={b.state}>
             <Meter bot={b} holdHeadline={holdHeadline} />
-            <Placard bot={b} place={place.get(b.model) ?? null} traps={traps} holdHeadline={holdHeadline} holdJudge={holdJudge} />
+            <Placard bot={b} place={place.get(b.model) ?? null} traps={traps} holdHeadline={holdHeadline} holdJudge={holdJudge} sharedJudge={sharedJudge} />
           </li>
         ))}
       </ol>
@@ -206,34 +226,48 @@ function Meter({ bot, holdHeadline }: { bot: LineupBot; holdHeadline: string | n
   );
 }
 
-/** The card each bot holds up: who it is, its score (or why it has none), and how it was judged. */
+/**
+ * The card each bot holds up: who it is, its score (or why it has none), and how it
+ * was judged. Session 11: its friendly name, with the maker and the exact tag in
+ * small print; the judge is left off when one judge graded every bot (it's said
+ * once, above the wall); and on the wall the name takes the same room on every card,
+ * so the scores line up.
+ */
 export function Placard({
-  bot, place, traps, holdHeadline, holdJudge,
-}: { bot: LineupBot; place: number | null; traps: number | null; holdHeadline: string | null; holdJudge: string | null }) {
+  bot, place, traps, holdHeadline, holdJudge, sharedJudge = null,
+}: { bot: LineupBot; place: number | null; traps: number | null; holdHeadline: string | null; holdJudge: string | null; sharedJudge?: string | null }) {
   const s = bot.score;
-  const m = bot.judge?.measured ?? null;
+  const ownJudge = bot.judge && bot.judge.model !== sharedJudge ? bot.judge : null;
+  const m = ownJudge?.measured ?? null;
   const thinking = thinkingWords(bot.thinking);
   const cut = cutOffWords(bot.cut_off);
   const why = bot.held_by ?? (bot.waiting_for_judge ? holdJudge : null);
-  const sub = [bot.maker, bot.size].filter(Boolean).join(" · ");
   return (
     <article className="placard manila" aria-labelledby={`placard-${judgeAnchor(bot.model)}`}>
-      <div className="font-label text-[12px] tracking-[0.14em] text-manila-label">{place ? `NO. ${place}` : "NO SCORE"}</div>
-      <h3
-        id={`placard-${judgeAnchor(bot.model)}`}
-        className="m-0 font-display text-[18px] leading-tight font-semibold [overflow-wrap:anywhere] text-manila-ink"
-      >
-        {bot.model}
-      </h3>
-      {sub && (
-        <div className="text-[12.5px] text-manila-label">
-          <span className="sr-only">Made by </span>
-          {sub}
+      <div className="placard-head">
+        <div className="font-label text-[12px] tracking-[0.14em] text-manila-label">{place ? `NO. ${place}` : "NO SCORE"}</div>
+        <h3
+          id={`placard-${judgeAnchor(bot.model)}`}
+          className="m-0 font-display text-[18px] leading-tight font-semibold [overflow-wrap:anywhere] text-manila-ink"
+        >
+          {modelName(bot.model)}
+        </h3>
+        <div className="text-[12.5px] leading-snug text-manila-label">
+          {bot.maker && (
+            <div>
+              <span className="sr-only">Made by </span>
+              {bot.maker}
+            </div>
+          )}
+          <div className="font-type text-[12px] [overflow-wrap:anywhere]">
+            <span className="sr-only">Exact model: </span>
+            {bot.model}
+          </div>
         </div>
-      )}
+      </div>
 
       {s ? (
-        <div className="mt-2 flex items-start justify-between gap-2">
+        <div className="placard-score mt-2 flex items-start justify-between gap-2">
           <div className="min-w-0">
             <span className="sr-only">Truth Score </span>
             <span className="font-display text-[34px] leading-none font-bold text-manila-ink">{shownScore(s.overall)}</span>
@@ -249,28 +283,28 @@ export function Placard({
           </div>
         </div>
       ) : (
-        <div className="mt-2">
+        <div className="placard-score mt-2">
           <div className="font-label text-[13px] tracking-[0.12em] text-lie-ink uppercase">{stateHeadline(bot, holdHeadline)}</div>
           <p className="mt-1 mb-0 text-[12.5px] leading-snug">{stateDetail(bot, traps)}</p>
         </div>
       )}
 
-      {(bot.judge || bot.held_by || bot.second_opinion || thinking || cut) && (
-        <ul className="mt-2.5 mb-0 list-none space-y-1 border-t border-dashed border-manila-label/45 p-0 pt-2 text-[12.5px] leading-snug">
-          {bot.judge && (
+      {(ownJudge || bot.held_by || bot.second_opinion || thinking || cut) && (
+        <ul className="placard-details mt-2.5 mb-0 list-none space-y-1 border-t border-dashed border-manila-label/45 p-0 pt-2 text-[12.5px] leading-snug">
+          {ownJudge && (
             <li>
-              Judge: <b className="[overflow-wrap:anywhere]">{bot.judge.model}</b>
-              {bot.judge.company ? ` (${bot.judge.company})` : ""}
+              Judge: <b className="[overflow-wrap:anywhere]">{modelName(ownJudge.model)}</b>
+              {ownJudge.company ? ` (${ownJudge.company})` : ""}
             </li>
           )}
-          {bot.judge && (
+          {ownJudge && (
             <li>{m ? `Matched Christian on ${m.agree} of ${m.answers} (${m.percent}%)` : "Not checked against Christian's labels"}</li>
           )}
           {m && <li title={`${leanWords(m)}.`}>{leanShort(m)}</li>}
-          {bot.held_by && <li>Graded by {bot.held_by}: on hold</li>}
+          {bot.held_by && <li>Graded by {modelName(bot.held_by)}: on hold</li>}
           {bot.second_opinion && (
             <li>
-              Second opinion: <span className="[overflow-wrap:anywhere]">{bot.second_opinion.judge}</span> gave it{" "}
+              Second opinion: <span className="[overflow-wrap:anywhere]">{modelName(bot.second_opinion.judge)}</span> gave it{" "}
               <b className="whitespace-nowrap">{scoreWords(bot.second_opinion.score)}</b>
             </li>
           )}
@@ -279,20 +313,21 @@ export function Placard({
         </ul>
       )}
 
-      {(bot.run_id || why || bot.judge) && (
-        <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1 text-[13px]">
+      {(bot.run_id || why || ownJudge) && (
+        <div className="placard-links mt-1.5 flex flex-wrap gap-x-1 text-[13px]">
+          {/* Session 11: each link is a 32 px tall target, without changing how it looks. */}
           {bot.state === "scored" && bot.run_id && (
-            <a href={hrefFor("report", { run: bot.run_id })} className={LINK}>
+            <a href={hrefFor("report", { run: bot.run_id })} className={`${LINK} ${TAP}`}>
               Report card →
             </a>
           )}
-          {bot.judge && (
-            <a href={hrefFor("lineup", { judge: bot.judge.model })} className={LINK}>
+          {ownJudge && (
+            <a href={hrefFor("lineup", { judge: ownJudge.model })} className={`${LINK} ${TAP}`}>
               The judge →
             </a>
           )}
           {!bot.judge && why && (
-            <a href={hrefFor("lineup", { judge: why })} className={LINK}>
+            <a href={hrefFor("lineup", { judge: why })} className={`${LINK} ${TAP}`}>
               Why no score →
             </a>
           )}
@@ -328,14 +363,15 @@ export function JudgesPanel({ judges, focus }: { judges: LineupJudge[]; focus: s
 
 export function JudgeCard({ judge: j, focused }: { judge: LineupJudge; focused: boolean }) {
   const m = j.measured;
+  const names = (tags: string[]) => list(tags.map((t) => modelName(t)));
   const role = j.grades.length
-    ? `Grades ${list(j.grades)}.`
+    ? `Grades ${names(j.grades)}.`
     : j.second_opinion_for.length
-      ? `A second opinion on ${list(j.second_opinion_for)}.`
+      ? `A second opinion on ${names(j.second_opinion_for)}.`
       : j.held_bots.length
-        ? `Graded ${list(j.held_bots)}.`
+        ? `Graded ${names(j.held_bots)}.`
         : j.replaced
-          ? `Replaced${j.replaced.by ? ` by ${j.replaced.by}` : ""}: its grades don't count.`
+          ? `Replaced${j.replaced.by ? ` by ${modelName(j.replaced.by)}` : ""}: its grades don't count.`
           : "Grades no bot in the lineup right now.";
   return (
     <article
@@ -348,8 +384,12 @@ export function JudgeCard({ judge: j, focused }: { judge: LineupJudge; focused: 
         <div className="min-w-0">
           <Key>JUDGE{j.company ? ` · MADE BY ${j.company.toUpperCase()}` : ""}</Key>
           <h3 id={`${judgeAnchor(j.judge)}-name`} className="m-0 font-display text-[24px] leading-tight font-semibold break-words text-manila-ink">
-            {j.judge}
+            {modelName(j.judge)}
           </h3>
+          <div className="font-type text-[12px] text-manila-label [overflow-wrap:anywhere]">
+            <span className="sr-only">Exact model: </span>
+            {j.judge}
+          </div>
         </div>
         {j.hold && <div className="stamp-ink mt-1 shrink-0 rotate-[-6deg] px-2.5 pt-1 pb-1.5 text-[20px]">ON HOLD</div>}
         {j.replaced && <div className="stamp-ink mt-1 shrink-0 rotate-[-6deg] px-2.5 pt-1 pb-1.5 text-[20px]">REPLACED</div>}
@@ -359,7 +399,7 @@ export function JudgeCard({ judge: j, focused }: { judge: LineupJudge; focused: 
       {m ? (
         <>
           <table className="mt-3 w-full border-collapse text-[14px]">
-            <caption className="sr-only">How {j.judge} did on Christian&rsquo;s 50 test answers</caption>
+            <caption className="sr-only">How {modelName(j.judge)} did on Christian&rsquo;s 50 test answers</caption>
             <tbody>
               <tr className="border-b border-dashed border-manila-label/35">
                 <th scope="row" className="py-1.5 pr-3 text-left align-top font-normal">Same verdict as Christian</th>
@@ -432,7 +472,7 @@ export function JudgeCard({ judge: j, focused }: { judge: LineupJudge; focused: 
         <p className="mt-3 mb-0 border-l-4 border-lie-ink pl-3 text-[14px] leading-snug">
           <b>
             Replaced{j.replaced.since ? ` on ${day(j.replaced.since)}` : ""}
-            {j.replaced.by ? ` by ${j.replaced.by}` : ""}.
+            {j.replaced.by ? ` by ${modelName(j.replaced.by)}` : ""}.
           </b>{" "}
           {j.replaced.why}
         </p>
@@ -440,7 +480,7 @@ export function JudgeCard({ judge: j, focused }: { judge: LineupJudge; focused: 
       {j.spot_check && <SpotCheck check={j.spot_check} />}
       {j.versus && j.versus.agree !== null && (
         <p className="mt-3 mb-0 text-[13.5px] leading-snug">
-          It and {j.versus.other} gave the same verdict on {j.versus.agree} of {j.versus.answers} of those answers ({j.versus.percent}%).
+          It and {modelName(j.versus.other)} gave the same verdict on {j.versus.agree} of {j.versus.answers} of those answers ({j.versus.percent}%).
         </p>
       )}
       {m && (
@@ -462,7 +502,7 @@ function SideCard({ side }: { side: PairSide }) {
   const sub = side.custom
     ? side.state === "not_run"
       ? null
-      : `${side.model} with its own instructions`
+      : `${modelName(side.model)} with its own instructions`
     : side.maker
       ? `made by ${side.maker}`
       : null;
@@ -481,15 +521,15 @@ function SideCard({ side }: { side: PairSide }) {
       ) : (
         <div className="mt-1.5 font-label text-[13px] tracking-[0.12em] text-lie-ink uppercase">{stateHeadline({ state: side.state, waiting_for_judge: false }, null)}</div>
       )}
-      {side.judge && <div className="mt-1 text-[12.5px]">Judge: {side.judge}</div>}
+      {side.judge && <div className="mt-1 text-[12.5px]">Judge: {modelName(side.judge)}</div>}
       {side.run_id && (
-        <a href={hrefFor("report", { run: side.run_id })} className={`mt-1 inline-block text-[13px] ${LINK}`}>
+        <a href={hrefFor("report", { run: side.run_id })} className={`mt-1 text-[13px] ${LINK} ${TAP}`}>
           Report card →
         </a>
       )}
       {side.instructions && (
         <details className="mt-2 text-[13.5px]">
-          <summary className="cursor-pointer font-label text-[12.5px] tracking-[0.08em] text-manila-label">Read its instructions</summary>
+          <summary className="cursor-pointer py-2 font-label text-[12.5px] tracking-[0.08em] text-manila-label">Read its instructions</summary>
           <p className="mt-1.5 mb-0 rounded-[3px] bg-black/5 px-3 py-2 whitespace-pre-wrap">{side.instructions}</p>
         </details>
       )}
@@ -559,7 +599,7 @@ function Differences({ pair }: { pair: LineupPair }) {
   if (!differ) {
     const waiting = [left, right].filter((s) => s.state !== "scored");
     const text = waiting.length
-      ? `This fills in once ${list(waiting.map((s) => s.model ?? "the other bot"))} ${waiting.length === 1 ? "has" : "have"} been run and judged.`
+      ? `This fills in once ${list(waiting.map((s) => (s.model ? modelName(s.model) : "the other bot")))} ${waiting.length === 1 ? "has" : "have"} been run and judged.`
       : "These two were graded by different judges, so their verdicts aren't compared trap by trap.";
     return (
       <div className="mt-5 border-t border-dashed border-manila-label/45 pt-4">
@@ -623,12 +663,12 @@ function DiffItem({ row, pair }: { row: DiffRow; pair: LineupPair }) {
         </span>
         <span className="inline-flex gap-3">
           {pair.left.run_id && (
-            <a href={hrefFor("evidence", { run: pair.left.run_id, trap: row.trap })} className={LINK}>
+            <a href={hrefFor("evidence", { run: pair.left.run_id, trap: row.trap })} className={`${LINK} ${TAP}`}>
               {l}&rsquo;s answer
             </a>
           )}
           {pair.right.run_id && (
-            <a href={hrefFor("evidence", { run: pair.right.run_id, trap: row.trap })} className={LINK}>
+            <a href={hrefFor("evidence", { run: pair.right.run_id, trap: row.trap })} className={`${LINK} ${TAP}`}>
               {r}&rsquo;s answer
             </a>
           )}

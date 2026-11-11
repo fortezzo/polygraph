@@ -200,7 +200,9 @@ export async function liveShots({ browser, base, out, SIZES, shots, results, con
         const r = await page.evaluate(() => new Promise((done) => {
           let total = 0;
           const entries = [];
-          const what = (n) => !n ? "(removed)" : n.nodeType === 3 ? `text "${n.textContent.slice(0, 24)}"` : `${n.tagName.toLowerCase()}.${String(n.className?.baseVal ?? n.className ?? "").split(" ").slice(0, 2).join(".")} "${(n.textContent ?? "").trim().slice(0, 30)}"`;
+          // Session 11: a moved text also says which box it's in, so a move of the whole page and a move inside the transcript can be told apart.
+          const box = (n) => { const e = n?.parentElement?.closest(".transcript-box, .area-summary, .area-details, .area-chart, .area-note, header, nav, main"); return e ? ` in ${e.tagName.toLowerCase()}.${String(e.className).split(" ")[0]}` : ""; };
+          const what = (n) => !n ? "(removed)" : n.nodeType === 3 ? `text "${n.textContent.slice(0, 24)}"${box(n)}` : `${n.tagName.toLowerCase()}.${String(n.className?.baseVal ?? n.className ?? "").split(" ").slice(0, 2).join(".")} "${(n.textContent ?? "").trim().slice(0, 30)}"`;
           new PerformanceObserver((l) => l.getEntries().forEach((e) => {
             if (e.hadRecentInput) return;
             total += e.value;
@@ -214,7 +216,7 @@ export async function liveShots({ browser, base, out, SIZES, shots, results, con
             entries.push({
               value: +e.value.toFixed(4),
               when,
-              moved: (e.sources ?? []).slice(0, 3).map((s) => `${what(s.node)} y ${Math.round(s.previousRect.y)}→${Math.round(s.currentRect.y)} h ${Math.round(s.previousRect.height)}→${Math.round(s.currentRect.height)}`),
+              moved: (e.sources ?? []).slice(0, 5).map((s) => `${what(s.node)} y ${Math.round(s.previousRect.y)}→${Math.round(s.currentRect.y)} h ${Math.round(s.previousRect.height)}→${Math.round(s.currentRect.height)}`),
             });
           })).observe({ type: "layout-shift" });
           setTimeout(() => done({ total, entries }), 8000);

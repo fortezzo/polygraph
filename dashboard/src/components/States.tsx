@@ -3,10 +3,18 @@ import { Icon } from "./Icon";
 
 // Loading, empty and error states (PLAN.md section 8: every screen has all three).
 
-function Card({ kicker, title, children, live }: { kicker: string; title: string; children?: ReactNode; live?: "polite" | "assertive" }) {
+// Session 11: while the fonts are still on their way, the loading card is drawn in
+// fonts every device has, so nothing on it changes shape when they arrive (its
+// wordmark moved 3 px).
+const PLAIN_TEXT = { fontFamily: '"Courier New", ui-monospace, monospace' };
+const PLAIN_WORDMARK = { fontFamily: '"Arial Narrow", Arial, sans-serif', fontWeight: 700 };
+
+function Card({ kicker, title, children, live, plain = false }: { kicker: string; title: string; children?: ReactNode; live?: "polite" | "assertive"; plain?: boolean }) {
   return (
-    <main className="mx-auto flex min-h-dvh max-w-[640px] flex-col justify-center px-4 py-10">
-      <div className="font-display text-[22px] font-semibold tracking-[0.24em] text-[#f3e8d2]">POLYGRAPH</div>
+    <main id="content" className="mx-auto flex min-h-dvh max-w-[640px] flex-col justify-center px-4 py-10" style={plain ? PLAIN_TEXT : undefined}>
+      <div className="font-display text-[22px] font-semibold tracking-[0.24em] text-[#f3e8d2]" style={plain ? PLAIN_WORDMARK : undefined}>
+        POLYGRAPH
+      </div>
       <div className="paper mt-6 h-[110px] sm:h-[140px]" aria-hidden="true">
         <div className="paper-grid">
           <div className="paper-holes top-0" />
@@ -16,9 +24,17 @@ function Card({ kicker, title, children, live }: { kicker: string; title: string
         <div className="absolute inset-x-[16px] top-1/2 border-t-2 border-[#1b6a3e]/70" />
       </div>
       <section className="mt-7" aria-live={live}>
-        <div className="font-label text-[13px] tracking-[0.14em] text-brass">{kicker}</div>
-        <h2 className="mt-2 mb-0 font-type text-[22px] leading-snug font-bold text-text">{title}</h2>
-        {children && <div className="mt-3 text-[15px] leading-relaxed text-soft">{children}</div>}
+        <div className="font-label text-[13px] tracking-[0.14em] text-brass" style={plain ? PLAIN_TEXT : undefined}>
+          {kicker}
+        </div>
+        <h2 className="mt-2 mb-0 font-type text-[22px] leading-snug font-bold text-text" style={plain ? PLAIN_TEXT : undefined}>
+          {title}
+        </h2>
+        {children && (
+          <div className="mt-3 text-[15px] leading-relaxed text-soft" style={plain ? PLAIN_TEXT : undefined}>
+            {children}
+          </div>
+        )}
       </section>
     </main>
   );
@@ -53,9 +69,10 @@ export function StatePanel({ kicker, title, children, live, onRetry, retryLabel 
   );
 }
 
-export function Loading() {
+/** `plain`: the fonts haven't arrived yet (App waits for them), so use the device's own. */
+export function Loading({ plain = false }: { plain?: boolean }) {
   return (
-    <Card kicker="LOADING" title="Bringing in the subject…" live="polite">
+    <Card kicker="LOADING" title="Bringing in the subject…" live="polite" plain={plain}>
       <p className="m-0 text-muted">Setting up the interrogation room.</p>
     </Card>
   );

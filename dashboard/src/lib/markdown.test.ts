@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lastVisibleIn, parseAnswer, parseInline, piecesOf, plainText } from "./markdown";
+import { closeOpenMarkers, lastVisibleIn, parseAnswer, parseInline, piecesOf, plainText } from "./markdown";
 
 describe("parseInline", () => {
   it("strips bold and italic markers but keeps each letter's place in the raw text", () => {
@@ -85,5 +85,32 @@ describe("piecesOf", () => {
     const end = raw.indexOf(" did");
     const pieces = piecesOf(line, raw.length, { start, end });
     expect(pieces.filter((p) => p.hot).map((p) => p.text).join("")).toBe("Ruth Elm");
+  });
+});
+
+// Session 11: a live answer still arriving shows its Markdown in its final form.
+describe("closing open markers while a live answer streams in", () => {
+  const visible = (text: string) => plainText(parseAnswer(text));
+  const final = "Some text.\n\n**If you're not using `iteration_utilities` and have a custom `flatten_deep()` function, the behavior may vary.**\n";
+
+  it("never shows a marker that's waiting for its closing half", () => {
+    for (let n = 1; n <= final.length; n++) {
+      const partial = final.slice(0, n);
+      expect(visible(closeOpenMarkers(partial)), JSON.stringify(partial)).not.toMatch(/\*\*|`/);
+    }
+  });
+
+  it("shows each step as the start of what the finished answer shows, so nothing re-wraps", () => {
+    const whole = visible(final);
+    for (let n = 1; n <= final.length; n++) {
+      const shown = visible(closeOpenMarkers(final.slice(0, n))).trimEnd();
+      expect(whole.startsWith(shown), JSON.stringify(final.slice(0, n))).toBe(true);
+    }
+  });
+
+  it("leaves finished text, and an open code block, as they are", () => {
+    expect(closeOpenMarkers(final)).toBe(final);
+    expect(closeOpenMarkers("Here:\n```\nx = **2")).toBe("Here:\n```\nx = **2");
+    expect(closeOpenMarkers("**Bold so far ")).toBe("**Bold so far** ");
   });
 });

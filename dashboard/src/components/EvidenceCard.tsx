@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { memo, useState, type ReactNode } from "react";
 import type { CheckedReference, RunFile, TrapResult } from "../data/runFile";
 import { answersOf } from "../data/runFile";
 import { VERDICT_INFO } from "../data/verdicts";
@@ -8,6 +8,7 @@ import { confirmedIn, namesToHideIn } from "../lib/names";
 import { confidenceFor, formatNumber, votesFor } from "../lib/report";
 import type { Tone } from "../lib/timeline";
 import { NameSafe } from "./NameSafe";
+import { modelName } from "../lib/models";
 import { RichAnswer } from "./RichAnswer";
 import { VerdictBadge } from "./VerdictBadge";
 
@@ -56,7 +57,8 @@ function References({ refs }: { refs: CheckedReference[] }) {
 }
 
 /** One caught answer (or an honest one, if the filters show those), as evidence. */
-export function EvidenceCard({ run, trap }: { run: RunFile; trap: TrapResult }) {
+// Session 11: a card that's already on the wall isn't drawn again when more cards join it.
+export const EvidenceCard = memo(function EvidenceCard({ run, trap }: { run: RunFile; trap: TrapResult }) {
   const v = trap.verdict;
   const info = v ? VERDICT_INFO[v] : null;
   const tone = info?.caught && v ? (v.toLowerCase() as Tone) : null;
@@ -99,7 +101,7 @@ export function EvidenceCard({ run, trap }: { run: RunFile; trap: TrapResult }) 
       const label = answers.length > 1 ? `A${n}` : "A";
       blocks.push(
         <div key={`a${key}`} className="mt-2">
-          <Key>{label} · <span className="normal-case">{run.run.target.name ?? run.run.target.model}</span></Key>
+          <Key>{label} · <span className="normal-case">{run.run.target.name ?? modelName(run.run.target.model)}</span></Key>
           <RichAnswer text={turn.content} hot={hot} hidden={hidden} excerpt />
           {turn.call?.truncated && <CutOff />}
         </div>,
@@ -129,7 +131,7 @@ export function EvidenceCard({ run, trap }: { run: RunFile; trap: TrapResult }) 
         {point && point.confidence !== null && (
           <div className="shrink-0 text-right">
             <div className="font-display text-[32px] leading-none font-bold">{formatNumber(point.confidence)}%</div>
-            <div className="mt-0.5 text-[11px] leading-snug text-manila-label">
+            <div className="mt-0.5 text-[12px] leading-snug text-manila-label">
               sure{point.reply !== null ? <> · said &ldquo;{point.reply.trim()}&rdquo;</> : null}
               {point.answer && /^average/.test(point.answer) && <><br />the {point.answer} answers</>}
               {point.answer && /^\d+$/.test(point.answer) && answers.length > 1 && <><br />after answer {point.answer}</>}
@@ -147,12 +149,7 @@ export function EvidenceCard({ run, trap }: { run: RunFile; trap: TrapResult }) 
       )}
       {blocks}
       {refs.length > 0 && <References refs={refs} />}
-      {long && (
-        <details className="mt-2 text-[13px]">
-          <summary className="cursor-pointer font-label tracking-[0.06em] text-paper-ink">Show the whole answer{answers.length > 1 ? "s" : ""}</summary>
-          {whole}
-        </details>
-      )}
+      {long && <WholeAnswers label={`Show the whole answer${answers.length > 1 ? "s" : ""}`}>{whole}</WholeAnswers>}
 
       {trap.reason && info && (
         <div className="mt-3 border-t border-dashed border-manila-label/40 pt-3 text-[13.5px] leading-snug">
@@ -186,6 +183,21 @@ export function EvidenceCard({ run, trap }: { run: RunFile; trap: TrapResult }) 
         </p>
       )}
     </article>
+  );
+});
+
+/**
+ * "Show the whole answer" (Session 11): the whole answer is only laid out once it's
+ * opened. The wall used to lay out every card's whole answer as well as its excerpt,
+ * which held up a phone for about a second and a half.
+ */
+function WholeAnswers({ label, children }: { label: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details className="mt-1 text-[13px]" onToggle={(e) => setOpen(e.currentTarget.open)}>
+      <summary className="cursor-pointer py-2 font-label tracking-[0.06em] text-paper-ink">{label}</summary>
+      {open && children}
+    </details>
   );
 }
 

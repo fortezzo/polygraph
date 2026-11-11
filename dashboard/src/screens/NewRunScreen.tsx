@@ -55,7 +55,7 @@ export function NewRunScreen() {
   return (
     <div className="mx-auto flex max-w-[1680px] flex-col gap-3 px-4 pt-3 pb-12 sm:px-6 lg:px-8 lg:pt-[18px]">
       <TopBar active="new" />
-      <main data-ready={setup.status === "ready" ? "" : undefined}>
+      <main id="content" data-ready={setup.status === "ready" ? "" : undefined}>
         {setup.status === "loading" && <StatePanel kicker="LOADING" title="Asking Polygraph's server what it can run…" live="polite" />}
         {setup.status === "problem" && (
           <StatePanel kicker="SOMETHING WENT WRONG" title={setup.problem.title} live="assertive" onRetry={() => setAttempt((n) => n + 1)}>

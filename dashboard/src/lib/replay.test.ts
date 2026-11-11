@@ -14,6 +14,7 @@ import { MANY, typeGroups, widestGroup } from "./rail";
 import { TRAP_TYPES } from "./report";
 import { chosenRun, lineupGradeOf, pickerGroups, pickerLabel, recordingLabel, type Recording, type RunEntry } from "./runs";
 import { tabsFor } from "../components/TopBar";
+import { modelName } from "./models";
 // @ts-expect-error: a plain JavaScript module with no type declarations
 import { exportRuns, handLabels, opensOn, pickerOrder, readRoster } from "../../scripts/export-runs.mjs";
 // @ts-expect-error: a plain JavaScript module with no type declarations
@@ -200,13 +201,13 @@ describe("what every screen opens on (Christian's rule)", () => {
   it("keeps the extras reachable, each one labeled with what it is and whose grades they are", () => {
     const groups = pickerGroups(entries);
     expect(groups[0]!.role).toBe("lineup");
-    expect(groups[0]!.label).toContain(roster.judge);
+    expect(groups[0]!.label).toContain(modelName(roster.judge));
     for (const e of entries.filter((x) => x.role === "second_opinion")) {
-      expect(pickerLabel(e, entries)).toContain(`second opinion by ${e.judge}`);
+      expect(pickerLabel(e, entries)).toContain(`second opinion by ${modelName(e.judge)}`);
       expect(lineupGradeOf(e, entries)!.judge).toBe(roster.judge);
     }
     for (const e of entries.filter((x) => x.role === "replaced")) {
-      expect(pickerLabel(e, entries)).toContain(`replaced grades by ${e.judge}`);
+      expect(pickerLabel(e, entries)).toContain(`replaced grades by ${modelName(e.judge)}`);
       expect(lineupGradeOf(e, entries)!.judge).toBe(roster.judge);
     }
     for (const e of entries.filter((x) => x.role === "earlier")) {
@@ -228,8 +229,8 @@ describe("what every screen opens on (Christian's rule)", () => {
     }
     expect(JSON.stringify(replays).length).toBeLessThan(8_000);
     const never = recs.find((r) => r.custom)!;
-    expect(recordingLabel(never)).toMatch(/^Never Unsure \(llama3\.2\) · \d+ \([A-F]\), not ranked$/);
-    expect(recordingLabel(recs.find((r) => r.model === "gpt-6-astra")!)).toBe("gpt-6-astra · 99 (A)");
+    expect(recordingLabel(never)).toMatch(/^Never Unsure \(Llama 3\.2 3B\) · \d+ \([A-F]\), not ranked$/);
+    expect(recordingLabel(recs.find((r) => r.model === "gpt-6-astra")!)).toBe("GPT-6 Astra · 99 (A)");
   });
 });
 

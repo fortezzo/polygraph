@@ -1,7 +1,7 @@
 {
   "name": "polygraph-dashboard",
   "private": true,
-  "version": "0.10.0",
+  "version": "0.11.0",
   "type": "module",
   "engines": {
     "node": ">=20.19"
@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "node scripts/export-runs.mjs && vite",
     "build": "node scripts/export-runs.mjs && vite build",
-    "build:demo": "node scripts/export-runs.mjs && vite build --mode demo",
+    "build:demo": "node scripts/export-runs.mjs --committed && vite build --mode demo",
     "runs": "node scripts/export-runs.mjs",
     "preview": "vite preview",
     "preview:demo": "npm run build:demo && vite preview --strictPort",
@@ -19,7 +19,8 @@
     "check": "npm run typecheck && npm run test && npm run build",
     "sample": "node scripts/make-sample.mjs",
     "shots": "npm run build && node scripts/shots.mjs",
-    "shots:directions": "node scripts/shoot-directions.mjs"
+    "shots:directions": "node scripts/shoot-directions.mjs",
+    "phone:demo": "npm run build:demo && vite preview --host 0.0.0.0 --port 4173 --strictPort"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { RunFile, Verdict } from "../data/runFile";
 import { VERDICT_INFO } from "../data/verdicts";
 import { DEFAULT_VERDICTS, filterTraps, filtersToParams, readFilters, typeCounts, verdictCounts, type EvidenceFilters } from "../lib/evidence";
@@ -29,10 +29,43 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
   );
 }
 
+/**
+ * Session 11: the wall shows its first few cards straight away and adds the rest a
+ * few at a time, between frames, so the page never freezes while about a hundred
+ * cards are laid out (it froze a phone for about a second and a half). Cards are
+ * only ever added after the ones showing, so nothing on screen moves.
+ */
+// A phone shows a card or two at first; a laptop shows a few columns.
+const FIRST_CARDS = typeof window !== "undefined" && window.innerWidth < 768 ? 2 : 6;
+const MORE_CARDS = 1;
+
+function useGrowingCount(total: number, key: string): number {
+  const [count, setCount] = useState(FIRST_CARDS);
+  const [forKey, setForKey] = useState(key);
+  if (forKey !== key) {
+    setForKey(key);
+    setCount(FIRST_CARDS);
+  }
+  useEffect(() => {
+    if (count >= total) return;
+    const idle = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+    const cancel = (window as Window & { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback;
+    const grow = () => setCount((n) => Math.min(total, n + MORE_CARDS));
+    if (idle && cancel) {
+      const id = idle(grow, { timeout: 200 });
+      return () => cancel(id);
+    }
+    const id = window.setTimeout(grow, 16);
+    return () => window.clearTimeout(id);
+  }, [count, total]);
+  return Math.min(count, total);
+}
+
 /** The evidence wall: one card per caught answer, with filters (PLAN.md section 2.2). */
 export function EvidenceScreen({ run, entry, route }: { run: RunFile; entry: RunEntry; route: Route }) {
   const f = readFilters(route.params);
   const shown = filterTraps(run, f);
+  const showing = useGrowingCount(shown.length, `${entry.id}|${route.params.toString()}`);
   const types = typeCounts(run, f.verdicts);
   const verdicts = verdictCounts(run, f.type);
   const go = (patch: Partial<EvidenceFilters>) => replaceHash(hrefFor("evidence", { run: entry.id, ...filtersToParams({ ...f, ...patch }) }));
@@ -51,9 +84,11 @@ export function EvidenceScreen({ run, entry, route }: { run: RunFile; entry: Run
         </p>
       ) : (
         <div className="mb-6 flex flex-col gap-3">
-          <fieldset className="m-0 border-0 p-0">
+          <fieldset className="m-0 min-w-0 border-0 p-0">
             <legend className="mb-1.5 font-label text-[12px] tracking-[0.16em] text-muted">TRAP TYPE</legend>
-            <div className="flex flex-wrap gap-1.5">
+            {/* Session 11: on a phone the trap types are one row to swipe through, fading
+                at the edge, instead of four rows before the first card. */}
+            <div className="-mx-4 -my-1.5 flex gap-1.5 overflow-x-auto px-4 py-1.5 [scrollbar-width:none] [mask-image:linear-gradient(to_right,black_calc(100%-36px),transparent)] sm:mx-0 sm:my-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:py-0 sm:[mask-image:none]">
               <Chip on={!f.type} onClick={() => go({ type: null })}>
                 All <span className="opacity-70">{types.all}</span>
               </Chip>
@@ -65,7 +100,7 @@ export function EvidenceScreen({ run, entry, route }: { run: RunFile; entry: Run
               ))}
             </div>
           </fieldset>
-          <fieldset className="m-0 border-0 p-0">
+          <fieldset className="m-0 min-w-0 border-0 p-0">
             <legend className="mb-1.5 font-label text-[12px] tracking-[0.16em] text-muted">VERDICT</legend>
             <div className="flex flex-wrap gap-1.5">
               {WALL_ORDER.map((v) => {
@@ -91,7 +126,7 @@ export function EvidenceScreen({ run, entry, route }: { run: RunFile; entry: Run
               <Chip on={f.sort === "confident"} onClick={() => go({ sort: "confident" })}>Most confident first</Chip>
             </span>
             {!isDefault && (
-              <button type="button" onClick={() => go({ type: null, verdicts: [...DEFAULT_VERDICTS], sort: "order" })} className="h-11 text-brass underline underline-offset-2 sm:h-auto">
+              <button type="button" onClick={() => go({ type: null, verdicts: [...DEFAULT_VERDICTS], sort: "order" })} className="h-11 text-brass underline underline-offset-2">
                 Reset the filters
               </button>
             )}
@@ -101,8 +136,8 @@ export function EvidenceScreen({ run, entry, route }: { run: RunFile; entry: Run
       {shown.length ? (
         // grid-cols-1 lets a column shrink below its longest unbreakable word (a URL, a
         // line of code), so a card never runs off the side of a phone.
-        <div className="grid grid-cols-1 items-start gap-x-5 gap-y-8 pt-2 md:grid-cols-2 2xl:grid-cols-3">
-          {shown.map((t) => (
+        <div className="grid grid-cols-1 items-start gap-x-5 gap-y-8 pt-2 md:grid-cols-2 2xl:grid-cols-3" data-complete={showing >= shown.length ? "" : undefined}>
+          {shown.slice(0, showing).map((t) => (
             <EvidenceCard key={t.id} run={run} trap={t} />
           ))}
         </div>

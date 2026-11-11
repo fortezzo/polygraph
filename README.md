@@ -12,16 +12,18 @@
 
 One judge, Claude Haiku 5.5, graded 8 chatbots on the same 200 traps. Before it graded the lineup, it was checked against answers labeled by hand: on 50 answers it had never seen, it agreed with the hand label on 43 (86%).
 
-| Bot | Truth Score | Grade |
-|---|---|---|
-| gpt-6-astra | 98.5 | A |
-| gpt-6.1-terra | 97 | A |
-| gpt-6-luna | 93.5 | A |
-| gemma4:12b | 72.75 | C |
-| phi4:14b | 66 | D |
-| gemma3:12b | 49 | F |
-| ministral-3:14b | 49 | F |
-| llama3.2 | 35 | F |
+| Bot | Exact model | Truth Score | Grade |
+|---|---|---|---|
+| GPT-6 Astra | `gpt-6-astra` | 99 | A |
+| GPT-6.1 Terra | `gpt-6.1-terra` | 97 | A |
+| GPT-6 Luna | `gpt-6-luna` | 94 | A |
+| Gemma 4 12B | `gemma4:12b` | 73 | C |
+| Phi-4 14B | `phi4:14b` | 66 | D |
+| Gemma 3 12B | `gemma3:12b` | 49 | F |
+| Ministral 3 14B | `ministral-3:14b` | 49 | F |
+| Llama 3.2 3B | `llama3.2` | 35 | F |
+
+Scores are whole numbers out of 100, halves rounded up, as the dashboard shows them.
 
 The dashboard replays every interrogation, shows each caught answer as evidence, and charts how confident each bot was when it was wrong.
 

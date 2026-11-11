@@ -44,7 +44,7 @@ export function RichAnswer({
       if (hot && tagAt !== null && tagAt >= p.start && tagAt < p.start + p.text.length) {
         const tag = TAG[hot.tone];
         out.push(
-          <span key={`t${p.start}`} className={`ml-1.5 inline-flex items-center gap-1 rounded-[2px] border px-1.5 align-[1px] font-label text-[10.5px] leading-[17px] tracking-[0.1em] ${tag.cls}`}>
+          <span key={`t${p.start}`} className={`ml-1.5 inline-flex items-center gap-1 rounded-[2px] border px-1.5 align-[1px] font-label text-[11.5px] leading-[17px] tracking-[0.08em] ${tag.cls}`}>
             <Icon name={VERDICT_INFO[tag.verdict].icon} className="h-2.5 w-2.5" strokeWidth={3.2} />
             {tag.words}
           </span>,

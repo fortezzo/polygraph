@@ -5,6 +5,7 @@ import { VERDICT_INFO } from "../data/verdicts";
 import { CAUGHT, shownScore, TRAP_TYPES, verdictLine } from "../lib/report";
 import { hrefFor } from "../lib/route";
 import type { RunEntry } from "../lib/runs";
+import { modelName } from "../lib/models";
 import { Icon } from "../components/Icon";
 import { Radar } from "../components/Radar";
 import { VERDICT_INK } from "../components/VerdictBadge";
@@ -37,20 +38,24 @@ export function ReportScreen({ run, entry }: { run: RunFile; entry: RunEntry }) 
   const tested = TRAP_TYPES.filter((t) => t.key in s.by_type).length;
 
   return (
-    <article className="relative mx-auto max-w-[1220px] pt-[26px]">
-      <div className="absolute top-0 left-[22px] h-[30px] max-w-[calc(100%-44px)] truncate rounded-t-[7px] bg-[#b8964f] px-5 pt-[6px] font-label text-[13px] tracking-[0.16em] text-[#2e2416]">
-        REPORT CARD · <span className="normal-case tracking-[0.06em]">{target.name ?? entry.model}</span>
-      </div>
+    <article className="relative mx-auto max-w-[1220px] pt-[26px]" aria-labelledby="report-title">
+      {/* Session 11: the folder's tab is the screen's heading, with the bot's friendly name. */}
+      <h1
+        id="report-title"
+        className="absolute top-0 left-[22px] m-0 h-[30px] max-w-[calc(100%-44px)] truncate rounded-t-[7px] bg-[#b8964f] px-5 pt-[6px] font-label text-[13px] font-normal tracking-[0.16em] text-[#2e2416]"
+      >
+        REPORT CARD · <span className="normal-case tracking-[0.06em]">{target.name ?? modelName(entry.model)}</span>
+      </h1>
       <div className="manila rounded-[3px_8px_8px_8px] px-5 py-6 sm:px-8 sm:py-8">
         {instructions && (
           <div className="mb-6 border-b border-dashed border-manila-label/45 pb-4">
             <Key>A CUSTOM BOT</Key>
             <p className="m-0 text-[15px]">
-              <b>{target.name ?? "This bot"}</b> is {entry.model}
+              <b>{target.name ?? "This bot"}</b> is {modelName(entry.model)} <span className="text-[13px] text-manila-label">({entry.model})</span>
               {entry.maker ? `, made by ${entry.maker},` : ""} with its own instructions, sent before every conversation.
             </p>
-            <details className="mt-2 text-[14px]">
-              <summary className="cursor-pointer font-label text-[13px] tracking-[0.08em] text-manila-label">Read its instructions</summary>
+            <details className="mt-1 text-[14px]">
+              <summary className="cursor-pointer py-2 font-label text-[13px] tracking-[0.08em] text-manila-label">Read its instructions</summary>
               <p className="mt-2 mb-0 max-h-[260px] overflow-y-auto rounded-[3px] bg-black/5 px-3 py-2 whitespace-pre-wrap">{instructions}</p>
             </details>
           </div>
@@ -157,7 +162,7 @@ export function ReportScreen({ run, entry }: { run: RunFile; entry: RunEntry }) 
         <footer className="mt-8 border-t border-manila-label/40 pt-4 text-[13px] leading-[1.55] text-manila-ink">
           <p className="m-0">
             <b>How it was judged.</b> {counts?.by_hard_check ?? 0} traps by Polygraph&rsquo;s own checks, no AI; {counts?.by_ai_judge ?? 0} by the AI judge,{" "}
-            {entry.judge} ({entry.judge_company}){entry.votes && entry.votes > 1 ? `, ${entry.votes} votes each, the majority wins` : ""}.
+            {modelName(entry.judge)} ({entry.judge_company}){entry.votes && entry.votes > 1 ? `, ${entry.votes} votes each, the majority wins` : ""}.
             {counts?.split_votes ? ` ${counts.split_votes} weren't unanimous.` : ""}
             {counts?.own_knowledge ? ` ${counts.own_knowledge} rest on the judge's own knowledge and are marked ⚑ on the evidence wall.` : ""}
           </p>

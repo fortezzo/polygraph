@@ -59,6 +59,31 @@ export function parseInline(text: string, base: number, marks: Mark[] = []): Run
   return out;
 }
 
+/**
+ * Session 11: a live answer still arriving can stop partway through **bold** or
+ * `code`, before its closing marker has come. Shown as it stands, the opening marker
+ * appeared as plain asterisks, and when the closing one came the paragraph lost them
+ * and re-wrapped (a jump while an answer streams in). So the open markers in the
+ * paragraph still arriving are closed at the end, ahead of time: the text shows in
+ * its final form all along. An open code block (```) is left as it is.
+ */
+export function closeOpenMarkers(text: string): string {
+  if ((text.match(/^\s*```/gm) ?? []).length % 2 === 1) return text;
+  // Markers at the very end, with nothing after them yet ("**", or half of it), wait
+  // until their words arrive. If they were closing a span, it's closed again below.
+  const body = text.replace(/[*_`]+$/, "");
+  const last = body.slice(body.lastIndexOf("\n\n") + 1);
+  let close = "";
+  if ((last.match(/`/g) ?? []).length % 2 === 1) close += "`";
+  const outsideCode = last.replace(/`[^`\n]*`?/g, "");
+  if ((outsideCode.match(/\*\*/g) ?? []).length % 2 === 1) close += "**";
+  if ((outsideCode.match(/__/g) ?? []).length % 2 === 1) close += "__";
+  if (!close) return body;
+  // A closing marker has to follow a letter, not a space: put it before any trailing space.
+  const trailing = /\s*$/.exec(body)?.[0] ?? "";
+  return body.slice(0, body.length - trailing.length) + close + trailing;
+}
+
 const LIST_ITEM = /^(\s*)([*+-]|\d{1,3}[.)])(\s+)(.*)$/;
 const HEADING = /^(#{1,6})(\s+)(.*)$/;
 const FENCE = /^\s*```/;

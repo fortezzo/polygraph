@@ -48,8 +48,20 @@
     text-rendering: optimizeLegibility;
   }
   :focus-visible { outline: 2px solid var(--color-brass); outline-offset: 3px; }
+  /* Session 11: brass on manila or paper was close to invisible (1.2 to 1), so on the
+     light surfaces the outline is dark ink, about 9 to 1. */
+  :is(.manila, .card-paper, .paper, .chart-panel, .placard) :focus-visible { outline-color: var(--color-manila-ink); }
   ::selection { background: rgba(210, 170, 107, 0.35); }
 }
+
+/* The "Skip to the content" link (Session 11): off screen until a keyboard reaches it. */
+.skip-link {
+  position: absolute; left: 12px; top: -60px; z-index: 100;
+  padding: 10px 16px; border-radius: 4px;
+  background: var(--color-brass); color: var(--color-room);
+  font-family: var(--font-label); font-size: 15px; text-decoration: none;
+}
+.skip-link:focus { top: 12px; outline: 2px solid var(--color-text); outline-offset: 2px; }
 
 /* ---- The room: one warm overhead light, dark corners, film grain ---------- */
 .lamp {
@@ -84,6 +96,11 @@
   grid-template-areas: "chart" "note" "summary" "transcript" "details";
   row-gap: 14px;
 }
+/* The replay (Session 11): the strip of questions and the speed sit under the
+   verdict on a phone or tablet, so the chart is near the top; on a laptop they
+   stay above the chart. */
+.screen-grid.with-rail { grid-template-areas: "chart" "note" "summary" "rail" "transcript" "details"; }
+.area-rail { grid-area: rail; min-width: 0; }
 .area-chart { grid-area: chart; }
 .area-note { grid-area: note; }
 .area-summary { grid-area: summary; }
@@ -97,6 +114,10 @@
     grid-template-rows: auto auto minmax(0, 1fr);
     grid-template-areas: "chart chart" "note note" "transcript folder";
     column-gap: 28px; row-gap: 10px;
+  }
+  .screen-grid.with-rail {
+    grid-template-rows: auto auto auto minmax(0, 1fr);
+    grid-template-areas: "rail rail" "chart chart" "note note" "transcript folder";
   }
   .folder {
     display: flex; flex-direction: column; grid-area: folder; min-height: 0; padding-top: 22px; position: relative;
@@ -231,6 +252,12 @@
   box-shadow: 0 16px 34px rgba(0, 0, 0, 0.5), inset 0 0 50px rgba(120, 80, 30, 0.18);
 }
 
+/* Session 11: the grain only moves while a replay or a live run is playing, so a paused
+   replay and the reading screens are still (moving content stops with Pause). */
+body:not([data-playing]) .grain { animation-play-state: paused; }
+/* A heading or the content that focus was moved to, when a screen opens, needs no ring. */
+h1[tabindex="-1"]:focus, main[tabindex="-1"]:focus { outline: none; }
+
 /* ---- Reduce motion: no grain flicker, no blinking caret ---------------------------- */
 @media (prefers-reduced-motion: reduce) {
   .grain { animation: none; }
@@ -270,6 +297,24 @@
 @media (min-width: 640px) {
   .lineup-slot { grid-template-columns: 300px minmax(0, 1fr); gap: 18px; }
 }
+/* Session 11: on a phone, each bot is a compact card (its name on the left, its score
+   and grade on the right, the details on a line or two), over a slimmer bar, so the
+   whole ranking takes a couple of screens instead of five. */
+@media (max-width: 639px) {
+  .lineup-wall { padding: 12px; }
+  .lineup-slots { gap: 14px; }
+  .lineup-slot { gap: 6px; }
+  .placard { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; align-items: start; padding: 10px 12px 8px; }
+  .placard > .placard-head { grid-column: 1; }
+  .placard > .placard-score { grid-column: 2; grid-row: 1; margin-top: 2px; }
+  .placard > .placard-details, .placard > .placard-links { grid-column: 1 / -1; }
+  .placard > .placard-details { display: flex; flex-wrap: wrap; column-gap: 14px; row-gap: 2px; margin-top: 8px; }
+  .placard > .placard-details > li { margin: 0; }
+  .lineup-meter { height: 34px; }
+  .lineup-meter .lm-bar { top: 6px; height: 12px; }
+  .lineup-meter .lm-range { top: 2px; height: 20px; }
+  .lineup-meter .lm-axis { top: 12px; }
+}
 @media (min-width: 1280px) {
   /* Room above the 100 line for the score over a bar near the top (26px tall, 6px above its range). */
   .lineup-wall { --wall-top: 44px; padding: var(--wall-top) 18px 18px 56px; }
@@ -292,6 +337,9 @@
     font-family: var(--font-display); font-weight: 700; font-size: 26px; line-height: 1; color: var(--color-manila-ink);
   }
   .lineup-meter .lm-ticks, .lineup-meter .lm-axis { display: none; }
+  /* Session 11: on the wall, every placard's name takes the same room (up to two
+     lines, the maker and the exact tag), so the scores under them line up. */
+  .lineup-wall .placard-head { min-height: 96px; }
   .lineup-meter .lm-pending {
     top: 0; bottom: 0; height: auto; flex-direction: column; gap: 10px; padding: 0 6px; text-align: center;
     background: rgba(236, 226, 203, 0.55); font-size: 12px; line-height: 1.35;

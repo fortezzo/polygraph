@@ -154,10 +154,10 @@ describe("a live run on screen", () => {
 
   it("says where the run is", () => {
     expect(statusLine(EMPTY_LIVE, 0)).toBe("Getting the interrogation ready…");
-    expect(statusLine(play(events.slice(0, 3), asSent), 200)).toBe("Waiting for llama3.2 to answer…");
+    expect(statusLine(play(events.slice(0, 3), asSent), 200)).toBe("Waiting for Llama 3.2 3B to answer…");
     // The question is still typing itself out at 600 ms, so the answer hasn't shown yet.
-    expect(statusLine(play(events.slice(0, 4), asSent), 600)).toBe("Waiting for llama3.2 to answer…");
-    expect(statusLine(play(events.slice(0, 4), asSent), 900)).toBe("llama3.2 is answering…");
+    expect(statusLine(play(events.slice(0, 4), asSent), 600)).toBe("Waiting for Llama 3.2 3B to answer…");
+    expect(statusLine(play(events.slice(0, 4), asSent), 900)).toBe("Llama 3.2 3B is answering…");
     expect(statusLine(play(events.slice(0, 9), asSent), 900)).toBe("The judge is reading it (vote 1 of 3)…");
     // It follows the trap on screen, not the newest one: the first verdict is in,
     // but it waits for its stamp's room before it shows.

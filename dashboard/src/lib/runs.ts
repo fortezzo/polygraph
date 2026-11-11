@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { readRun, type RunFile } from "../data/runFile";
 import type { LineupData } from "./lineup";
+import { modelName } from "./models";
 import { shownScore } from "./report";
 
 export interface JudgeCheck {
@@ -26,6 +27,10 @@ export type RunRole = "lineup" | "unranked" | "second_opinion" | "replaced" | "e
 export interface RunEntry {
   id: string;
   file: string;
+  /** Session 11: the same run without the answers, for the report card and the overconfidence meter. */
+  light_file?: string | null;
+  /** Session 11: the evidence wall's copy: the caught answers in full, the rest by their verdicts. */
+  caught_file?: string | null;
   source: string | null;
   /** The run file that was judged (in runs/): two judges' grades of the same answers share it. */
   judged_from?: string | null;
@@ -58,9 +63,18 @@ export interface RunEntry {
   judge_replaced?: { by: string | null; since: string | null; why: string | null } | null;
 }
 
-/** What to call the bot on screen: a custom bot's name with its model, or just the model. */
+/**
+ * What to call the bot on screen: a custom bot's name with its model, or just the
+ * model, by its friendly name (Session 11). The exact tag goes in small print
+ * where the bot is named in full (see tagOf).
+ */
 export function subjectOf(entry: Pick<RunEntry, "model" | "name">): string {
-  return entry.name ? `${entry.name} (${entry.model})` : entry.model;
+  return entry.name ? `${entry.name} (${modelName(entry.model)})` : modelName(entry.model);
+}
+
+/** The exact model tag, for the small print next to a friendly name. */
+export function tagOf(entry: Pick<RunEntry, "model">): string {
+  return entry.model;
 }
 
 /** The run list, and the run every data screen opens on (always a lineup grade when there is one). */
@@ -76,9 +90,9 @@ export function chosenRun(index: RunIndex, wanted: string | null): RunEntry | un
 }
 
 const ROLE_GROUP: Record<RunRole, (judge: string | null) => string> = {
-  lineup: (j) => `The lineup, graded by ${j ?? "its judge"}`,
-  unranked: (j) => `Not ranked: a bot with its own instructions, graded by ${j ?? "its judge"}`,
-  second_opinion: (j) => `Second opinions, graded by ${j ?? "another judge"}`,
+  lineup: (j) => `The lineup, graded by ${j ? modelName(j) : "its judge"}`,
+  unranked: (j) => `Not ranked: a bot with its own instructions, graded by ${j ? modelName(j) : "its judge"}`,
+  second_opinion: (j) => `Second opinions, graded by ${j ? modelName(j) : "another judge"}`,
   replaced: () => "Replaced grades: they don't count",
   earlier: () => "Earlier runs, from the 80-trap library",
   other: () => "Other runs",
@@ -102,19 +116,20 @@ export function pickerGroups(runs: RunEntry[]): { role: RunRole; label: string; 
 export function pickerLabel(run: RunEntry, all: RunEntry[]): string {
   const base = (r: RunEntry): string => {
     const name = subjectOf(r);
+    const judge = modelName(r.judge);
     switch (r.role) {
       case "lineup":
         return name;
       case "unranked":
         return `${name} · not ranked`;
       case "second_opinion":
-        return `${name} · second opinion by ${r.judge}`;
+        return `${name} · second opinion by ${judge}`;
       case "replaced":
-        return `${name} · replaced grades by ${r.judge}`;
+        return `${name} · replaced grades by ${judge}`;
       case "earlier":
         return `${name} · earlier ${r.traps}-trap run, ${r.recorded_first}`;
       default:
-        return `${name} · ${r.traps} traps, ${r.recorded_first}, graded by ${r.judge}`;
+        return `${name} · ${r.traps} traps, ${r.recorded_first}, graded by ${judge}`;
     }
   };
   const label = base(run);
@@ -137,6 +152,36 @@ export function recordingLabel(r: Recording): string {
   const score = shownScore(r.overall);
   const graded = score === null ? "not graded" : `${score} (${r.grade})`;
   return r.custom ? `${subjectOf(r)} · ${graded}, not ranked` : `${subjectOf(r)} · ${graded}`;
+}
+
+/** What a closed picker shows (Session 11): the name, then the exact tag and what it is, in small print. */
+export interface PickerDisplay {
+  main: string;
+  sub: string;
+}
+
+/** A whole recording in the replay's picker. */
+export function recordingDisplay(r: Recording): PickerDisplay {
+  const score = shownScore(r.overall);
+  const graded = score === null ? "not graded" : `${score} (${r.grade})`;
+  return {
+    main: `${subjectOf(r)} · ${graded}`,
+    sub: `${r.model} · all ${r.traps} questions${r.custom ? " · not ranked: its own instructions" : ""}`,
+  };
+}
+
+/** A judged run in the Subject picker: whose grades they are, in small print. */
+export function entryDisplay(r: RunEntry): PickerDisplay {
+  const judge = modelName(r.judge);
+  const what: Record<RunRole, string> = {
+    lineup: `graded by ${judge}`,
+    unranked: `not ranked · graded by ${judge}`,
+    second_opinion: `second opinion by ${judge}`,
+    replaced: `replaced grades by ${judge}`,
+    earlier: `earlier ${r.traps}-trap run, ${r.recorded_first}`,
+    other: `${r.traps} traps, ${r.recorded_first}, graded by ${judge}`,
+  };
+  return { main: subjectOf(r), sub: `${r.model} · ${what[r.role ?? "other"]}` };
 }
 
 /** One recording the replay can play (scripts/export-runs.mjs, replays.json). */
@@ -177,34 +222,51 @@ async function fetchJson(url: string): Promise<unknown> {
   return res.json();
 }
 
+/** Files that have arrived, so a screen that wants one again shows it at once (Session 11). */
+const settled = new Map<string, unknown>();
+
 function cached(url: string): Promise<unknown> {
   let p = cache.get(url);
   if (!p) {
     p = fetchJson(url);
     cache.set(url, p);
-    p.catch(() => cache.delete(url)); // a failed load can be tried again
+    p.then((v) => settled.set(url, v), () => cache.delete(url)); // a failed load can be tried again
   }
   return p;
 }
 
-function useLoad<T>(key: string | null, load: () => Promise<T>): [Load<T>, () => void] {
-  const [state, setState] = useState<Load<T>>({ status: "loading" });
+function useLoad<T>(key: string | null, load: () => Promise<T>, peek?: () => T | undefined): [Load<T>, () => void] {
+  // Each state belongs to the key it was loaded for, so a screen never shows one
+  // file's contents for another (Session 11: a run now has smaller copies too).
+  const [state, setState] = useState<{ key: string | null; load: Load<T> }>(() => {
+    const now = key && peek ? peek() : undefined;
+    return { key, load: now !== undefined ? { status: "ready", data: now } : { status: "loading" } };
+  });
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (!key) return;
     let live = true;
-    setState({ status: "loading" });
+    // Already here (say, fetched in the background): show it without a loading flash.
+    const now = peek?.();
+    if (now !== undefined) {
+      setState({ key, load: { status: "ready", data: now } });
+      return;
+    }
+    setState({ key, load: { status: "loading" } });
     load().then(
-      (data) => live && setState({ status: "ready", data }),
-      (e: Error) => live && setState({ status: "error", title: "The recording couldn't be loaded", detail: e.message }),
+      (data) => live && setState({ key, load: { status: "ready", data } }),
+      (e: Error) => live && setState({ key, load: { status: "error", title: "The recording couldn't be loaded", detail: e.message } }),
     );
     return () => {
       live = false;
     };
-    // `load` only changes when `key` does; `attempt` is the "Try again" button.
+    // `load` and `peek` only change when `key` does; `attempt` is the "Try again" button.
   }, [key, attempt]);
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
-  return [state, retry];
+  if (state.key === key) return [state.load, retry];
+  // The key just changed: what's already here shows at once, anything else is loading.
+  const now = key && peek ? peek() : undefined;
+  return [now !== undefined ? { status: "ready", data: now } : { status: "loading" }, retry];
 }
 
 export function useRunIndex(): [Load<RunIndex>, () => void] {
@@ -259,16 +321,44 @@ export function useLineup(): [Load<LineupData | null>, () => void] {
   });
 }
 
-export function useRunFile(entry: Pick<RunEntry, "file" | "model"> | undefined): [Load<RunFile>, () => void] {
-  return useLoad(entry?.file ?? null, async () => {
+/** Which copy of a run a screen needs (Session 11). */
+export type RunCopy = "full" | "light" | "caught";
+
+type RunFiles = Pick<RunEntry, "file" | "model"> & { light_file?: string | null; caught_file?: string | null };
+
+function fileFor(entry: RunFiles, copy: RunCopy): string {
+  if (copy === "light" && entry.light_file) return entry.light_file;
+  if (copy === "caught" && entry.caught_file) return entry.caught_file;
+  return entry.file;
+}
+
+/** Start loading a run's whole file in the background, so it's ready when it's wanted. */
+export function prefetchRun(entry: RunFiles): void {
+  cached(`./runs/${entry.file}`).catch(() => {});
+}
+
+/**
+ * A run file. Session 11: or a smaller copy of it. The report card and the
+ * overconfidence meter don't show the answers ("light"); the evidence wall opens
+ * on the caught answers ("caught"). Neither waits for the whole run.
+ */
+export function useRunFile(entry: RunFiles | undefined, copy: RunCopy = "full"): [Load<RunFile>, () => void] {
+  const file = entry ? fileFor(entry, copy) : null;
+  const peek = (): RunFile | undefined => {
+    const data = file ? settled.get(`./runs/${file}`) : undefined;
+    if (data === undefined) return undefined;
+    const r = readRun(data);
+    return r.ok ? r.run : undefined;
+  };
+  return useLoad(file, async () => {
     let data: unknown;
     try {
-      data = await cached(`./runs/${entry!.file}`);
+      data = await cached(`./runs/${file}`);
     } catch (e) {
-      throw new Error(`Couldn't open the run file for ${entry!.model} (${(e as Error).message}). Check your connection and try again.`);
+      throw new Error(`Couldn't open the run file for ${modelName(entry!.model)} (${(e as Error).message}). Check your connection and try again.`);
     }
     const r = readRun(data);
     if (!r.ok) throw new Error(r.detail);
     return r.run;
-  });
+  }, peek);
 }

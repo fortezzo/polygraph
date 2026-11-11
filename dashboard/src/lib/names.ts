@@ -81,6 +81,21 @@ const ORG = /\b(?:University|College|Institute|Institution|Press|Society|Journal
 
 const re = (src: string) => new RegExp(src, "gud");
 
+// Session 11: patterns that work for every alphabet are slow to build, and the
+// rule used to build some for every name in every answer, which held up a phone
+// for over a second on the evidence wall. Each is now built once and reused
+// (matchAll works on a copy, so a pattern is never left halfway through a text).
+const built = new Map<string, RegExp>();
+const once = (src: string, flags: string): RegExp => {
+  const key = `${flags}/${src}`;
+  let r = built.get(key);
+  if (!r) {
+    r = new RegExp(src, flags);
+    built.set(key, r);
+  }
+  return r;
+};
+
 // Each rule: a pattern, the capture group that holds the name (or list of names),
 // the pattern for one person in that list, whether the line has to read like a
 // reference (a year, et al., a DOI or an authors label), and whether it's a
@@ -177,7 +192,7 @@ function found(text: string): Found[] {
         add(s, e, !!rule.cites);
         continue;
       }
-      for (const p of text.slice(s, e).matchAll(re(rule.each))) {
+      for (const p of text.slice(s, e).matchAll(once(rule.each, "gud"))) {
         const at = s + p.index!;
         add(at, at + p[0].length, !!rule.cites);
       }
@@ -202,10 +217,13 @@ const EVERYDAY = new Set(
 );
 
 /** The surname in one person's name: first in "Erickson, K. I." or "Schuster R", last in "Jane Smith". */
+const SURNAME_FIRST = new RegExp(`^${PARTICLE}*(${WORD})(?:${SUFFIX},|,|${S}\\p{Lu}{1,4}(?:${S}(?:Jr|Sr|II|III|IV))?$)`, "u");
+const WORDS = new RegExp(WORD, "gu");
+
 function surnameOf(name: string): string | null {
-  const first = name.match(new RegExp(`^${PARTICLE}*(${WORD})(?:${SUFFIX},|,|${S}\\p{Lu}{1,4}(?:${S}(?:Jr|Sr|II|III|IV))?$)`, "u"));
+  const first = name.match(SURNAME_FIRST);
   if (first) return first[1]!;
-  const words = name.match(new RegExp(WORD, "gu"))?.filter((w) => !/^(?:Jr|Sr)$/.test(w)) ?? [];
+  const words = name.match(WORDS)?.filter((w) => !/^(?:Jr|Sr)$/.test(w)) ?? [];
   return words.length ? words[words.length - 1]! : null;
 }
 
@@ -218,7 +236,7 @@ function repeats(text: string, cited: Found[]): Span[] {
   }
   const out: Span[] = [];
   for (const s of surnames) {
-    const word = new RegExp(`(?<![\\p{L}\\p{N}])${s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}])`, "gu");
+    const word = once(`(?<![\\p{L}\\p{N}])${s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}])`, "gu");
     for (const m of text.matchAll(word)) out.push({ start: m.index!, end: m.index! + s.length });
   }
   return out;
@@ -271,7 +289,24 @@ function isAuthor(name: string, authors: string[]): boolean {
  * `confirmed` for the answer the check read (the trap's first answer) and
  * nothing for any other.
  */
+// Session 11: the same answer is checked in several places (an excerpt and the whole
+// answer, the replay and the evidence wall), so each answer's names are found once.
+const plain = new Map<string, Span[]>();
+
 export function namesToHideIn(text: string, confirmed: readonly ConfirmedReference[] = []): Span[] {
+  if (confirmed.length === 0) {
+    let spans = plain.get(text);
+    if (!spans) {
+      spans = findNamesToHide(text, confirmed);
+      if (plain.size > 2000) plain.clear();
+      plain.set(text, spans);
+    }
+    return spans;
+  }
+  return findNamesToHide(text, confirmed);
+}
+
+function findNamesToHide(text: string, confirmed: readonly ConfirmedReference[]): Span[] {
   const shown = (s: Span) =>
     confirmed.some((c) => c.at.some(([a, b]) => s.start >= a && s.end <= b) && isAuthor(text.slice(s.start, s.end), c.authors));
   const hidden = found(text).filter((f) => !shown(f));

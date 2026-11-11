@@ -3,6 +3,7 @@
 
 import type { Verdict } from "../data/runFile";
 import { shownScore } from "./report";
+import { modelName } from "./models";
 
 export type LineupState = "scored" | "on_hold" | "not_judged" | "not_run";
 
@@ -297,6 +298,6 @@ export function day(iso: string | null | undefined): string | null {
 /** The name a side of a side-by-side goes by: a custom bot's own name, or the model. */
 export function sideName(s: PairSide): string {
   if (s.name) return s.name;
-  if (s.custom && s.state === "not_run") return `A bot with its own instructions on ${s.model}`;
-  return s.model ?? "—";
+  if (s.custom && s.state === "not_run") return `A bot with its own instructions on ${modelName(s.model)}`;
+  return s.model ? modelName(s.model) : "—";
 }

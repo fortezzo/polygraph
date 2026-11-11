@@ -1,0 +1,758 @@
+{
+  "base": "a local copy of the demo build, served like GitHub Pages (compressed, over HTTP/2)",
+  "lighthouse": "13.6.0",
+  "measured_at": "2026-11-11T18:27:14.006Z",
+  "runs": 3,
+  "pages": {
+    "replay mobile": {
+      "page": "the first page: the Highlights replay",
+      "url": "https://127.0.0.1:54772/polygraph/",
+      "form": "mobile",
+      "scores": {
+        "performance": 96,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "fcp_ms": 755,
+        "lcp_ms": 2561,
+        "tbt_ms": 109,
+        "cls": 0,
+        "speed_index_ms": 1006,
+        "total_kb": 319
+      },
+      "lcp_element": null,
+      "failing": [
+        {
+          "category": "performance",
+          "id": "largest-contentful-paint",
+          "weight": 25,
+          "score": 88,
+          "title": "Largest Contentful Paint",
+          "value": "2.6 s"
+        },
+        {
+          "category": "performance",
+          "id": "cache-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Use efficient cache lifetimes",
+          "value": "Est savings of 288 KiB"
+        },
+        {
+          "category": "performance",
+          "id": "network-dependency-tree-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Network dependency tree",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "render-blocking-insight",
+          "weight": 0,
+          "score": 50,
+          "title": "Render-blocking requests",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "max-potential-fid",
+          "weight": 0,
+          "score": 81,
+          "title": "Max Potential First Input Delay",
+          "value": "160 ms"
+        },
+        {
+          "category": "performance",
+          "id": "unused-javascript",
+          "weight": 0,
+          "score": 0,
+          "title": "Reduce unused JavaScript",
+          "value": "Est savings of 95 KiB"
+        },
+        {
+          "category": "best-practices",
+          "id": "valid-source-maps",
+          "weight": 0,
+          "score": 0,
+          "title": "Missing source maps for large first-party JavaScript",
+          "value": null
+        }
+      ],
+      "performance_runs": [
+        96,
+        96,
+        96
+      ]
+    },
+    "replay desktop": {
+      "page": "the first page: the Highlights replay",
+      "url": "https://127.0.0.1:54772/polygraph/",
+      "form": "desktop",
+      "scores": {
+        "performance": 100,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "fcp_ms": 203,
+        "lcp_ms": 522,
+        "tbt_ms": 0,
+        "cls": 0,
+        "speed_index_ms": 300,
+        "total_kb": 319
+      },
+      "lcp_element": null,
+      "failing": [
+        {
+          "category": "performance",
+          "id": "cache-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Use efficient cache lifetimes",
+          "value": "Est savings of 288 KiB"
+        },
+        {
+          "category": "performance",
+          "id": "network-dependency-tree-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Network dependency tree",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "render-blocking-insight",
+          "weight": 0,
+          "score": 50,
+          "title": "Render-blocking requests",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "unused-javascript",
+          "weight": 0,
+          "score": 0,
+          "title": "Reduce unused JavaScript",
+          "value": "Est savings of 95 KiB"
+        },
+        {
+          "category": "best-practices",
+          "id": "valid-source-maps",
+          "weight": 0,
+          "score": 0,
+          "title": "Missing source maps for large first-party JavaScript",
+          "value": null
+        }
+      ],
+      "performance_runs": [
+        100,
+        100,
+        100
+      ]
+    },
+    "report mobile": {
+      "page": "the report card",
+      "url": "https://127.0.0.1:54772/polygraph/#/report",
+      "form": "mobile",
+      "scores": {
+        "performance": 97,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "fcp_ms": 755,
+        "lcp_ms": 2552,
+        "tbt_ms": 0,
+        "cls": 0,
+        "speed_index_ms": 755,
+        "total_kb": 344
+      },
+      "lcp_element": null,
+      "failing": [
+        {
+          "category": "performance",
+          "id": "largest-contentful-paint",
+          "weight": 25,
+          "score": 88,
+          "title": "Largest Contentful Paint",
+          "value": "2.6 s"
+        },
+        {
+          "category": "performance",
+          "id": "cache-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Use efficient cache lifetimes",
+          "value": "Est savings of 288 KiB"
+        },
+        {
+          "category": "performance",
+          "id": "network-dependency-tree-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Network dependency tree",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "render-blocking-insight",
+          "weight": 0,
+          "score": 50,
+          "title": "Render-blocking requests",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "unused-javascript",
+          "weight": 0,
+          "score": 0,
+          "title": "Reduce unused JavaScript",
+          "value": "Est savings of 108 KiB"
+        },
+        {
+          "category": "best-practices",
+          "id": "valid-source-maps",
+          "weight": 0,
+          "score": 0,
+          "title": "Missing source maps for large first-party JavaScript",
+          "value": null
+        }
+      ],
+      "performance_runs": [
+        97,
+        97,
+        97
+      ]
+    },
+    "report desktop": {
+      "page": "the report card",
+      "url": "https://127.0.0.1:54772/polygraph/#/report",
+      "form": "desktop",
+      "scores": {
+        "performance": 100,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "fcp_ms": 203,
+        "lcp_ms": 522,
+        "tbt_ms": 0,
+        "cls": 0,
+        "speed_index_ms": 203,
+        "total_kb": 344
+      },
+      "lcp_element": null,
+      "failing": [
+        {
+          "category": "performance",
+          "id": "cache-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Use efficient cache lifetimes",
+          "value": "Est savings of 288 KiB"
+        },
+        {
+          "category": "performance",
+          "id": "network-dependency-tree-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Network dependency tree",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "render-blocking-insight",
+          "weight": 0,
+          "score": 50,
+          "title": "Render-blocking requests",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "unused-javascript",
+          "weight": 0,
+          "score": 0,
+          "title": "Reduce unused JavaScript",
+          "value": "Est savings of 108 KiB"
+        },
+        {
+          "category": "best-practices",
+          "id": "valid-source-maps",
+          "weight": 0,
+          "score": 0,
+          "title": "Missing source maps for large first-party JavaScript",
+          "value": null
+        }
+      ],
+      "performance_runs": [
+        100,
+        100,
+        100
+      ]
+    },
+    "evidence mobile": {
+      "page": "the evidence wall",
+      "url": "https://127.0.0.1:54772/polygraph/#/evidence",
+      "form": "mobile",
+      "scores": {
+        "performance": 91,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "fcp_ms": 755,
+        "lcp_ms": 3302,
+        "tbt_ms": 139,
+        "cls": 0,
+        "speed_index_ms": 755,
+        "total_kb": 796
+      },
+      "lcp_element": null,
+      "failing": [
+        {
+          "category": "performance",
+          "id": "largest-contentful-paint",
+          "weight": 25,
+          "score": 69,
+          "title": "Largest Contentful Paint",
+          "value": "3.3 s"
+        },
+        {
+          "category": "performance",
+          "id": "cache-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Use efficient cache lifetimes",
+          "value": "Est savings of 308 KiB"
+        },
+        {
+          "category": "performance",
+          "id": "network-dependency-tree-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Network dependency tree",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "render-blocking-insight",
+          "weight": 0,
+          "score": 50,
+          "title": "Render-blocking requests",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "max-potential-fid",
+          "weight": 0,
+          "score": 70,
+          "title": "Max Potential First Input Delay",
+          "value": "190 ms"
+        },
+        {
+          "category": "performance",
+          "id": "unused-javascript",
+          "weight": 0,
+          "score": 0,
+          "title": "Reduce unused JavaScript",
+          "value": "Est savings of 105 KiB"
+        },
+        {
+          "category": "performance",
+          "id": "mainthread-work-breakdown",
+          "weight": 0,
+          "score": 0,
+          "title": "Minimize main-thread work",
+          "value": "2.4 s"
+        },
+        {
+          "category": "best-practices",
+          "id": "valid-source-maps",
+          "weight": 0,
+          "score": 0,
+          "title": "Missing source maps for large first-party JavaScript",
+          "value": null
+        }
+      ],
+      "performance_runs": [
+        91,
+        91,
+        91
+      ]
+    },
+    "evidence desktop": {
+      "page": "the evidence wall",
+      "url": "https://127.0.0.1:54772/polygraph/#/evidence",
+      "form": "desktop",
+      "scores": {
+        "performance": 100,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "fcp_ms": 203,
+        "lcp_ms": 642,
+        "tbt_ms": 7,
+        "cls": 0,
+        "speed_index_ms": 203,
+        "total_kb": 796
+      },
+      "lcp_element": null,
+      "failing": [
+        {
+          "category": "performance",
+          "id": "cache-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Use efficient cache lifetimes",
+          "value": "Est savings of 308 KiB"
+        },
+        {
+          "category": "performance",
+          "id": "network-dependency-tree-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Network dependency tree",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "render-blocking-insight",
+          "weight": 0,
+          "score": 50,
+          "title": "Render-blocking requests",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "unused-javascript",
+          "weight": 0,
+          "score": 0,
+          "title": "Reduce unused JavaScript",
+          "value": "Est savings of 105 KiB"
+        },
+        {
+          "category": "best-practices",
+          "id": "valid-source-maps",
+          "weight": 0,
+          "score": 0,
+          "title": "Missing source maps for large first-party JavaScript",
+          "value": null
+        }
+      ],
+      "performance_runs": [
+        100,
+        100,
+        100
+      ]
+    },
+    "confidence mobile": {
+      "page": "the overconfidence meter",
+      "url": "https://127.0.0.1:54772/polygraph/#/confidence",
+      "form": "mobile",
+      "scores": {
+        "performance": 96,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "fcp_ms": 755,
+        "lcp_ms": 2552,
+        "tbt_ms": 99,
+        "cls": 0,
+        "speed_index_ms": 871,
+        "total_kb": 344
+      },
+      "lcp_element": null,
+      "failing": [
+        {
+          "category": "performance",
+          "id": "largest-contentful-paint",
+          "weight": 25,
+          "score": 88,
+          "title": "Largest Contentful Paint",
+          "value": "2.6 s"
+        },
+        {
+          "category": "performance",
+          "id": "cache-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Use efficient cache lifetimes",
+          "value": "Est savings of 289 KiB"
+        },
+        {
+          "category": "performance",
+          "id": "forced-reflow-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Forced reflow",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "network-dependency-tree-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Network dependency tree",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "render-blocking-insight",
+          "weight": 0,
+          "score": 50,
+          "title": "Render-blocking requests",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "max-potential-fid",
+          "weight": 0,
+          "score": 84,
+          "title": "Max Potential First Input Delay",
+          "value": "150 ms"
+        },
+        {
+          "category": "performance",
+          "id": "unused-javascript",
+          "weight": 0,
+          "score": 0,
+          "title": "Reduce unused JavaScript",
+          "value": "Est savings of 104 KiB"
+        },
+        {
+          "category": "best-practices",
+          "id": "valid-source-maps",
+          "weight": 0,
+          "score": 0,
+          "title": "Missing source maps for large first-party JavaScript",
+          "value": null
+        }
+      ],
+      "performance_runs": [
+        96,
+        96,
+        96
+      ]
+    },
+    "confidence desktop": {
+      "page": "the overconfidence meter",
+      "url": "https://127.0.0.1:54772/polygraph/#/confidence",
+      "form": "desktop",
+      "scores": {
+        "performance": 100,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "fcp_ms": 203,
+        "lcp_ms": 522,
+        "tbt_ms": 0,
+        "cls": 0,
+        "speed_index_ms": 287,
+        "total_kb": 344
+      },
+      "lcp_element": null,
+      "failing": [
+        {
+          "category": "performance",
+          "id": "cache-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Use efficient cache lifetimes",
+          "value": "Est savings of 288 KiB"
+        },
+        {
+          "category": "performance",
+          "id": "network-dependency-tree-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Network dependency tree",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "render-blocking-insight",
+          "weight": 0,
+          "score": 50,
+          "title": "Render-blocking requests",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "unused-javascript",
+          "weight": 0,
+          "score": 0,
+          "title": "Reduce unused JavaScript",
+          "value": "Est savings of 104 KiB"
+        },
+        {
+          "category": "best-practices",
+          "id": "valid-source-maps",
+          "weight": 0,
+          "score": 0,
+          "title": "Missing source maps for large first-party JavaScript",
+          "value": null
+        }
+      ],
+      "performance_runs": [
+        100,
+        100,
+        100
+      ]
+    },
+    "lineup mobile": {
+      "page": "the lineup",
+      "url": "https://127.0.0.1:54772/polygraph/#/lineup",
+      "form": "mobile",
+      "scores": {
+        "performance": 95,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "fcp_ms": 755,
+        "lcp_ms": 2402,
+        "tbt_ms": 182,
+        "cls": 0,
+        "speed_index_ms": 755,
+        "total_kb": 332
+      },
+      "lcp_element": null,
+      "failing": [
+        {
+          "category": "performance",
+          "id": "cache-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Use efficient cache lifetimes",
+          "value": "Est savings of 288 KiB"
+        },
+        {
+          "category": "performance",
+          "id": "network-dependency-tree-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Network dependency tree",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "render-blocking-insight",
+          "weight": 0,
+          "score": 50,
+          "title": "Render-blocking requests",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "max-potential-fid",
+          "weight": 0,
+          "score": 63,
+          "title": "Max Potential First Input Delay",
+          "value": "210 ms"
+        },
+        {
+          "category": "performance",
+          "id": "unused-javascript",
+          "weight": 0,
+          "score": 0,
+          "title": "Reduce unused JavaScript",
+          "value": "Est savings of 106 KiB"
+        },
+        {
+          "category": "best-practices",
+          "id": "valid-source-maps",
+          "weight": 0,
+          "score": 0,
+          "title": "Missing source maps for large first-party JavaScript",
+          "value": null
+        }
+      ],
+      "performance_runs": [
+        95,
+        95,
+        95
+      ]
+    },
+    "lineup desktop": {
+      "page": "the lineup",
+      "url": "https://127.0.0.1:54772/polygraph/#/lineup",
+      "form": "desktop",
+      "scores": {
+        "performance": 100,
+        "accessibility": 100,
+        "best-practices": 100,
+        "seo": 100
+      },
+      "metrics": {
+        "fcp_ms": 203,
+        "lcp_ms": 482,
+        "tbt_ms": 2,
+        "cls": 0,
+        "speed_index_ms": 203,
+        "total_kb": 332
+      },
+      "lcp_element": null,
+      "failing": [
+        {
+          "category": "performance",
+          "id": "cache-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Use efficient cache lifetimes",
+          "value": "Est savings of 288 KiB"
+        },
+        {
+          "category": "performance",
+          "id": "network-dependency-tree-insight",
+          "weight": 0,
+          "score": 0,
+          "title": "Network dependency tree",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "render-blocking-insight",
+          "weight": 0,
+          "score": 50,
+          "title": "Render-blocking requests",
+          "value": null
+        },
+        {
+          "category": "performance",
+          "id": "unused-javascript",
+          "weight": 0,
+          "score": 0,
+          "title": "Reduce unused JavaScript",
+          "value": "Est savings of 106 KiB"
+        },
+        {
+          "category": "best-practices",
+          "id": "valid-source-maps",
+          "weight": 0,
+          "score": 0,
+          "title": "Missing source maps for large first-party JavaScript",
+          "value": null
+        }
+      ],
+      "performance_runs": [
+        100,
+        100,
+        100
+      ]
+    }
+  }
+}

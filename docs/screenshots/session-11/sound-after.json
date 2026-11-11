@@ -1,0 +1,38 @@
+{
+  "thud": {
+    "peak_dbfs": -12.8,
+    "rms_dbfs": -36.3,
+    "rms_while_audible_dbfs": -27.1,
+    "above_300hz_rms_dbfs": -33.1,
+    "audible_ms": 120,
+    "under_150hz_percent": 43,
+    "clips": false
+  },
+  "scratch-calm": {
+    "peak_dbfs": -50.6,
+    "rms_dbfs": -67.9,
+    "rms_while_audible_dbfs": -67.8,
+    "above_300hz_rms_dbfs": -68,
+    "audible_ms": 2904,
+    "under_150hz_percent": 0,
+    "clips": false
+  },
+  "scratch-spike": {
+    "peak_dbfs": -25.8,
+    "rms_dbfs": -48,
+    "rms_while_audible_dbfs": -47.9,
+    "above_300hz_rms_dbfs": -48.1,
+    "audible_ms": 2904,
+    "under_150hz_percent": 0,
+    "clips": false
+  },
+  "replay": {
+    "peak_dbfs": -12.8,
+    "rms_dbfs": -41.6,
+    "rms_while_audible_dbfs": -41.4,
+    "above_300hz_rms_dbfs": -45.7,
+    "audible_ms": 3852,
+    "under_150hz_percent": 36,
+    "clips": false
+  }
+}

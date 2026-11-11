@@ -272,11 +272,12 @@ try {
       const { context, page } = await openAt("desktop", "");
       await page.waitForFunction(() => window.polygraph?.ready);
       const before = await page.evaluate(() => ({ on: window.polygraph.sound.enabled(), made: window.polygraph.sound.contextCreated() }));
-      const button = page.getByRole("button", { name: /^Sound off$/ });
+      // Session 11: one name, "Sound", pressed or not.
+      const button = page.getByRole("button", { name: /^Sound$/ });
       const pressedBefore = await button.getAttribute("aria-pressed");
       await button.click();
       const after = await page.evaluate(() => ({ on: window.polygraph.sound.enabled(), made: window.polygraph.sound.contextCreated() }));
-      const pressedAfter = await page.getByRole("button", { name: /^Sound on$/ }).getAttribute("aria-pressed");
+      const pressedAfter = await button.getAttribute("aria-pressed");
       results.sound = { atLoad: before, ariaPressedAtLoad: pressedBefore, afterClick: after, ariaPressedAfterClick: pressedAfter };
       console.log(`sound at load: ${before.on ? "ON" : "off"}, audio created: ${before.made}; after clicking: ${after.on ? "on" : "OFF"}, audio created: ${after.made}`);
       await context.close();

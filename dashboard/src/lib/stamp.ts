@@ -12,23 +12,29 @@ export interface StampPlan {
   stampAt: number | null;
 }
 
-/** Moving paper: the pen stays at penX and the paper moves left at `speed` pixels a second. */
+/**
+ * Moving paper: the pen stays at penX and the paper moves left at `speed` pixels a
+ * second. Session 11: or, given `shift`, by however far the paper moved between two
+ * moments (it slows down after a stamp on a phone, see paper.ts).
+ */
 export interface MovingPaper {
   w: number;
   penX: number;
   speed: number;
+  shift?: (from: number, to: number) => number;
 }
 
 /** The stamp's left edge on moving paper at time t, in pixels. */
 export function stampX(plan: StampPlan, width: number, paper: MovingPaper, t: number): number {
   const at = plan.stampAt ?? t;
-  const landX = (tau: number) => paper.penX - ((at - tau) / 1000) * paper.speed;
+  const moved = paper.shift ?? ((a: number, b: number) => ((b - a) / 1000) * paper.speed);
+  const landX = (tau: number) => paper.penX - moved(tau, at);
   const s0 = plan.spike?.start ?? at;
   const s1 = plan.spike?.end ?? at;
   let x = (landX(s0) + landX(s1)) / 2 - width / 2;
   x = Math.min(x, paper.w - HOUSING - TILT_ROOM - width);
   x = Math.max(x, landX(plan.start) + TILT_ROOM);
-  return x - ((t - at) / 1000) * paper.speed;
+  return x - moved(at, t);
 }
 
 /** Still paper (reduce motion): one sheet per question, so the stamp just stays on it. */

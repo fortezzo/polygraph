@@ -8,6 +8,7 @@ import type { Sound } from "../lib/sound";
 import { onFrame } from "../lib/frame";
 import { VERDICT_INFO } from "../data/verdicts";
 import { stampX, stampXOnSheet } from "../lib/stamp";
+import { heldPaper, steadyPaper, type PaperMotion } from "../lib/paper";
 
 // Ink colors on the cream paper. Calm is green ink (honest so far); the spike
 // takes the verdict's color. Every spike also gets a written label, so color is
@@ -52,13 +53,22 @@ interface Props {
   stamped: boolean;
   /** Changes when a stamp lands while playing, to shake the paper. */
   slam: number;
+  /**
+   * Session 11 (the replay): slow the paper after each stamp where there isn't room,
+   * so the spike and the stamp are still in view when the verdict and confidence show.
+   * Live mode's spike comes with the verdict, so it keeps the steady speed.
+   */
+  hold?: boolean;
 }
 
-export function ChartPaper({ timeline, track, playback, sound, reduced, trapIndex, stamped, slam }: Props) {
+export function ChartPaper({ timeline, track, playback, sound, reduced, trapIndex, stamped, slam, hold = false }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const probeRef = useRef<HTMLDivElement>(null);
   const geo = useRef<Geometry>(geometry(0, 0));
+  const paperRef = useRef<{ paper: PaperMotion; w: number; stamp: number; timeline: Timeline | null }>({ paper: steadyPaper(SPEED.wide), w: -1, stamp: -1, timeline: null });
+  const stampWidth = useRef(0);
   const stampEls = useRef(new Map<string, HTMLDivElement>());
   const dirty = useRef(true);
   const shake = useAnimationControls();
@@ -86,6 +96,8 @@ export function ChartPaper({ timeline, track, playback, sound, reduced, trapInde
       canvas.width = Math.round(r.width * dpr);
       canvas.height = Math.round(r.height * dpr);
       geo.current = geometry(r.width, r.height);
+      // The stamp's width on this screen, from a hidden copy, decides how much the paper slows.
+      stampWidth.current = probeRef.current?.offsetWidth ?? 0;
       dirty.current = true;
     };
     resize();
@@ -135,6 +147,19 @@ export function ChartPaper({ timeline, track, playback, sound, reduced, trapInde
       return cur ?? timeline.traps[0];
     }
 
+    /** How the paper moves on this screen: worked out again when the width or the recording changes. */
+    function paperFor(g: Geometry): PaperMotion {
+      const m = paperRef.current;
+      if (m.w !== g.w || m.stamp !== stampWidth.current || m.timeline !== timeline) {
+        const paper =
+          hold && !reduced && stampWidth.current > 0
+            ? heldPaper(timeline, { w: g.w, penX: g.penX, speed: g.speed, stampWidth: stampWidth.current })
+            : steadyPaper(g.speed);
+        paperRef.current = { paper, w: g.w, stamp: stampWidth.current, timeline };
+      }
+      return paperRef.current.paper;
+    }
+
     function draw(canvas: HTMLCanvasElement, g: Geometry, t: number) {
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
@@ -145,20 +170,23 @@ export function ChartPaper({ timeline, track, playback, sound, reduced, trapInde
       // The tallest spike stops just under the pencil notes along the top.
       const amp = mid - (g.phone ? 34 : 42);
 
-      // Paper position: scrolling with time, or one still sheet per question.
+      // Paper position: scrolling with time (slowing after a stamp where there isn't
+      // room, Session 11), or one still sheet per question.
       const sheet = reduced ? sheetOf(t) : undefined;
+      const paper = paperFor(g);
+      const here = paper.pos(t);
       const xOf = (tau: number): number => {
         if (sheet) {
           const span = Math.max(1, sheet.end - sheet.start);
           return g.left + ((tau - sheet.start) / span) * (g.penX - g.left);
         }
-        return g.penX - ((t - tau) / 1000) * g.speed;
+        return g.penX - (here - paper.pos(tau));
       };
       const tOf = (x: number): number => {
         if (sheet) return sheet.start + ((x - g.left) / (g.penX - g.left)) * (sheet.end - sheet.start);
-        return t - ((g.penX - x) / g.speed) * 1000;
+        return paper.timeAt(here - (g.penX - x));
       };
-      const offset = reduced ? 0 : ((t / 1000) * g.speed) % GRID_PERIOD;
+      const offset = reduced ? 0 : here % GRID_PERIOD;
       if (gridRef.current) gridRef.current.style.transform = `translate3d(${-offset}px,0,0)`;
       const penX = sheet ? Math.min(g.penX, xOf(t)) : g.penX;
 
@@ -293,16 +321,20 @@ export function ChartPaper({ timeline, track, playback, sound, reduced, trapInde
         const sw = el.offsetWidth;
         const x = sheet
           ? stampXOnSheet(p, sw, { w: g.w, left: g.left, xOf })
-          : stampX(p, sw, { w: g.w, penX: g.penX, speed: g.speed }, t);
+          : stampX(p, sw, { w: g.w, penX: g.penX, speed: g.speed, shift: (a, b) => paper.shift(a, b) }, t);
         el.style.transform = `translate3d(${x}px, -50%, 0)`;
         el.style.visibility = x + sw < -40 ? "hidden" : "visible";
       }
     }
-  }, [timeline, track, playback, sound, reduced, stamps]);
+  }, [timeline, track, playback, sound, reduced, stamps, hold]);
 
   return (
     <motion.div animate={shake} className="relative">
       <div ref={wrapRef} className="paper h-[150px] sm:h-[180px] lg:h-[214px]">
+        {/* A hidden stamp, to measure how wide a stamp is on this screen (Session 11). */}
+        <div ref={probeRef} className="pointer-events-none invisible absolute top-0 left-0" aria-hidden="true">
+          <div className="stamp-ink px-[9px] pt-[3px] pb-[4px] text-[28px] sm:text-[36px] lg:px-[15px] lg:pt-[5px] lg:pb-[6px] lg:text-[48px]">CAUGHT</div>
+        </div>
         <div ref={gridRef} className="paper-grid" aria-hidden="true">
           <div className="paper-holes top-0" />
           <div className="paper-holes bottom-0" />

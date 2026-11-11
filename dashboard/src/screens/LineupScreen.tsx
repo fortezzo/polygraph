@@ -42,7 +42,7 @@ export function LineupScreen({ route, forced }: { route: Route; forced: string |
   return (
     <div className="mx-auto flex max-w-[1680px] flex-col gap-3 px-4 pt-3 pb-12 sm:px-6 lg:px-8 lg:pt-[18px]">
       <TopBar active="lineup" />
-      <main data-ready={ready ? "" : undefined} className="mt-3">
+      <main id="content" data-ready={ready ? "" : undefined} className="mt-3">
         {body}
       </main>
     </div>

@@ -1,6 +1,6 @@
 import { Fragment, memo, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
 import type { TrapPlan, TurnPlan, TurnView, View } from "../lib/timeline";
-import { lastVisibleIn, parseAnswer, piecesOf, type Line } from "../lib/markdown";
+import { closeOpenMarkers, lastVisibleIn, parseAnswer, piecesOf, type Line } from "../lib/markdown";
 import { NAME_HIDDEN } from "../lib/names";
 import { onFrame } from "../lib/frame";
 import { VERDICT_INFO } from "../data/verdicts";
@@ -157,8 +157,8 @@ function Exhibit({ title, text, shown }: { title: string; text: string; shown: b
           <Icon name="document" className="mt-0.5 h-5 w-5 shrink-0 text-paper-ink" strokeWidth={2} />
           <span className="font-bold">{title}</span>
         </div>
-        <details className="mt-2 text-[14px]">
-          <summary className="cursor-pointer font-label text-[13px] tracking-[0.08em] text-paper-ink">Read the document</summary>
+        <details className="mt-1 text-[14px]">
+          <summary className="cursor-pointer py-2 font-label text-[13px] tracking-[0.08em] text-paper-ink">Read the document</summary>
           <p className="mt-2 whitespace-pre-wrap leading-relaxed">{text}</p>
         </details>
       </div>
@@ -220,7 +220,8 @@ const Question = memo(function Question({ turn, tv }: { turn: TurnPlan; tv: Turn
 const Answer = memo(function Answer({
   turn, tv, model, stamped, confidenceQuestion,
 }: { turn: TurnPlan; tv: TurnView; model: string; stamped: boolean; confidenceQuestion?: string }) {
-  const blocks = useMemo(() => parseAnswer(turn.text), [turn.text]);
+  // A live answer still arriving shows its Markdown in its final form (closeOpenMarkers).
+  const blocks = useMemo(() => parseAnswer(turn.streaming ? closeOpenMarkers(turn.text) : turn.text), [turn.text, turn.streaming]);
   const hot = turn.hot;
   // The tag follows the piece holding the made-up phrase's last visible letter.
   // It's laid out from the start (hidden until the stamp lands), so it never moves text.

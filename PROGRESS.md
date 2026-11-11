@@ -1,7 +1,7 @@
 # Polygraph: progress
 
-**Last updated:** Nov 11, 2026, end of Session 10
-**Next up:** Session 11, Polish pass
+**Last updated:** Nov 11, 2026, Session 11 (waiting for Christian's hunt)
+**Next up:** Session 11's hunt, then Session 12, README + launch
 **The demo:** https://fortezzo.github.io/polygraph/ · **The repo:** https://github.com/fortezzo/polygraph
 
 | # | Session | Status |
@@ -16,7 +16,7 @@
 | 8 | Live mode + test your own bot | Done, Nov 10, 2026 |
 | 9 | Lineup + full trap library | Done, Nov 10, 2026 |
 | 10 | Demo site | Done, Nov 11, 2026 |
-| 11 | Polish pass | Next |
+| 11 | Polish pass | Fixes done; Christian's hunt next |
 | 12 | README + launch | Not started |
 
 ---
@@ -517,24 +517,24 @@ Running the same thing again took 0.2 seconds: all 240 replies came from the cac
   - **Every bot runs on its default settings.** The OpenAI bots' default thinking level is on their placards: medium, for all three.
   - **"Never Unsure"** (Llama 3.2 told never to admit it doesn't know) answered all 200 traps too. It isn't ranked: it sits next to plain Llama 3.2 in a side-by-side. Its 200-trap run is in git, so the side-by-side works on the demo site. Session 8's 80-trap tests stay out.
   - **Answers cut off at the length limit are judged and scored as they stand,** and marked "✂ CUT OFF" on the evidence wall.
-- **The final ranking** (Truth Score out of 100, with its 95% range, graded by Claude Haiku 5.5):
+- **The final ranking** (Truth Score out of 100, with its 95% range, graded by Claude Haiku 5.5). Since Session 11, every score is a whole number, halves rounded up, exactly as the dashboard shows it:
 
   | # | Bot | Made by | Truth Score | Grade | Second opinion (gpt-6-luna) |
   |---|---|---|---|---|---|
-  | 1 | gpt-6-astra | OpenAI | **98.5** (96.5–100) | A | none: same company |
-  | 2 | gpt-6.1-terra | OpenAI | **97.0** (94.5–99) | A | none: same company |
-  | 3 | gpt-6-luna | OpenAI | **93.5** (90–96.5) | A | none: same company |
-  | 4 | Gemma 4 12B | Google | **72.75** (68.3–77) | C | 64.25 (D) |
-  | 5 | Phi-4 14B | Microsoft | **66.0** (61–71) | D | 60.0 (D) |
-  | 6 | Gemma 3 12B | Google | **49.0** (43.8–54.3) | F | 39.0 (F) |
-  | 6 | Ministral 3 14B | Mistral AI | **49.0** (44–54.5) | F | 39.0 (F) |
-  | 8 | Llama 3.2 3B | Meta | **35.0** (29.5–40.5) | F | 32.75 (F) |
+  | 1 | gpt-6-astra | OpenAI | **99** (97–100) | A | none: same company |
+  | 2 | gpt-6.1-terra | OpenAI | **97** (95–99) | A | none: same company |
+  | 3 | gpt-6-luna | OpenAI | **94** (90–97) | A | none: same company |
+  | 4 | Gemma 4 12B | Google | **73** (68–77) | C | 64 (D) |
+  | 5 | Phi-4 14B | Microsoft | **66** (61–71) | D | 60 (D) |
+  | 6 | Gemma 3 12B | Google | **49** (44–54) | F | 39 (F) |
+  | 6 | Ministral 3 14B | Mistral AI | **49** (44–55) | F | 39 (F) |
+  | 8 | Llama 3.2 3B | Meta | **35** (30–41) | F | 33 (F) |
 
-  - **Not ranked:** Never Unsure, 34.0 (F), next to plain Llama 3.2's 35.0. Their verdicts differ on 57 of the 200 traps.
+  - **Not ranked:** Never Unsure, 34 (F), next to plain Llama 3.2's 35. Their verdicts differ on 57 of the 200 traps.
   - **Where two ranges overlap, the order could swap** with a different set of questions: the three OpenAI bots, and Gemma 4 with Phi-4.
   - **Gemma 3 and Ministral 3 really do tie,** with different answers. Ministral had 98 honest answers; Gemma 3 had 97 honest and 2 dodged, which count half each. gpt-6-luna ties them too (78 honest each). They share a verdict on only 151 of the 200 traps.
   - **The biggest gap is made-up facts.** Every local bot scored 0–8 on fake citations and 4–36 on ghost facts. The OpenAI bots scored 80–100 on both. Gemma 4's 6 on fake citations comes only from its 3 empty answers (see tonight's runs).
-  - **Gemma 4 against Gemma 3** (same family and size; Gemma 4 thinks first): 72.75 against 49.0, mostly from pressure tests (88 against 28), ghost facts (36 against 4) and number traps (100 against 72).
+  - **Gemma 4 against Gemma 3** (same family and size; Gemma 4 thinks first): 73 against 49, mostly from pressure tests (88 against 28), ghost facts (36 against 4) and number traps (100 against 72).
   - **gpt-6-luna grades the local bots 2 to 10 points lower than Claude Haiku 5.5 does.** It puts them in the same order.
 - **The judges: three, measured on the same 50 test-half answers.**
   - **Qwen3.6 35B (free, on this PC)** was set up first for the OpenAI bots, since a bot can't be judged by its own company.
@@ -572,7 +572,7 @@ Running the same thing again took 0.2 seconds: all 240 replies came from the cac
   - **Gemma 4's thinking stayed apart:** no thinking markers in any of its 300 answers.
   - **3 of Gemma 4's answers came back empty** (citation-004, -010 and -017). It spent its whole 32,768-token allowance thinking and never wrote an answer.
     - By the rule above, they're judged as they stand. Both judges called all three Dodged, 3 votes of 3.
-    - Those 3 dodges give it 0.75 points. Scored as Lies, it would have 72.0: still a C, and still 4th.
+    - Those 3 dodges give it 0.75 points. Scored as Lies, it would have 72: still a C, and still 4th.
   - **They cost $1.47:** $0.93 for Claude Haiku 5.5 and $0.54 for gpt-6-luna.
 - **Spent in Session 9: $8.29,** from the costs recorded in the run files:
   - **OpenAI, $5.57:** the three OpenAI bots $4.71 (gpt-6-astra $4.17, gpt-6.1-terra $0.46, gpt-6-luna $0.08), and gpt-6-luna's second opinions $0.86.
@@ -659,6 +659,94 @@ Running the same thing again took 0.2 seconds: all 240 replies came from the cac
     - the name rule missed "Richard H. Thaler" (it read "Richard H" as a Vancouver name) and the initials "AD" (as in "Vethaak AD")
 - **Spent in Session 10: $0.** No new runs and no judging: everything uses the recorded runs.
 - **Version 0.10.0**, for the engine and the dashboard.
+
+### Session 11: Polish pass (Nov 11, 2026)
+- **The list came first.** A new audit script (`dashboard/scripts/polish-audit.mjs`) photographed every screen of the live demo at 7 sizes, from a 360 px phone to a 1920 px monitor (259 screenshots).
+  - It also measured what eyes miss: anything running off the side, text cut short, things overlapping, tap targets under 24 px, text under 12 px, where the chart paper starts, and whether the CAUGHT stamp is still on the paper.
+  - A sweep checked the menu at every width from 1000 to 1700 px. Lighthouse ran on every screen, and a layout-shift check ran while each screen loads on a slow phone.
+  - **30 things went on the list** (shown in the chat on Nov 11). All 30 are fixed. The biggest are below, and `docs/screenshots/session-11/` has them before and after (open `index.html`).
+- **On a phone, the spike and the CAUGHT stamp stay in view while the verdict shows** (Christian's note from Session 7).
+  - Before: when "LIE · 98%" appeared, only 0 to 3% of ghost-004's stamp was left on the paper.
+  - Now the paper slows down after a stamp lands, just enough that the whole stamp stays on the paper until 2.5 seconds after the confidence shows, then speeds back up before the next question. It's 100% on the paper at every phone size.
+  - It never holds for more than 14 seconds: a consistency trap's confidence only comes after its fourth chat, about 45 seconds later.
+  - On a laptop there's room already, so it never slows. Live mode's spike comes with the verdict, so it keeps one steady speed.
+  - The stamp still lands exactly where it did, and the paper's position is a function of time, so seeking, pausing and every speed see the same paper (`dashboard/src/lib/paper.ts`, with 26 tests).
+- **The phone replay starts with the chart.** It used to start 341 px down (478 px on a small phone, for a whole recording). It now starts at 208 px on both phone sizes.
+  - The five tabs fit across the screen, so Lineup is no longer an "L" at the edge.
+  - The picker shows the bot's name with the exact tag in small print, never cut short.
+  - The strip of questions, the speed and "Next caught answer" moved under the chart and the verdict on a phone or tablet. A laptop keeps them above the chart.
+- **The menu no longer slides under the buttons** (Christian's note from Session 9). From 1030 to 1110 px wide (1170 px with live mode's New tab), the Lineup tab sat under the Play button, and on the data screens under the Subject picker. Below 1280 px, the replay's and live mode's buttons now show only their icons, with their words kept for screen readers and as tooltips. The sweep finds no overlap at any width.
+- **The subject bar is the same on every screen:** the REPLAY or CASE FILE tag, the picker, then who made the bot, how it ran, when it was recorded and who judged it.
+  - The Subject picker moved here from the menu bar, so a phone names the bot once, not twice.
+  - The details are spaced apart, with no dots between them, so a wrapped line never ends on a stray "·".
+  - The pickers are real dropdowns underneath, so a phone opens its own list, with 16 px text so an iPhone doesn't zoom in when one is tapped.
+- **Friendly model names** (Christian's change to the Session 6 decision): "Gemma 4 12B" instead of `gemma4:12b`, with the exact tag in small print wherever a bot is named in full.
+  - Each name is written as its maker writes it, checked on Nov 11: OpenAI's model pages ("GPT-6 Luna", "GPT-6.1 Terra", "GPT-6 Astra"), Anthropic's ("Claude Haiku 5.5"), Mistral's ("Ministral 3 14B") and Ollama's library pages ("Gemma 3", "Gemma 4", "Llama 3.2", "Phi-4", "Qwen3.6", with the size given separately).
+  - They're in one place, `dashboard/src/lib/models.ts`. A tag that isn't listed shows as it is.
+- **One format for scores** (Christian): whole numbers everywhere, halves rounded up, exactly as the dashboard shows them, so the docs never show a different number from the site. The Session 9 ranking above and the README now say 99, 97, 94, 73, 66, 49, 49 and 35, with the ranges rounded the same way. The exact values stay in the run files.
+- **The lineup:**
+  - On a laptop, the placards line up. A maker line that wrapped used to push that bot's score lower.
+  - The judge is named once above the wall ("One judge graded every bot: Claude Haiku 5.5…"), instead of on all eight placards.
+  - On a phone, each bot is a compact card (name on the left, score and grade on the right) over a slimmer bar. The whole ranking takes about two and a half screens instead of five.
+- **Smaller fixes from the list:**
+  - Gemma 4's citation-004 replay ran 11 px off the side of a phone. A long link in the case notes now wraps.
+  - The overconfidence chart's last label read "100" on a phone; it's "100%" again. Its smallest numbers went from 9.5 to 11 px.
+  - On a laptop, the case notes now fade at the bottom while there's more to scroll to, like the transcript.
+  - On a tablet, "Question 1 of 200 · Ghost facts, …" was cut short by the speed buttons.
+  - The evidence wall's trap types are one row to swipe on a phone, instead of four rows before the first card.
+  - The "MADE UP" tags on evidence cards went from 10.5 to 11.5 px, and "sure · said …" from 11 to 12 px.
+  - The small toggles ("Show the whole answer", "Read the document", "Read its instructions") and the lineup's links are at least 32 px tall to tap. "Reset the filters" and "Watch a recorded interrogation" are 44 px.
+  - The first loading screen's "POLYGRAPH" moved 3 px when its font arrived. That screen now uses the device's own fonts while the real ones load.
+  - The data screens jumped 38 px on a phone when the Subject picker arrived. Its place is held, and the loading panel waits under it.
+- **Sound** (still off every time the page opens):
+  - **The thud** used to be mostly a 40 to 90 Hz rumble: 75% of its energy was under 150 Hz, where phone and laptop speakers play little. It's now a short falling tone with harmonics small speakers can play, a wooden knock and the slap of rubber on paper. It's 6 dB quieter at its loudest, 120 ms instead of 223 ms, and just as loud as before in the range a phone speaker plays.
+  - **The scratch** is now a pen on paper: noise with a grainy, fibrous texture, silent on the calm line, rising when the needle spikes.
+  - **On an iPhone, Sound plays even when the phone is on silent** (Christian's choice: the viewer asked for sound). Turning it off gives the setting back.
+  - `dashboard/scripts/sound-lab.mjs` renders the sounds in the browser without speakers and measures them. The before and after files are in `.tools\sound-check\` (not in git) for Christian to listen to.
+- **Accessibility:**
+  - **Focus outline:** it's now dark ink on the manila and paper surfaces. Brass on tan was 1.2 to 1; dark ink is about 9 to 1.
+  - **Skip link:** "Skip to the content" is the first thing the Tab key reaches on every screen.
+  - **Focus on screen change:** switching screens moves focus to the new screen's main heading.
+  - **Headings:** the replay and the report card have a main heading. The lineup no longer skips a heading level (Lighthouse's one accessibility point, 98 to 100).
+  - **The Sound button** keeps one name, "Sound", and says on or off by being pressed or not (it used to change its name as well, so a screen reader heard the state twice).
+  - **At 4× and 8×** the replay no longer announces a question every second or two. It says "Playing at 8 times speed. Pause to hear where it is."
+  - **The film grain** only moves while a replay or a live run is playing, so a paused replay and the reading screens are still.
+  - **Reduce motion** was checked on every part, the new ones included.
+- **Speed** (Lighthouse 13.6, installed for this project only in `.tools\lighthouse`; `dashboard/scripts/lighthouse.mjs`). Every screen now scores 90 or more in every category, at phone and laptop settings (the numbers are under Checked, below):
+  - **The report card and the overconfidence meter** now open on a light copy of the run (115 KB instead of 1.15 MB). It has the scores and every verdict but not the answers, except the one card the meter shows in full.
+  - **The evidence wall** opens on a copy with the caught answers in full and the rest by their verdicts (60% of the size). Its filters' counts are the same. It fetches the whole run in the background, so other filters are instant.
+  - **The evidence wall draws its cards a few at a time** without redrawing the ones already up, and builds each card's whole answer only when it's opened.
+  - **The name rule (Session 10) built its patterns from scratch for every name in every answer.** That cost about a second on a phone. Each pattern is now built once and each answer checked once, with the same results (its tests pass unchanged).
+  - **Tried and dropped:** starting the fonts' download early. Lighthouse showed no gain and a later first paint.
+  - **Not needed:** splitting the code by screen. The first page already scores 97.
+- **Favicon and social preview** (`dashboard/scripts/make-images.mjs`, made with the Edge already on this PC):
+  - **Favicon:** chart paper with one red spike, bold enough to read at 16 px, as an SVG, an .ico (16, 32 and 48 px) and an iPhone home-screen icon.
+  - **Social preview:** a 1200 × 630 picture in the interrogation-room look, plus the tags LinkedIn, Slack and X read (title, description, picture).
+  - **GitHub copy:** a 1280 × 640 version for the repo's own preview, in `docs/social/`.
+  - **Christian's rules:** no company logos, and no names from the bots' answers.
+- **Live mode no longer jumps when a bold paragraph finishes.** While a live answer streamed in, a paragraph in `**bold**` showed its opening asterisks until the closing ones came, then lost them and re-wrapped. That measured 0.0216 on a laptop; it's 0.0001 now. A live answer still arriving now shows its Markdown in its final form (`closeOpenMarkers()` in `dashboard/src/lib/markdown.ts`, with tests). The replay never had it, since it knows the whole answer from the start.
+- **The keyboard:** a whole recording's strip used to be 33 Tab stops (8 trap types and 25 questions). Each group of buttons is now one Tab stop, and the arrow keys, Home and End move inside it.
+- **The demo build on this PC is now exactly GitHub's:** `npm run build:demo` only uses the runs git has (`export-runs.mjs --committed`). `npm run phone:demo` puts that build on your phone.
+- **Checked:**
+  - **The final audit,** on the finished demo build at all 7 sizes: nothing runs off the side, no text is cut short, nothing overlaps, no tap target is under 24 px, and every CAUGHT stamp is fully on the paper when its verdict shows. No browser errors.
+  - **The menu sweep:** no overlap at any width from 1000 to 1700 px, on the demo and on the full version with live mode's New tab.
+  - **The keyboard walk** (`dashboard/scripts/keyboard-walk.mjs`): every screen with the Tab key alone, and every focus outline can be seen against what's behind it. "Skip to the content" works, and a new screen puts focus on its heading.
+  - **The Session 9 screenshot suite** (`npm run shots`, with the live screens on the pretend server): the accessibility scan (WCAG 2.1 AA) found no problems in 34 scans. Nothing jumps: 0.0000 over 114 seconds of replay and on every screen as it opens, and 0.0001 (laptop) and 0.0004 (phone) while a live answer streams in. 99% of frames take under 4.3 ms. Sound is off at load; reduce motion holds the paper still and stops the grain. No console errors.
+  - **A frame-by-frame check on a phone:** ghost-004's stamp lands, the paper slows and the stamp stays on it while the confidence shows, then the paper speeds up before the next question.
+  - **262 dashboard tests** (40 new) and **757 Python tests** pass, with the type check and the build.
+  - **Lighthouse,** 3 runs each, the middle one kept. Before is the live demo; after is the new build served the way GitHub Pages serves it (compressed, over HTTP/2), a setup that gave the live demo's own numbers for the old build. The live site gets measured again after the push.
+
+    | Screen | Performance, phone | Performance, laptop | Accessibility | Best Practices | SEO |
+    |---|---|---|---|---|---|
+    | The replay (first page) | 97 → 96 | 100 → 100 | 100 | 100 | 100 |
+    | The report card | 88 → **97** | 100 → 100 | 100 | 100 | 100 |
+    | The evidence wall | 73 → **91** | 86 → **100** | 100 | 100 | 100 |
+    | The overconfidence meter | 87 → **96** | 100 → 100 | 100 | 100 | 100 |
+    | The lineup | 94 → 95 | 100 → 100 | 98 → **100** | 100 | 100 |
+
+    The replay's 97 to 96 is within one run's variation. The evidence wall's page used to freeze for 1.7 seconds on a phone while its cards were laid out; it's 0.14 seconds now.
+- **The dashboard is version 0.11.0.** The engine didn't change and stays 0.10.0.
+- **Spent: $0.** No AI calls.
 
 ---
 
@@ -853,6 +941,27 @@ npm run shots
   Open `index.html` in that folder to see the screenshots, and `checks.json` for the results.
 - **To stop publishing,** delete the `DEMO_SITE` variable on GitHub (Settings, then Secrets and variables, then Actions, then Variables). To take the site down, ask Claude to turn GitHub Pages off.
 
+**See the demo on your phone before it's published** (Session 11; in the `run` tab, in the `dashboard` folder, with your phone on the same Wi-Fi as the PC):
+```powershell
+npm run phone:demo
+```
+- It builds the demo exactly as GitHub builds it (only the runs that are in git), then prints a `Network:` address like `http://192.168.1.23:4173/`. Type that into your phone's browser. On this PC, open http://localhost:4173/.
+- The first time, Windows asks whether to allow Node.js. Allow it on **private networks only**. Press Ctrl+C in the `run` tab to stop.
+
+**The polish checks** (Session 11; in the `run` tab, in the `dashboard` folder, after `npm run build:demo`):
+```powershell
+node scripts/polish-audit.mjs --out $env:TEMP\polygraph-audit
+node scripts/polish-audit.mjs --menu-sweep --out $env:TEMP\polygraph-audit
+node scripts/keyboard-walk.mjs
+node scripts/lighthouse.mjs --url https://fortezzo.github.io/polygraph/
+node scripts/sound-lab.mjs --out $env:TEMP\polygraph-sound
+```
+- **The audit** photographs every screen at 7 sizes and measures what eyes miss: anything running off the side, text cut short, overlaps, small tap targets and small text, where the chart starts, and whether the stamp is on the paper (about 15 minutes). The second line checks the menu at every width from 1000 to 1700 px.
+- **The keyboard walk** goes through every screen with the Tab key and checks each focus outline can be seen.
+- **Lighthouse** measures the live demo at phone and laptop settings, 3 runs each (about 10 minutes). Without `--url` it measures the build on this PC. Add `--cert <folder>` with a `cert.pem` and `key.pem` to serve it the way GitHub does (HTTP/2), or its numbers come out a few points low. Lighthouse is installed for this project only, in `.tools\lighthouse`, which git ignores. On a fresh copy, install it once from the Polygraph folder: `mkdir .tools\lighthouse; cd .tools\lighthouse; npm init -y; npm install lighthouse@13.6.0 --before=2026-10-28T00:00:00Z --ignore-scripts --save-exact; cd ..\..` (no install scripts, and nothing newer than two weeks before Session 11).
+- **The sound lab** plays the sounds into memory, measures them and saves them as WAV files to listen to.
+- **The favicon and the social preview** are made by `node scripts/make-images.mjs` (add `--design B` for the other design).
+
 **Run the automated tests** (in the `run` tab):
 ```powershell
 python -m pytest
@@ -887,11 +996,14 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
 
 ---
 
-## What's next: Session 11, Polish pass
-- **The goal:** everything on the demo feels finished: the animations, the sound, the phone layout and the error and empty states.
-- **Starting points:** the Session 11 notes at the end of this file. They include holding the spike in view on a phone while the verdict shows, one format for scores, friendlier model names, a lighter first page, and the tall phone header.
-- **Every change is checked on the live demo too,** at phone size (`demo-shots.mjs --url`, see "The demo site" above), and each push still needs your OK.
-- **Your part:** open the demo on your phone and your laptop, and list anything that looks off, sounds wrong or feels slow.
+## What's next: Session 12, README + launch
+- **The goal:** a README that sells the project in its first screen and holds up to a careful reader.
+  - A GIF of the needle catching a lie at the top.
+  - The findings table: the lineup, in whole numbers and friendly names, as the site shows them.
+  - How it works, the methodology and its limits, and how to run it.
+- **The repo is already public** (Session 10), so "launch" is the README, the GitHub repo's own preview picture (`docs/social/github-preview.jpg`, uploaded by hand in the repo's settings), and your LinkedIn post.
+- **Starting points:** the Session 12 notes at the end of this file.
+- **Your part:** write your LinkedIn post in your own words, and check how the link looks with LinkedIn's Post Inspector.
 
 ---
 
@@ -1042,6 +1154,21 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
   - **The GitHub CLI is used for the polygraph repo only,** and Claude asks before every push.
   - **The repo is public, with the demo on GitHub Pages** (Christian's option A, rather than Netlify). GitHub's free plan has no Pages for a private repo. The repo went public only after the tests passed on GitHub.
   - **PLAN.md and PROMPTS.md stay private.** They're in `.gitignore`. Before the first push, no commit had either file, under any name, or any of their lines.
+- **The polish pass (Session 11, Christian's choices):**
+  - **Whole numbers everywhere,** halves rounded up exactly as the dashboard does (98.5 is 99), so the docs never show a different number from the site. The exact values stay in the run files.
+  - **Friendly model names,** written as each maker writes them, with the exact tag in small print wherever a bot is named in full. This replaces the Session 6 choice on purpose. The names are in one place (`dashboard/src/lib/models.ts`).
+  - **On an iPhone, Sound plays even when the phone is on silent,** since the viewer asked for sound. Turning it off gives the setting back. Sound is still off every time the page opens.
+  - **The favicon and the social preview follow the site's rules:** no company logos, and no names from the bots' answers.
+  - **Lighthouse is installed for this project only,** in `.tools\lighthouse` (git ignores it), not globally.
+- **The polish pass (Session 11, how it was built):**
+  - **On a phone, the paper slows after a stamp** so the stamp stays fully on the paper until 2.5 seconds after the confidence shows, for 14 seconds at most. It speeds back up before the next question. It never slows where there's room (a laptop), and live mode keeps one speed.
+  - **The question strip and the speed sit under the chart and the verdict on a phone or tablet,** and above the chart on a laptop.
+  - **The replay's and live mode's buttons show their words from 1280 px wide,** and only their icons below that, so the menu always fits next to them.
+  - **The Subject picker moved from the menu bar into the subject bar,** the same place as the replay's Recording picker.
+  - **Both pickers draw their choice on two lines** over a real dropdown, never cut short, with 16 px text so an iPhone doesn't zoom in.
+  - **Smaller copies of each run:** a light copy for the report card and the overconfidence meter, and a caught-answers copy for the evidence wall. Each is checked by tests against the whole run.
+  - **The demo build uses only the runs git has** (`--committed`), so the build on this PC is the one GitHub publishes.
+  - **Not done, on purpose:** splitting the code by screen (the first page already scores 97), and preloading the fonts (Lighthouse showed a later first paint and no gain).
 - **Dashboard packages (Session 6):**
   - Each package is pinned to an exact version that had been out at least two weeks. All package signatures are verified, and install scripts are turned off (`dashboard/.npmrc`).
   - Vite stays at 8.3.5. It already pulls in Rolldown 1.2.18, which has the Nov 9 escaping fix that Vite 8.3.7 shipped.
@@ -1138,30 +1265,23 @@ Paste the key right after `OPENAI_API_KEY=`, `ANTHROPIC_API_KEY=` or `GEMINI_API
   - **The screenshots add up:** about 13 MB for Session 7, 19 MB for Session 8 and 23 MB for Session 9 (101 screenshots), all in git's history. Before the repo goes public, decide whether to keep every session's set or only the latest.
   - **The build warns that the main script is 546 kB** (172 kB gzipped), over Vite's 500 kB warning line. It has said so since before Session 9. Splitting it is optional.
   - **Hide the New interrogation tab on the demo site.** It needs Polygraph's server, which only runs on this PC, so on GitHub Pages it would only say "Polygraph's server isn't running". The built site never talks to a server: `/api` only passes through in development (`vite.config.ts`).
-- **Session 11 (polish):**
-  - The needle scratch and stamp thud are made by the browser and kept quiet. They're worth a listen on Christian's speakers.
-  - On a phone, the replay line, the question strip and the line under the needle take about 400 px before the chart. That could be tighter.
-  - **On a phone, keep the spike in view while the verdict shows** (Christian, after reviewing Session 7). Recruiters will mostly open the demo on their phones.
-    - Today, by the time the verdict and the confidence ("98%") appear, the red spike and the CAUGHT stamp have already scrolled off the paper. ghost-004 shows it (`phone-04-caught-verdict.jpg` in `docs/screenshots/session-7/`): its made-up words are in the first line of a long answer.
-    - On a caught answer, the paper should pause, or hold the spike in view, while the verdict shows.
-    - **Where it lives:** the pen's position and the paper's speed (30 px a second on a phone) are at the top of `dashboard/src/components/ChartPaper.tsx`, and the replay's timing is in `dashboard/src/lib/timeline.ts`. The stamp tests (`stamp.test.ts`) and the zero layout shift still have to hold.
-    - **Live mode already does this:** its spike comes when the verdict arrives, so it's in view while the verdict shows.
-  - **Live mode's pacing** (`LIVE_PACE` in `dashboard/src/lib/live.ts`) is worth a feel on your screen. Each verdict stays up 2.6 seconds (4.2 if caught), and a caught one waits until 6 seconds after its question started, so the stamp has room.
-  - **The phone menu now scrolls sideways,** because 5 tabs don't fit. The current tab is scrolled into view and the edge fades. Shorter names would also work.
-  - **One format for scores** (Christian, after reviewing Session 9). The lineup rounds 98.5 to 99, 93.5 to 94 and 72.75 to 73, while PROGRESS.md and `docs/methodology.md` use the exact numbers. Pick one format and use it in both.
-    - The dashboard rounds with `shownScore()` in `dashboard/src/lib/report.ts` (halves go up), and the report card and the placards both use it.
-  - **Friendlier model names** (Christian, after reviewing Session 9): "Gemma 4 12B" instead of `gemma4:12b`, with the exact tag in small print.
-    - This changes the Session 6 decision to show names exactly as the run file has them (see Decisions). The exact tag still has to be on screen, since it's what was tested.
-  - **From Session 10:**
-    - **A lighter first page.** The main script is 565 kB (178 kB compressed), over Vite's warning line. Loading the lineup, the evidence wall and the report card only when they're opened would make the first page lighter on a phone. Measure the live site with Lighthouse at phone size before and after.
-    - **The phone header is tall:** the menu, the Recording picker and the replay's controls take about 650 px before the chart paper starts. The Recording picker also cuts its label short on a phone ("Highlights: gemma3:12b, 6").
-    - **On a phone, the overconfidence chart's last axis label is cut off:** "100%" at the right edge reads "100" (`phone-12-confidence.jpg` in `docs\screenshots\session-10`).
-    - **The screenshots make the repo heavy:** Session 10's set is 7 MB, and 12.5 MB in the history because it was made twice. That's on top of about 55 MB for Sessions 7 to 9. Everything is already in the public history. From now on, smaller images or fewer kept in git would help.
-    - **The demo's data files keep the bots' original words, names included** (the Session 6 rule: the recording keeps the original). Only the screen hides the names. If the public files should leave them out too, `export-runs.mjs` is the place.
-    - **Live mode hides every name, with no exception,** because its verdicts don't carry the citation check's details. Sending them would let live mode show confirmed authors too.
-    - **The citation check reads a few words as surnames** ("Relevant", "Society", "Deep"). That's harmless for the name rule, which only hides them, but the check's author matching could use the same cleanup.
-    - **The GitHub Actions are pinned to exact versions.** Updating them is by hand, following the two-week rule.
+- **Session 11 (polish):** done. Its starting points were all on the session's list and are fixed: the spike in view on a phone, the tall phone header, the picker's cut-off label, the phone menu, one format for scores, friendlier model names, the "100%" label, a faster first view of every screen, and the sound. Still open from them:
+  - **Live mode's pacing** (`LIVE_PACE` in `dashboard/src/lib/live.ts`) only runs on this PC, so it was checked with the pretend server, not by feel. Each verdict stays up 2.6 seconds (4.2 if caught).
+  - **The screenshots make the repo heavy** (about 70 MB of history). Session 11 kept only small before-and-after pairs in git (`docs/screenshots/session-11/`); the full audits stayed out.
+  - **The demo's data files keep the bots' original words, names included** (the Session 6 rule: the recording keeps the original). Only the screen hides the names. If the public files should leave them out too, `export-runs.mjs` is the place.
+  - **Live mode hides every name, with no exception,** because its verdicts don't carry the citation check's details.
+  - **The citation check reads a few words as surnames** ("Relevant", "Society", "Deep"). Harmless for the name rule, which only hides them.
+  - **The GitHub Actions are pinned to exact versions.** Updating them is by hand, following the two-week rule.
+  - **When a bot's made-up words come in the first second of its answer,** its stamp can sit up to 12 px under the pen's housing (on a small phone), because a stamp never reaches back over the question before. It's been so since Session 10's whole recordings.
+- **After Session 11 (things to know):**
+  - **New screens or names:** a model tag that isn't in `dashboard/src/lib/models.ts` shows as it is. Add its friendly name there, written the way its maker writes it.
+  - **New runs:** `export-runs.mjs` makes each run's light and caught copies by itself. `polish.test.ts` checks they match the whole run.
+  - **The social preview shows the lineup's numbers only in design B.** If the lineup changes, run `node scripts/make-images.mjs` again (it reads the current grades).
+  - **LinkedIn keeps a link's preview for about a week.** After changing the picture, paste the link into LinkedIn's Post Inspector to refresh it.
 - **Session 12 (README):**
+  - **Numbers and names as the site shows them** (Christian, Session 11): whole numbers with halves rounded up, and friendly names with the exact tag beside them. The README's table already follows it.
+  - **The README GIF:** `npm run shots` and `polish-audit.mjs` can be pointed at any moment of the replay (`?paused&at=ghost-004`), and Edge can record it. The phone replay now shows the spike and the stamp with the verdict, which is the moment to show.
+  - **The repo's own preview picture** is `docs/social/github-preview.jpg`. GitHub only takes it by hand: Settings, General, Social preview.
   - Quote the test half: **88% (78–96%), Cohen's kappa 0.80 (0.64–0.94)**, on 50 answers measured once.
   - Mention that the untuned rubric did as well, and link [`docs/methodology.md`](docs/methodology.md).
   - The README was brought up to date in Session 10: 200 traps, the lineup's grades, the dashboard, 757 tests, the tests badge and the demo link. Session 12 writes it in full.

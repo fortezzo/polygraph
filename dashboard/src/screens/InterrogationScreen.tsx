@@ -14,8 +14,9 @@ import { subjectOf } from "../lib/runs";
 import { ChartPaper } from "../components/ChartPaper";
 import { Transcript } from "../components/Transcript";
 import { CaseDetails, CaseSummary } from "../components/CaseNotes";
-import { NextCaughtButton, ReplayControls, Rail, ReplayBar, SpeedControl, TypeRail } from "../components/Header";
+import { NextCaughtButton, ReplayControls, Rail, SpeedControl, SubjectBar, TypeRail } from "../components/Header";
 import { TopBar } from "../components/TopBar";
+import { modelName } from "../lib/models";
 
 export interface StartOptions {
   paused?: boolean;
@@ -143,17 +144,30 @@ export function InterrogationScreen({
     };
   }, [timeline, playback, sound, reduced]);
 
+  // Session 11: the film grain moves only while the replay plays (index.css).
+  useEffect(() => {
+    if (status === "playing") document.body.dataset.playing = "";
+    else delete document.body.dataset.playing;
+    return () => {
+      delete document.body.dataset.playing;
+    };
+  }, [status]);
+
   // Short announcements for screen readers: the question, then the verdict.
+  // Session 11: at 4× and 8× a question can pass every second or two, so while it
+  // plays that fast the announcements wait, and say where it stopped when paused.
   const plan = timeline.traps[view.trap];
+  const fast = rate >= 4 && status === "playing";
   const announcement = useMemo(() => {
     if (!plan) return "";
     if (view.ended) return "The replay is over.";
+    if (fast) return `Playing at ${rate} times speed. Pause to hear where it is.`;
     const head = `Question ${plan.index + 1} of ${timeline.traps.length}, ${plan.label}.`;
     if (!view.verdictShown || !plan.verdict) return head;
     const info = VERDICT_INFO[plan.verdict];
     const sure = view.finalShown && plan.headline ? ` It said it was ${plan.headline.value}% sure.` : "";
     return `${head} Verdict: ${info.word.toLowerCase()}${info.caught ? ", caught" : ""}.${sure}`;
-  }, [plan, view.verdictShown, view.finalShown, view.ended, timeline.traps.length]);
+  }, [plan, view.verdictShown, view.finalShown, view.ended, timeline.traps.length, fast, rate]);
 
   const recorded = useMemo(
     () => recordedRange(run.traps.flatMap((t) => answersOf(t).map((a) => a.call?.first_collected_at))) ?? recordedRange([run.run.started_at]),
@@ -203,21 +217,29 @@ export function InterrogationScreen({
         <TopBar active="replay">
           <ReplayControls status={status} soundOn={soundOn} onPlayPause={playPause} onRestart={() => playback.restart()} onSound={toggleSound} />
         </TopBar>
-        <ReplayBar
-          model={subjectOf(target)}
+        <SubjectBar
+          tag="replay"
+          picker={picker ?? <span className="font-type text-[15px] font-bold text-[#f3e8d2]">{subjectOf(target)}</span>}
           maker={judge?.bot_company}
           via={target.provider_label}
           recorded={recorded}
-          judge={judge ? `${judge.model}${judge.company ? ` (${judge.company})` : ""}` : undefined}
-          subject={picker}
+          judge={judge ? `${modelName(judge.model)}${judge.company ? ` (${judge.company})` : ""}` : undefined}
         />
-        {timeline.traps.length > MANY ? (
-          <TypeRail timeline={timeline} view={view} onJump={jump} aside={controls} />
-        ) : (
-          <Rail timeline={timeline} view={view} onJump={jump} aside={controls} />
-        )}
         {plan && (
-          <main className="screen-grid mt-1">
+          <main id="content" className="screen-grid with-rail mt-1">
+            <h1 className="sr-only">
+              Interrogation room: {subjectOf(target)}, {timeline.traps.length > MANY ? `all ${timeline.traps.length} questions` : `${timeline.traps.length} questions`}
+            </h1>
+            {/* Session 11: the strip of questions, the speed and "Next caught answer".
+                Above the chart on a laptop; on a phone or tablet, under the chart and
+                the verdict, so the chart is near the top. */}
+            <div className="area-rail">
+              {timeline.traps.length > MANY ? (
+                <TypeRail timeline={timeline} view={view} onJump={jump} aside={controls} />
+              ) : (
+                <Rail timeline={timeline} view={view} onJump={jump} aside={controls} />
+              )}
+            </div>
             <div className="area-chart">
               <ChartPaper
                 timeline={timeline}
@@ -228,13 +250,14 @@ export function InterrogationScreen({
                 trapIndex={view.trap}
                 stamped={view.stamped}
                 slam={slam}
+                hold
               />
             </div>
             <p className="area-note m-0 text-[13px] text-muted italic">{NEEDLE_NOTE}</p>
             <Transcript
               plan={plan}
               view={view}
-              model={target.model}
+              model={target.name ?? modelName(target.model)}
               reduced={reduced}
               confidenceQuestion={run.run.prompts?.confidence_question}
               instructions={instructions}

@@ -17,6 +17,8 @@ import { CaseDetails, CaseSummary } from "../components/CaseNotes";
 import { Icon } from "../components/Icon";
 import { StatePanel } from "../components/States";
 import { TopBar } from "../components/TopBar";
+import { CONTROL, CONTROL_WORDS } from "../components/Header";
+import { modelName } from "../lib/models";
 
 // The needle's line in a live run (Christian approved the wording in Session 8).
 const NEEDLE_NOTE = "The needle jumps when Polygraph’s judge finds made-up words, right after it reads each answer. It’s not a live signal from the bot.";
@@ -58,7 +60,7 @@ export function LiveScreen({ route }: { route: Route }) {
     return (
       <div className="mx-auto flex max-w-[1680px] flex-col gap-3 px-4 pt-3 pb-12 sm:px-6 lg:px-8 lg:pt-[18px]">
         <TopBar active="live" />
-        <main>
+        <main id="content">
           {connection.status === "loading" && <StatePanel kicker="LOADING" title="Opening the interrogation room…" live="polite" />}
           {connection.status === "none" && (
             <StatePanel kicker="NOTHING LIVE" title="No interrogation is going right now">
@@ -182,12 +184,22 @@ function LiveRoom({ run, reduced, fromStart }: { run: RunSummary; reduced: boole
 
   const info = state.info;
   const plan = timeline.traps[view.trap];
-  const botName = info ? info.bot.name ?? info.bot.model : run.name ?? run.model;
+  const botName = info ? info.bot.name ?? modelName(info.bot.model) : run.name ?? modelName(run.model);
   const total = info?.traps.length ?? 0;
   // The screen can be a few seconds behind the server (each verdict stays up a
   // moment), so the end shows when the screen gets there.
   const finished = state.finished && clock.now() >= state.finished.at ? state.finished : null;
   const status = statusLine(state, clock.now(), view.trap);
+
+  // Session 11: the film grain moves while the run is going (index.css).
+  const going = !finished;
+  useEffect(() => {
+    if (going) document.body.dataset.playing = "";
+    else delete document.body.dataset.playing;
+    return () => {
+      delete document.body.dataset.playing;
+    };
+  }, [going]);
 
   // Short announcements for screen readers: the question, then the verdict.
   const announcement = useMemo(() => {
@@ -222,20 +234,23 @@ function LiveRoom({ run, reduced, fromStart }: { run: RunSummary; reduced: boole
                 type="button"
                 onClick={stop}
                 disabled={stopAsked || state.stopping}
-                className="inline-flex h-11 min-w-11 items-center justify-center gap-2 rounded-[4px] border border-lie/60 bg-lie/10 px-0 font-label text-[14px] text-text transition-colors hover:bg-lie/20 disabled:opacity-60 sm:h-[38px] sm:w-[118px] sm:px-3.5"
+                title={stopAsked || state.stopping ? "Stopping" : "Stop"}
+                className={`${CONTROL} border-lie/60 bg-lie/10 text-text hover:bg-lie/20 disabled:opacity-60 min-[1280px]:w-[118px]`}
               >
                 <Icon name="stop" className="h-[16px] w-[16px]" />
-                <span className="sr-only sm:not-sr-only">{stopAsked || state.stopping ? "Stopping" : "Stop"}</span>
+                <span className={CONTROL_WORDS}>{stopAsked || state.stopping ? "Stopping" : "Stop"}</span>
               </button>
             )}
+            {/* Session 11: one name, "Sound", pressed or not (see ReplayControls). */}
             <button
               type="button"
               onClick={toggleSound}
               aria-pressed={soundOn}
-              className={`inline-flex h-11 min-w-11 items-center justify-center gap-2 rounded-[4px] border border-text/25 bg-white/[0.03] px-0 font-label text-[14px] transition-colors hover:bg-white/[0.08] sm:h-[38px] sm:w-[128px] sm:px-3.5 ${soundOn ? "text-text" : "text-muted"}`}
+              title={soundOn ? "Sound is on" : "Sound is off"}
+              className={`${CONTROL} ${soundOn ? "border-brass/80 text-text" : "border-text/25 text-muted"} hover:bg-white/[0.08] min-[1280px]:w-[112px]`}
             >
               <Icon name={soundOn ? "sound-on" : "sound-off"} className="h-[18px] w-[18px]" />
-              <span className="sr-only sm:not-sr-only">{soundOn ? "Sound on" : "Sound off"}</span>
+              <span className={CONTROL_WORDS}>Sound</span>
             </button>
           </div>
         </TopBar>
@@ -254,7 +269,7 @@ function LiveRoom({ run, reduced, fromStart }: { run: RunSummary; reduced: boole
         {finished && <FinishedPanel state={state} botName={botName} />}
 
         {plan ? (
-          <main className="screen-grid mt-1">
+          <main id="content" className="screen-grid mt-1">
             <div className="area-chart">
               <ChartPaper timeline={timeline} track={track} playback={clock} sound={sound} reduced={reduced} trapIndex={view.trap} stamped={view.stamped} slam={slam} />
             </div>
@@ -291,21 +306,19 @@ function LiveBar({ state, run, over }: { state: LiveState; run: RunSummary; over
         {over ? "LIVE · OVER" : "LIVE"}
       </span>
       <span>
-        Subject: <b className="font-bold text-[#f3e8d2]">{bot?.name ?? bot?.model ?? run.name ?? run.model}</b>{" "}
+        Subject: <b className="font-bold text-[#f3e8d2]">{bot?.name ?? (bot ? modelName(bot.model) : null) ?? run.name ?? modelName(run.model)}</b>{" "}
         {bot && (
           <span className="text-muted">
-            ({bot.name ? `built on ${bot.model}, ` : ""}made by {bot.maker}
+            ({bot.name ? `built on ${modelName(bot.model)}, ` : ""}
+            <span className="text-[12px]">{bot.model}</span>, made by {bot.maker}
             <span className="hidden sm:inline">, run with {bot.provider_label}</span>)
           </span>
         )}
       </span>
       {info && (
-        <>
-          <span className="hidden text-[#6f6556] md:inline" aria-hidden="true">·</span>
-          <span className="hidden md:inline">
-            Judge: {info.judge.model} ({info.judge.maker}), {info.judge.votes} votes each
-          </span>
-        </>
+        <span className="hidden md:inline">
+          Judge: {modelName(info.judge.model)} ({info.judge.maker}), {info.judge.votes} votes each
+        </span>
       )}
       {info?.pretend && <span className="rounded-[2px] border border-brass/60 px-1.5 text-[12px] text-brass">PRETEND: replaying a recorded run</span>}
     </div>

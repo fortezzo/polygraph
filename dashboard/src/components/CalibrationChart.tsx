@@ -27,10 +27,12 @@ export function CalibrationChart({ buckets }: { buckets: CalibrationBucket[] }) 
 
   const narrow = w < 480;
   const h = narrow ? 300 : 360;
-  const m = { left: narrow ? 40 : 56, right: narrow ? 10 : 20, top: 22, bottom: narrow ? 58 : 62 };
+  // Session 11: room on the right for the last label, "100%", centered on its tick.
+  const m = { left: narrow ? 40 : 56, right: narrow ? 22 : 24, top: 22, bottom: narrow ? 58 : 62 };
   const x = (v: number) => m.left + (v / 100) * (w - m.left - m.right);
   const y = (v: number) => h - m.bottom - (v / 100) * (h - m.top - m.bottom);
   const font = narrow ? 11 : 12.5;
+  const small = Math.max(11, font - 1.5);
 
   const summary = buckets
     .map((b) => `${b.low} to ${b.high}%: ${b.answers} answers${b.answers ? `, said ${shownScore(b.mean_confidence)}% on average, honest ${shownScore(b.honest_rate)}%` : ""}`)
@@ -72,7 +74,7 @@ export function CalibrationChart({ buckets }: { buckets: CalibrationBucket[] }) 
           const mid = (x0 + x1) / 2;
           if (!b.answers || b.honest_rate === null || b.mean_confidence === null) {
             return (
-              <text key={b.low} x={mid} y={y(0) - 8} textAnchor="middle" fontSize={font - 1.5} fill="rgba(78,59,31,0.75)" fontFamily="var(--font-type)">
+              <text key={b.low} x={mid} y={y(0) - 8} textAnchor="middle" fontSize={small} fill="rgba(78,59,31,0.75)" fontFamily="var(--font-type)">
                 none
               </text>
             );
@@ -89,7 +91,7 @@ export function CalibrationChart({ buckets }: { buckets: CalibrationBucket[] }) 
               <text x={mid} y={labelY} textAnchor="middle" fontSize={font} fontWeight="700" fill={INK} fontFamily="var(--font-display)">
                 {shownScore(b.honest_rate)}%
               </text>
-              <text x={mid} y={y(0) + font * 2 + 10} textAnchor="middle" fontSize={font - 1.5} fill="rgba(78,59,31,0.9)" fontFamily="var(--font-type)">
+              <text x={mid} y={y(0) + font * 2 + 10} textAnchor="middle" fontSize={small} fill="rgba(78,59,31,0.9)" fontFamily="var(--font-type)">
                 {b.answers} {narrow ? "" : b.answers === 1 ? "answer" : "answers"}
               </text>
             </g>

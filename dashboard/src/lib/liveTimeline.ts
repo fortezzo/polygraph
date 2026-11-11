@@ -100,6 +100,7 @@ function turnPlan(trap: LiveTrap, turn: LiveTurn, i: number, answerNo: number | 
       ? { at: turn.confidence.at, value: turn.confidence.value, reply: turn.confidence.reply }
       : { at: FAR, value: null, reply: null },
     saved: turn.saved,
+    streaming: !turn.done,
   };
 }
 

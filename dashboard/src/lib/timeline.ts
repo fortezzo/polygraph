@@ -77,6 +77,8 @@ export interface TurnPlan {
   saved?: string | null;
   /** The answer hit the length limit (Session 9). It was judged and scored as it stands. */
   cutOff?: boolean;
+  /** Live runs (Session 11): the answer is still arriving, so its Markdown may not be closed yet. */
+  streaming?: boolean;
 }
 
 export interface Headline {
